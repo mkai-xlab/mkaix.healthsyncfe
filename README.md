@@ -23,9 +23,10 @@ fe/
 ├── docs/
 │   ├── architecture.md        # Current and planned frontend architecture
 │   ├── development.md         # Local development workflow
+│   ├── package-diagram.md     # lib package dependency diagram
 │   └── diagrams/
-│       ├── fe-architecture.drawio
-│       └── fe-architecture.png
+│       ├── package-diagrams.drawio
+│       └── package-diagrams.png
 ├── pubspec.yaml               # Flutter package metadata and dependencies
 └── analysis_options.yaml      # Dart analyzer and lint configuration
 ```
@@ -79,8 +80,8 @@ The app starts in `lib/main.dart`:
 ## Documentation
 
 - [Architecture](docs/architecture.md)
+- [Package Diagram](docs/package-diagram.md)
 - [Development Guide](docs/development.md)
-- [Frontend Architecture Diagram](docs/diagrams/fe-architecture.png)
 
 ## Architecture Direction
 
@@ -90,4 +91,4 @@ The repository currently has a single Dart source file, but the intended directi
 - Domain layer for entities, repository contracts, and use cases.
 - Data layer for API clients, DTO/models, and repository implementations.
 
-The planned structure is documented in `docs/architecture.md` and visualized in `docs/diagrams/fe-architecture.png`.
+The planned structure is documented in `docs/architecture.md` and visualized in `docs/diagrams/package-diagrams.png`.

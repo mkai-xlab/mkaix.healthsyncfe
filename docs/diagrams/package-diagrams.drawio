@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="drawio" version="26.0.0">
+  <diagram name="Package Diagrams" id="package-diagrams">
+    <mxGraphModel dx="1400" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" value="Frontend UML Package Diagram" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;fontSize=24;fontStyle=1;fontColor=#111827;" parent="1" vertex="1">
+          <mxGeometry x="420" y="30" width="560" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="pages" value="presentation/pages" style="shape=folder;tabWidth=110;tabHeight=22;tabPosition=left;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#111827;fontColor=#111827;fontSize=16;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="120" y="130" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="viewmodels" value="presentation/viewmodels" style="shape=folder;tabWidth=130;tabHeight=22;tabPosition=left;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#111827;fontColor=#111827;fontSize=16;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="120" y="310" width="230" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="usecases" value="domain/usecases" style="shape=folder;tabWidth=105;tabHeight=22;tabPosition=left;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#111827;fontColor=#111827;fontSize=16;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="470" y="220" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="interfaces" value="domain/interface_repositories" style="shape=folder;tabWidth=150;tabHeight=22;tabPosition=left;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#111827;fontColor=#111827;fontSize=16;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="470" y="430" width="270" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="entities" value="domain/entities" style="shape=folder;tabWidth=100;tabHeight=22;tabPosition=left;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#111827;fontColor=#111827;fontSize=16;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="470" y="640" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="repositories" value="data/repositories" style="shape=folder;tabWidth=110;tabHeight=22;tabPosition=left;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#111827;fontColor=#111827;fontSize=16;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="850" y="430" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="datasources" value="data/datasources" style="shape=folder;tabWidth=110;tabHeight=22;tabPosition=left;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#111827;fontColor=#111827;fontSize=16;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="1140" y="310" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="models" value="data/models" style="shape=folder;tabWidth=85;tabHeight=22;tabPosition=left;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#111827;fontColor=#111827;fontSize=16;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="1140" y="550" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="constants" value="core/constants" style="shape=folder;tabWidth=95;tabHeight=22;tabPosition=left;html=1;whiteSpace=wrap;fillColor=none;strokeColor=#111827;fontColor=#111827;fontSize=16;fontStyle=1;" parent="1" vertex="1">
+          <mxGeometry x="120" y="610" width="210" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="e-pages-viewmodels" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#111827;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="pages" target="viewmodels" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-viewmodels-usecases" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#111827;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" parent="1" source="viewmodels" target="usecases" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-usecases-interfaces" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#111827;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="usecases" target="interfaces" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-usecases-entities" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#111827;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.5;entryY=0;" parent="1" source="usecases" target="entities" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-repositories-interfaces" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#111827;strokeWidth=2;exitX=0;exitY=0.5;entryX=1;entryY=0.5;" parent="1" source="repositories" target="interfaces" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-repositories-datasources" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#111827;strokeWidth=2;exitX=1;exitY=0;entryX=0;entryY=0.5;" parent="1" source="repositories" target="datasources" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e-repositories-models" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;endArrow=open;endFill=0;dashed=1;strokeColor=#111827;strokeWidth=2;exitX=1;exitY=1;entryX=0;entryY=0.5;" parent="1" source="repositories" target="models" edge="1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

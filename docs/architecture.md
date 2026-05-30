@@ -15,9 +15,9 @@ Runtime flow:
 5. Pressing the floating action button calls `_incrementCounter()`.
 6. `_incrementCounter()` calls `setState()`, updates `_counter`, and triggers a rebuild.
 
-Current diagram:
+Package dependency diagram:
 
-![Frontend architecture](diagrams/fe-architecture.png)
+![Frontend package dependencies](diagrams/package-diagrams.png)
 
 ## Current Components
 
@@ -89,8 +89,8 @@ Use the flatter layer-based layout first if the app is still small. Move to feat
 
 ## Diagram Maintenance
 
-Editable source: `docs/diagrams/fe-architecture.drawio`
+Editable source: `docs/diagrams/package-diagrams.drawio`
 
-Rendered image: `docs/diagrams/fe-architecture.png`
+Rendered image: `docs/diagrams/package-diagrams.png`
 
-Update both files whenever the real source structure changes significantly.
+Update both files whenever package folders or dependency relationships change significantly.

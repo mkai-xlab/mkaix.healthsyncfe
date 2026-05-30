@@ -57,4 +57,4 @@ It verifies that:
 - Add widget tests for important screens and user flows.
 - Add unit tests when domain use cases are introduced.
 - Keep generated platform folders updated through Flutter tooling instead of editing generated files manually unless platform-specific behavior is required.
-- Update `docs/architecture.md` and `docs/diagrams/fe-architecture.*` when adding major folders, features, or dependencies.
+- Update `docs/package-diagram.md` and `docs/diagrams/package-diagrams.*` when adding package folders or package dependency relationships.

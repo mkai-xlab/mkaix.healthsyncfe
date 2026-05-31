@@ -94,3 +94,5 @@ Editable source: `docs/diagrams/package-diagrams.drawio`
 Rendered image: `docs/diagrams/package-diagrams.png`
 
 Update both files whenever package folders or dependency relationships change significantly.
+
+Also update `docs/package-diagram.md` when relationships change.

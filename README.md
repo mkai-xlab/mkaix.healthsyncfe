@@ -21,12 +21,25 @@ fe/
 ├── test/
 │   └── widget_test.dart       # Counter smoke test
 ├── docs/
+│   ├── project-overview.md    # Product and repository overview
 │   ├── architecture.md        # Current and planned frontend architecture
+│   ├── api-integration.md     # Backend communication conventions
+│   ├── build-and-release.md   # Build and release workflow
 │   ├── development.md         # Local development workflow
+│   ├── environment.md         # Runtime configuration rules
+│   ├── error-handling.md      # Error and UI state handling
 │   ├── package-diagram.md     # lib package dependency diagram
+│   ├── routing.md             # Navigation strategy
+│   ├── state-management.md    # State ownership rules
+│   ├── testing-strategy.md    # Test expectations
+│   ├── ui-guidelines.md       # UI and accessibility guidelines
 │   └── diagrams/
 │       ├── package-diagrams.drawio
 │       └── package-diagrams.png
+├── CHANGELOG.md               # Notable changes by version
+├── CONTRIBUTING.md            # Contribution workflow
+├── LICENSE                    # Project license terms
+├── SECURITY.md                # Security and secret handling
 ├── pubspec.yaml               # Flutter package metadata and dependencies
 └── analysis_options.yaml      # Dart analyzer and lint configuration
 ```
@@ -79,9 +92,21 @@ The app starts in `lib/main.dart`:
 
 ## Documentation
 
+- [Project Overview](docs/project-overview.md)
 - [Architecture](docs/architecture.md)
 - [Package Diagram](docs/package-diagram.md)
 - [Development Guide](docs/development.md)
+- [Environment Configuration](docs/environment.md)
+- [API Integration](docs/api-integration.md)
+- [State Management](docs/state-management.md)
+- [Routing](docs/routing.md)
+- [Testing Strategy](docs/testing-strategy.md)
+- [UI Guidelines](docs/ui-guidelines.md)
+- [Error Handling](docs/error-handling.md)
+- [Build And Release](docs/build-and-release.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security](SECURITY.md)
+- [Changelog](CHANGELOG.md)
 
 ## Architecture Direction
 
@@ -92,3 +117,7 @@ The repository currently has a single Dart source file, but the intended directi
 - Data layer for API clients, DTO/models, and repository implementations.
 
 The planned structure is documented in `docs/architecture.md` and visualized in `docs/diagrams/package-diagrams.png`.
+
+## Documentation Maintenance
+
+When adding or updating a feature, update the related docs in the same change. At minimum, check architecture, package diagram, API integration, state management, routing, testing, UI, and error handling docs.

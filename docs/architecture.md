@@ -15,6 +15,10 @@ Runtime flow:
 5. Pressing the floating action button calls `_incrementCounter()`.
 6. `_incrementCounter()` calls `setState()`, updates `_counter`, and triggers a rebuild.
 
+Architecture diagram:
+
+![Frontend architecture](diagrams/fe-architecture.png)
+
 Package dependency diagram:
 
 ![Frontend package dependencies](diagrams/package-diagrams.png)

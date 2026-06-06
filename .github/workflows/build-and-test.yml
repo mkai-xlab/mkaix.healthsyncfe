@@ -14,12 +14,13 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@f2c4032d5e3cf7470058b76fc199042b36b5ec85 # v2.16.0
+        uses: subosito/flutter-action@v2
         with:
           channel: "stable"
+          flutter-version-file: pubspec.yaml
 
       - name: Install dependencies
         run: flutter pub get

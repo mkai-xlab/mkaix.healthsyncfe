@@ -12,6 +12,6 @@ class UserEntity {
   });
 
   // Hàm tiện ích kiểm tra quyền nhanh ở tầng UI
-  bool get isAdmin => roles.contains('ROLE_ADMIN');
-  bool get isDoctor => roles.contains('ROLE_DOCTOR');
+  bool get isAdmin => roles.contains('ADMIN');
+  bool get isDoctor => roles.contains('DOCTOR');
 }

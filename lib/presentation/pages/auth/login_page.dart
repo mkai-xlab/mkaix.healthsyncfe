@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/auth_viewmodel.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -18,15 +18,9 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     final authViewModel = context.watch<AuthViewModel>();
-    final user = authViewModel.currentUser;
     final isMobile = MediaQuery.of(context).size.width < 900;
 
-    if (user != null) {
-      // Giao diện sau khi đăng nhập
-      return _buildLoggedInUI(context, user, authViewModel);
-    }
-
-    // Giao diện đăng nhập
+    // GoRouter sẽ tự động redirect sau khi login thành công
     return Scaffold(
       body: isMobile
           ? _buildMobileLoginUI(context, authViewModel)
@@ -423,53 +417,6 @@ class _LoginPageState extends State<LoginPage> {
           color: Colors.white,
           fontSize: 12,
           fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoggedInUI(
-    BuildContext context,
-    dynamic user,
-    AuthViewModel authViewModel,
-  ) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF2D7E6E),
-        title: const Text('Hệ thống hỗ trợ chẩn đoán'),
-      ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Card(
-              color: const Color(0xFF2D7E6E).withOpacity(0.1),
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  children: [
-                    Text(
-                      'Xin chào: ${user.name}',
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Quyền của bạn: ${user.roles.join(', ')}',
-                      style: const TextStyle(color: Colors.blueGrey),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 24),
-            OutlinedButton(
-              onPressed: () => authViewModel.logout(),
-              child: const Text('Đăng xuất'),
-            ),
-          ],
         ),
       ),
     );

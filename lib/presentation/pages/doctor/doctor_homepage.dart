@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/doctor_viewmodel.dart';
 
 class DoctorHomepage extends StatefulWidget {
   const DoctorHomepage({super.key});
@@ -12,6 +15,19 @@ class DoctorHomepage extends StatefulWidget {
 class _DoctorHomepageState extends State<DoctorHomepage> {
   int _selectedNavIndex = 0;
   String _searchQuery = '';
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    // Chỉ fetch nếu đang ở tab danh sách bệnh nhân hoặc tùy nhu cầu dashboard
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -148,6 +164,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         setState(() {
           _selectedNavIndex = index;
         });
+        if (index == 1) {
+          context.read<DoctorViewModel>().fetchPatients();
+        }
       },
       tileColor: isSelected ? Colors.white.withOpacity(0.1) : null,
       shape: isSelected
@@ -244,26 +263,43 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Statistics Cards
-                  _buildStatisticsSection(),
-                  const SizedBox(height: 24),
-                  // Charts and Alerts Section
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // KL Grade Section
-                      Expanded(flex: 1, child: _buildKLGradeSection()),
-                      const SizedBox(width: 20),
-                      // Trend Analysis Section
-                      Expanded(flex: 1, child: _buildTrendAnalysisSection()),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  // Critical Cases Alert
-                  _buildCriticalCasesAlert(),
-                  const SizedBox(height: 24),
-                  // Patient List Table
-                  _buildPatientListTable(),
+                  if (_selectedNavIndex == 0) ...[
+                    // Nội dung Trang chủ (Dashboard)
+                    _buildStatisticsSection(),
+                    const SizedBox(height: 24),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 1, child: _buildKLGradeSection()),
+                        const SizedBox(width: 20),
+                        Expanded(flex: 1, child: _buildTrendAnalysisSection()),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    _buildCriticalCasesAlert(),
+                  ] else if (_selectedNavIndex == 1) ...[
+                    // Nội dung Trang Danh sách bệnh nhân
+                    const Text(
+                      'Danh sách bệnh nhân',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Quản lý và xem lịch sử phân tích của tất cả bệnh nhân',
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildPatientListTable(),
+                  ] else
+                    Center(
+                      child: Text(
+                        'Chức năng đang phát triển: ${_selectedNavIndex}',
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -292,6 +328,14 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           Expanded(
             child: TextField(
               onChanged: (value) {
+                if (_debounce?.isActive ?? false) _debounce?.cancel();
+                _debounce = Timer(const Duration(milliseconds: 500), () {
+                  if (mounted) {
+                    context.read<DoctorViewModel>().fetchPatients(
+                      keyword: value,
+                    );
+                  }
+                });
                 setState(() {
                   _searchQuery = value;
                 });
@@ -728,44 +772,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   }
 
   Widget _buildPatientListTable() {
-    final patients = [
-      {
-        'maBN': '#BN-2023-001',
-        'hoTen': 'Nguyễn Văn Khải',
-        'tuoi': '54 tuổi • Nam',
-        'tgPhanTich': '14:20 - 24/10/2023',
-        'klGrade': 'Grade 4',
-        'mucDo': 'Rất cao',
-        'trangThai': 'Đã xác nhận',
-      },
-      {
-        'maBN': '#BN-2023-012',
-        'hoTen': 'Lê Thị Mai',
-        'tuoi': '42 tuổi • Nữ',
-        'tgPhanTich': '13:45 - 24/10/2023',
-        'klGrade': 'Grade 2',
-        'mucDo': 'Trung bình',
-        'trangThai': 'Chờ quyết',
-      },
-      {
-        'maBN': '#BN-2023-045',
-        'hoTen': 'Trương Minh Đạt',
-        'tuoi': '68 tuổi • Nam',
-        'tgPhanTich': '11:10 - 24/10/2023',
-        'klGrade': 'Grade 3',
-        'mucDo': 'Cao',
-        'trangThai': 'Đã xác nhận',
-      },
-      {
-        'maBN': '#BN-2023-089',
-        'hoTen': 'Phạm Quỳnh Anh',
-        'tuoi': '39 tuổi • Nữ',
-        'tgPhanTich': '09:30 - 24/10/2023',
-        'klGrade': 'Grade 1',
-        'mucDo': 'Thấp',
-        'trangThai': 'Đã xác nhận',
-      },
-    ];
+    final viewModel = context.watch<DoctorViewModel>();
+    final patients = viewModel.patients;
 
     return Container(
       decoration: BoxDecoration(
@@ -825,138 +833,148 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           ),
           const Divider(height: 1),
           // Table
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 24,
-              columns: const [
-                DataColumn(label: Text('Mã bệnh nhân')),
-                DataColumn(label: Text('Thông tin bệnh nhân')),
-                DataColumn(label: Text('Thời gian phân tích')),
-                DataColumn(label: Text('KL Grade')),
-                DataColumn(label: Text('Mức độ nguy cơ')),
-                DataColumn(label: Text('Trạng thái')),
-                DataColumn(label: Text('Thao tác')),
-              ],
-              rows: patients.map((patient) {
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Text(
-                        patient['maBN']!,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+          if (viewModel.isLoading)
+            const Padding(
+              padding: EdgeInsets.all(40),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                columnSpacing: 24,
+                columns: const [
+                  DataColumn(label: Text('Mã bệnh nhân')),
+                  DataColumn(label: Text('Thông tin bệnh nhân')),
+                  DataColumn(label: Text('Thời gian phân tích')),
+                  DataColumn(label: Text('KL Grade')),
+                  DataColumn(label: Text('Mức độ nguy cơ')),
+                  DataColumn(label: Text('Trạng thái')),
+                  DataColumn(label: Text('Thao tác')),
+                ],
+                rows: patients.map((patient) {
+                  return DataRow(
+                    cells: [
+                      DataCell(
+                        Text(
+                          patient.patientCode,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
-                    ),
-                    DataCell(
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Text(
-                            patient['hoTen']!,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
+                      DataCell(
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              patient.fullName,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
+                            Text(
+                              patient.displayAgeGender,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      DataCell(
+                        Text(
+                          patient.analysisTime != null
+                              ? DateFormat(
+                                  'HH:mm - dd/MM/yyyy',
+                                ).format(patient.analysisTime!)
+                              : '---',
+                          style: const TextStyle(fontSize: 12),
+                        ),
+                      ),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
-                          Text(
-                            patient['tuoi']!,
-                            style: const TextStyle(
+                          decoration: BoxDecoration(
+                            color: _getGradeColor(
+                              patient.klGrade,
+                            ).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            patient.klGrade,
+                            style: TextStyle(
                               fontSize: 11,
-                              color: Colors.grey,
+                              fontWeight: FontWeight.bold,
+                              color: _getGradeColor(patient.klGrade),
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Text(
-                        patient['tgPhanTich']!,
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
                         ),
-                        decoration: BoxDecoration(
-                          color: _getGradeColor(
-                            patient['klGrade']!,
-                          ).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          patient['klGrade']!,
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: _getGradeColor(patient['klGrade']!),
+                      ),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getRiskColor(
+                              patient.riskLevel,
+                            ).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            patient.riskLevel,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _getRiskColor(patient.riskLevel),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getRiskColor(
-                            patient['mucDo']!,
-                          ).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          patient['mucDo']!,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: _getRiskColor(patient['mucDo']!),
+                      DataCell(
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _getStatusColor(
+                              patient.status,
+                            ).withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            patient.status,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: _getStatusColor(patient.status),
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: _getStatusColor(
-                            patient['trangThai']!,
-                          ).withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          patient['trangThai']!,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: _getStatusColor(patient['trangThai']!),
+                      DataCell(
+                        IconButton(
+                          icon: const Icon(
+                            Icons.visibility_outlined,
+                            color: Color(0xFF2D7E6E),
+                            size: 18,
                           ),
+                          onPressed: () {},
                         ),
                       ),
-                    ),
-                    DataCell(
-                      IconButton(
-                        icon: const Icon(
-                          Icons.visibility_outlined,
-                          color: Color(0xFF2D7E6E),
-                          size: 18,
-                        ),
-                        onPressed: () {},
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
+                    ],
+                  );
+                }).toList(),
+              ),
             ),
-          ),
           // Pagination
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
@@ -964,49 +982,62 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Hiển thị 1 - 4 trên 144 kết quả',
+                  'Hiển thị ${patients.length} trên ${viewModel.totalElements} kết quả',
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 Row(
                   children: [
                     IconButton(
                       icon: const Icon(Icons.chevron_left, color: Colors.grey),
-                      onPressed: () {},
+                      onPressed: viewModel.currentPage > 0
+                          ? () => viewModel.fetchPatients(
+                              keyword: _searchQuery,
+                              page: viewModel.currentPage - 1,
+                            )
+                          : null,
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2D7E6E),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        '1',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        '2',
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      child: Text(
-                        '3',
-                        style: TextStyle(color: Colors.grey.shade600),
-                      ),
-                    ),
+                    ...List.generate(viewModel.totalPages, (index) {
+                      // Chỉ hiển thị tối đa 3 trang để tránh tràn UI
+                      if (index < 3) {
+                        final isCurrent = viewModel.currentPage == index;
+                        return GestureDetector(
+                          onTap: () => viewModel.fetchPatients(
+                            keyword: _searchQuery,
+                            page: index,
+                          ),
+                          child: Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: isCurrent
+                                  ? const Color(0xFF2D7E6E)
+                                  : Colors.transparent,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              '${index + 1}',
+                              style: TextStyle(
+                                color: isCurrent ? Colors.white : Colors.grey,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
+                    }),
                     IconButton(
                       icon: const Icon(Icons.chevron_right, color: Colors.grey),
-                      onPressed: () {},
+                      onPressed:
+                          viewModel.currentPage < viewModel.totalPages - 1
+                          ? () => viewModel.fetchPatients(
+                              keyword: _searchQuery,
+                              page: viewModel.currentPage + 1,
+                            )
+                          : null,
                     ),
                   ],
                 ),

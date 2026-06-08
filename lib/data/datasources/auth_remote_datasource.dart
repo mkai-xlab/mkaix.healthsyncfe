@@ -8,60 +8,54 @@ class AuthRemoteDataSource {
 
   AuthRemoteDataSource(this.client);
 
-  /// Hàm Đăng nhập: GET toàn bộ danh sách từ MockAPI, tìm kiếm và xác thực mật khẩu
-  /// Nếu thông tin chính xác, trả về UserModel với thông tin role để routing có thể điều hướng
+  /// Hàm Đăng nhập kết nối Spring Boot Backend
+  /// Gửi POST request kèm credentials, nhận về thông tin User và Token phân quyền
   Future<UserModel> loginWithEmailAndPassword(
     String email,
     String password,
   ) async {
     try {
-      // 1. Gọi API để lấy danh sách tài khoản từ MockAPI
+      // 1. Cấu hình endpoint POST của Spring Boot (Ví dụ: /api/v1/auth/login)
+      final uri = Uri.parse(ApiConstants.loginEndpoint);
+
+      // 2. Đóng gói dữ liệu gửi lên (Request Body) đúng chuẩn DTO của Backend
+      final Map<String, dynamic> requestBody = {
+        'username': email
+            .trim(), // Thường Spring Boot dùng trường 'username' đại diện cho Email/Login ID
+        'password': password.trim(),
+      };
+
+      // 3. Tiến hành gọi API bằng phương thức POST
       final response = await client
-          .get(
-            Uri.parse(ApiConstants.loginEndpoint),
+          .post(
+            uri,
             headers: {
               'Content-Type': 'application/json; charset=UTF-8',
               'Accept': 'application/json',
             },
+            body: jsonEncode(requestBody),
           )
           .timeout(const Duration(seconds: 10));
 
-      // 2. Kiểm tra nếu MockAPI trả về trạng thái thành công (200 OK)
+      // 4. Xử lý kết quả trả về từ Spring Boot
       if (response.statusCode == 200) {
-        // MockAPI trả về một Mảng (List) các Object JSON
-        final List<dynamic> usersList = jsonDecode(response.body);
+        // Tránh lỗi font tiếng Việt khi giải mã thông tin User
+        final String decodedBody = utf8.decode(response.bodyBytes);
+        final Map<String, dynamic> responseData = jsonDecode(decodedBody);
 
-        // 3. Tìm kiếm User trong danh sách trùng khớp với email/username và mật khẩu
-        final matchedUser = usersList.firstWhere(
-          (user) =>
-              (user['email'] == email.trim() ||
-                  user['username'] == email.trim()) &&
-              user['password'] == password.trim(),
-          orElse: () => null,
-        );
-
-        // 4. Trả về kết quả hoặc báo lỗi dựa trên kết quả tìm kiếm
-        if (matchedUser != null) {
-          // Ép kiểu Map thành Object UserModel (bao gồm role)
-          // Nếu là DOCTOR -> return UserModel với roles=['DOCTOR']
-          // Nếu là ADMIN -> return UserModel với roles=['ADMIN']
-          return UserModel.fromJson(matchedUser);
-        } else {
-          // Không tìm thấy hoặc mật khẩu sai
-          throw Exception('Tài khoản hoặc mật khẩu không chính xác!');
-        }
+        // Trả về UserModel. Toàn bộ logic bóc tách 'roles' hoặc 'accessToken'
+        // nên được xử lý gọn gã bên trong hàm UserModel.fromJson()
+        return UserModel.fromJson(responseData);
+      }
+      // 5. Xử lý các lỗi nghiệp vụ từ Spring Boot Security (Ví dụ: 401 Unauthorized, 403 Forbidden)
+      else if (response.statusCode == 401 || response.statusCode == 403) {
+        throw Exception('Tài khoản hoặc mật khẩu không chính xác!');
       } else {
-        // Trường hợp MockAPI trả về các mã lỗi khác (Ví dụ: 404, 500)
-        throw Exception(
-          'Lỗi kết nối từ MockAPI (Mã lỗi: ${response.statusCode})',
-        );
+        throw Exception('Hệ thống gặp sự cố (Mã lỗi: ${response.statusCode})');
       }
     } catch (e) {
-      // Nếu là lỗi do chính chúng ta chủ động throw ở trên thì giữ nguyên để UI hiển thị
       if (e is Exception) rethrow;
-
-      // Các lỗi ngoại vi như: mất mạng, sai URL, timeout...
-      throw Exception('Lỗi kết nối mạng: Không thể kết nối tới MockAPI.');
+      throw Exception('Lỗi kết nối mạng: Không thể kết nối tới máy chủ.');
     }
   }
 }

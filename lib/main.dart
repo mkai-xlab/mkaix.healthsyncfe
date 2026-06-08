@@ -5,8 +5,12 @@ import 'package:provider/provider.dart';
 import 'core/routes/app_router.dart';
 import 'data/datasources/auth_remote_datasource.dart';
 import 'data/repositories/auth_repository_impl.dart';
+import 'data/datasources/patient_remote_datasource.dart';
+import 'data/repositories/patient_repository_impl.dart';
 import 'domain/usecases/login_usecase.dart';
+import 'domain/usecases/get_all_patients_usecase.dart';
 import 'presentation/viewmodels/auth_viewmodel.dart';
+import 'presentation/viewmodels/doctor_viewmodel.dart';
 
 void main() {
   // Thực hiện Dependency Injection thủ công tại đây
@@ -15,16 +19,29 @@ void main() {
   final authRepository = AuthRepositoryImpl(remoteDataSource: remoteDataSource);
   final loginUseCase = LoginUseCase(authRepository);
 
+  final patientRemoteDataSource = PatientRemoteDataSourceImpl(httpClient);
+  final patientRepository = PatientRepositoryImpl(
+    remoteDataSource: patientRemoteDataSource,
+  );
+  final getAllPatientsUseCase = GetAllPatientsUseCase(patientRepository);
+
   final authViewModel = AuthViewModel(
     loginUseCase: loginUseCase,
     authRepository: authRepository,
   );
 
+  final doctorViewModel = DoctorViewModel(
+    getAllPatientsUseCase: getAllPatientsUseCase,
+  );
+
   final appRouter = AppRouter(authViewModel);
 
   runApp(
-    ChangeNotifierProvider.value(
-      value: authViewModel,
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: authViewModel),
+        ChangeNotifierProvider.value(value: doctorViewModel),
+      ],
       child: MyApp(appRouter: appRouter),
     ),
   );

@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../viewmodels/auth_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
+import 'package:fe/data/models/doctor_account_model.dart';
 
 class AdminHomepage extends StatefulWidget {
   const AdminHomepage({super.key});
@@ -12,6 +16,15 @@ class AdminHomepage extends StatefulWidget {
 class _AdminHomepageState extends State<AdminHomepage> {
   int _selectedNavIndex = 0;
   String _searchQuery = '';
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<AdminAccountViewModel>().fetchFirstPage();
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -235,6 +248,12 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildMainContent(BuildContext context) {
+    // Nếu đang ở menu Quản lý người dùng (index 1)
+    if (_selectedNavIndex == 1) {
+      return _buildUserManagementPage(context);
+    }
+
+    // Mặc định hiển thị Dashboard (index 0)
     return Container(
       color: const Color(0xFFF5F5F5),
       child: Column(
@@ -289,6 +308,248 @@ class _AdminHomepageState extends State<AdminHomepage> {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserManagementPage(BuildContext context) {
+    return Container(
+      color: const Color(0xFFF5F5F5),
+      child: Column(
+        children: [
+          _buildTopBar(context),
+          Expanded(
+            child: Consumer<AdminAccountViewModel>(
+              builder: (context, viewModel, child) {
+                if (viewModel.isLoading && viewModel.accounts.isEmpty) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (viewModel.errorMessage != null &&
+                    viewModel.accounts.isEmpty) {
+                  return Center(child: Text(viewModel.errorMessage!));
+                }
+                return NotificationListener<ScrollNotification>(
+                  onNotification: (ScrollNotification scrollInfo) {
+                    if (scrollInfo.metrics.pixels ==
+                        scrollInfo.metrics.maxScrollExtent) {
+                      viewModel.fetchNextPage();
+                    }
+                    return true;
+                  },
+                  child: RefreshIndicator(
+                    onRefresh: () => viewModel.fetchFirstPage(),
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Quản lý người dùng',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Danh sách tài khoản nhân viên và bác sĩ trong hệ thống',
+                            style: TextStyle(color: Colors.grey, fontSize: 13),
+                          ),
+                          const SizedBox(height: 20),
+                          _buildUserTable(viewModel),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserTable(AdminAccountViewModel viewModel) {
+    final accounts = viewModel.accounts;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          // Header Table Actions
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Danh sách tài khoản',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                ElevatedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Tạo tài khoản'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2D7E6E),
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          // Table Content
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: DataTable(
+              columnSpacing: 32,
+              columns: const [
+                DataColumn(label: Text('Thông tin người dùng')),
+                DataColumn(label: Text('Email')),
+                DataColumn(label: Text('Vai trò')),
+                DataColumn(label: Text('Trạng thái')),
+                DataColumn(label: Text('Cập nhật')),
+                DataColumn(label: Text('Thao tác')),
+              ],
+              rows: accounts.map((account) {
+                final isActive = account.status == 'ACTIVE';
+                return DataRow(
+                  cells: [
+                    DataCell(
+                      Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 14,
+                            backgroundColor: const Color(
+                              0xFF2D7E6E,
+                            ).withOpacity(0.1),
+                            child: Text(
+                              account.fullName.isNotEmpty
+                                  ? account.fullName[0]
+                                  : 'U',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF2D7E6E),
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            account.fullName,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    DataCell(
+                      Text(account.email, style: const TextStyle(fontSize: 13)),
+                    ),
+                    DataCell(
+                      Text(account.role, style: const TextStyle(fontSize: 13)),
+                    ),
+                    DataCell(
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? Colors.green.shade50
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(
+                            color: isActive
+                                ? Colors.green.shade200
+                                : Colors.grey.shade300,
+                          ),
+                        ),
+                        child: Text(
+                          account.status,
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: isActive
+                                ? Colors.green.shade700
+                                : Colors.grey.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    DataCell(
+                      Text(
+                        DateFormat('dd/MM/yyyy').format(account.updatedAt),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                    DataCell(
+                      Row(
+                        children: [
+                          IconButton(
+                            icon: const Icon(
+                              Icons.edit_outlined,
+                              size: 18,
+                              color: Color(0xFF2D7E6E),
+                            ),
+                            onPressed: () {},
+                            tooltip: 'Chỉnh sửa',
+                          ),
+                          IconButton(
+                            icon: Icon(
+                              isActive
+                                  ? Icons.block
+                                  : Icons.check_circle_outline,
+                              size: 18,
+                              color: isActive ? Colors.red : Colors.green,
+                            ),
+                            onPressed: () {},
+                            tooltip: isActive ? 'Khóa tài khoản' : 'Kích hoạt',
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                );
+              }).toList(),
+            ),
+          ),
+          if (viewModel.isLoading)
+            const Padding(
+              padding: EdgeInsets.all(20),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          if (!viewModel.isLastPage && !viewModel.isLoading)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: TextButton(
+                onPressed: () => viewModel.fetchNextPage(),
+                child: const Text('Xem thêm tài khoản...'),
+              ),
+            ),
+          const SizedBox(height: 10),
         ],
       ),
     );

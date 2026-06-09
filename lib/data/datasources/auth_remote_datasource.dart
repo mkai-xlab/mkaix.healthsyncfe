@@ -38,7 +38,7 @@ class AuthRemoteDataSource {
           .timeout(const Duration(seconds: 10));
 
       // 4. Xử lý kết quả trả về từ Spring Boot
-      if (response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         // Tránh lỗi font tiếng Việt khi giải mã thông tin User
         final String decodedBody = utf8.decode(response.bodyBytes);
         final Map<String, dynamic> responseData = jsonDecode(decodedBody);

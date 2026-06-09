@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
-import 'core/routes/app_router.dart';
-import 'data/datasources/auth_remote_datasource.dart';
-import 'data/repositories/auth_repository_impl.dart';
-import 'data/datasources/patient_remote_datasource.dart';
-import 'data/repositories/patient_repository_impl.dart';
-import 'domain/usecases/login_usecase.dart';
-import 'domain/usecases/get_all_patients_usecase.dart';
-import 'presentation/viewmodels/auth_viewmodel.dart';
-import 'presentation/viewmodels/doctor_viewmodel.dart';
+import 'package:fe/core/routes/app_router.dart';
+import 'package:fe/data/datasources/auth_remote_datasource.dart';
+import 'package:fe/data/repositories/auth_repository_impl.dart';
+import 'package:fe/data/datasources/patient_remote_datasource.dart';
+import 'package:fe/data/repositories/patient_repository_impl.dart';
+import 'package:fe/domain/usecases/login_usecase.dart';
+import 'package:fe/domain/usecases/get_all_patients_usecase.dart';
+import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/doctor_viewmodel.dart';
+import 'package:fe/data/datasources/admin_remote_datasource.dart';
+import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 
 void main() {
   // Thực hiện Dependency Injection thủ công tại đây
@@ -24,6 +26,9 @@ void main() {
     remoteDataSource: patientRemoteDataSource,
   );
   final getAllPatientsUseCase = GetAllPatientsUseCase(patientRepository);
+
+  final adminRemoteDataSource = AdminRemoteDataSourceImpl(httpClient);
+  final adminAccountViewModel = AdminAccountViewModel(adminRemoteDataSource);
 
   final authViewModel = AuthViewModel(
     loginUseCase: loginUseCase,
@@ -41,6 +46,7 @@ void main() {
       providers: [
         ChangeNotifierProvider.value(value: authViewModel),
         ChangeNotifierProvider.value(value: doctorViewModel),
+        ChangeNotifierProvider.value(value: adminAccountViewModel),
       ],
       child: MyApp(appRouter: appRouter),
     ),

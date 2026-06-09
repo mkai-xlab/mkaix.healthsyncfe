@@ -13,9 +13,15 @@ abstract class AdminRemoteDataSource {
   Future<Map<String, dynamic>> getDoctorAccounts({
     required int page,
     required int size,
+    required String token, // Thêm token vào đây
   });
   Future<void> createDoctor({
     required Map<String, dynamic> doctorData,
+    required String token,
+  });
+  Future<void> toggleDoctorStatus({
+    required int id,
+    required bool activate,
     required String token,
   });
 }
@@ -69,6 +75,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
   Future<Map<String, dynamic>> getDoctorAccounts({
     required int page,
     required int size,
+    required String token, // Thêm token vào đây
   }) async {
     final uri = Uri.parse(ApiConstants.doctorsEndpoint).replace(
       queryParameters: {'page': page.toString(), 'size': size.toString()},
@@ -80,7 +87,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
             uri,
             headers: {
               'Content-Type': 'application/json',
-              // TODO: Thêm Authorization header nếu API yêu cầu
+              'Authorization': 'Bearer $token', // Sử dụng token
             },
           )
           .timeout(const Duration(seconds: 10));
@@ -106,7 +113,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
             .toList();
 
         return {
-          'accounts': accounts,
+          'content': accounts,
           'isLast':
               pageData['last'] ??
               pageData['isLast'] ??
@@ -147,6 +154,36 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       }
     } catch (e) {
       throw Exception('Kết nối thất bại: $e');
+    }
+  }
+
+  @override
+  Future<void> toggleDoctorStatus({
+    required int id,
+    required bool activate,
+    required String token,
+  }) async {
+    final action = activate ? 'activate' : 'deactivate';
+    final uri = Uri.parse('${ApiConstants.doctorsEndpoint}/$id/$action');
+
+    try {
+      final response = await client.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 204) {
+        final String decodedBody = utf8.decode(response.bodyBytes);
+        final Map<String, dynamic> errorData = jsonDecode(decodedBody);
+        throw Exception(
+          errorData['message'] ?? 'Không thể thay đổi trạng thái tài khoản',
+        );
+      }
+    } catch (e) {
+      throw Exception('Lỗi kết nối: $e');
     }
   }
 

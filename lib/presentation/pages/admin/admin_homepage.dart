@@ -16,15 +16,24 @@ class _AdminHomepageState extends State<AdminHomepage> {
   int _selectedNavIndex = 0;
   String _searchQuery = '';
   final ScrollController _scrollController = ScrollController();
+  // Thêm Timer cho debounce
+  // Timer? _debounce;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AdminAccountViewModel>().fetchFirstPage();
+      final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+      context.read<AdminAccountViewModel>().fetchFirstPage(token);
     });
   }
 
+  // @override
+  // void dispose() {
+  //   _debounce?.cancel(); // Hủy bỏ timer khi widget bị dispose
+  //   _scrollController.dispose();
+  //   super.dispose();
+  // }
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
@@ -332,12 +341,20 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   onNotification: (ScrollNotification scrollInfo) {
                     if (scrollInfo.metrics.pixels ==
                         scrollInfo.metrics.maxScrollExtent) {
-                      viewModel.fetchNextPage();
+                      final token =
+                          context.read<AuthViewModel>().currentUser?.token ??
+                          '';
+                      viewModel.fetchNextPage(token);
                     }
                     return true;
                   },
                   child: RefreshIndicator(
-                    onRefresh: () => viewModel.fetchFirstPage(),
+                    onRefresh: () async {
+                      final token =
+                          context.read<AuthViewModel>().currentUser?.token ??
+                          '';
+                      await viewModel.fetchFirstPage(token);
+                    },
                     child: SingleChildScrollView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.all(20),
@@ -534,7 +551,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
                               size: 18,
                               color: isActive ? Colors.red : Colors.green,
                             ),
-                            onPressed: () {},
+                            onPressed: () =>
+                                _showToggleStatusDialog(context, account),
                             tooltip: isActive ? 'Khóa tài khoản' : 'Kích hoạt',
                           ),
                         ],
@@ -554,7 +572,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
             Padding(
               padding: const EdgeInsets.all(16),
               child: TextButton(
-                onPressed: () => viewModel.fetchNextPage(),
+                onPressed: () {
+                  final token =
+                      context.read<AuthViewModel>().currentUser?.token ?? '';
+                  viewModel.fetchNextPage(token);
+                },
                 child: const Text('Xem thêm tài khoản...'),
               ),
             ),
@@ -808,6 +830,63 @@ class _AdminHomepageState extends State<AdminHomepage> {
       ),
       filled: true,
       fillColor: Colors.grey.shade50,
+    );
+  }
+
+  void _showToggleStatusDialog(
+    BuildContext context,
+    DoctorAccountModel account,
+  ) {
+    final bool isActive = account.status == 'ACTIVE';
+    final String actionText = isActive ? 'Khóa' : 'Kích hoạt';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('$actionText tài khoản'),
+        content: Text(
+          'Bạn có chắc chắn muốn $actionText tài khoản của bác sĩ ${account.fullName} không?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final token =
+                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              final success = await context
+                  .read<AdminAccountViewModel>()
+                  .toggleDoctorStatus(account.id, !isActive, token);
+
+              if (context.mounted) {
+                Navigator.pop(context);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('${actionText} tài khoản thành công!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Có lỗi xảy ra, vui lòng thử lại.'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: isActive ? Colors.red : Colors.green,
+              foregroundColor: Colors.white,
+            ),
+            child: Text('Xác nhận $actionText'),
+          ),
+        ],
+      ),
     );
   }
 

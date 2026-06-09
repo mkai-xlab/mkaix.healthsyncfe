@@ -5,4 +5,9 @@ abstract class AdminRepository {
     required Map<String, dynamic> doctorData,
     required String token,
   });
+  Future<void> toggleDoctorStatus({
+    required int id,
+    required bool activate,
+    required String token,
+  });
 }

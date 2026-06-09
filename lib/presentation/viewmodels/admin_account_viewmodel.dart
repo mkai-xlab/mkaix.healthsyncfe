@@ -20,7 +20,8 @@ class AdminAccountViewModel extends ChangeNotifier {
   bool get isLastPage => _isLastPage;
 
   /// Tải trang đầu tiên (hoặc khi Pull-to-Refresh)
-  Future<void> fetchFirstPage() async {
+  Future<void> fetchFirstPage(String token) async {
+    // Thêm token
     _currentPage = 0;
     _isLastPage = false;
     _isLoading = true;
@@ -28,17 +29,18 @@ class AdminAccountViewModel extends ChangeNotifier {
     _accounts.clear();
     notifyListeners();
 
-    await _loadMoreData();
+    await _loadMoreData(token); // Truyền token
   }
 
   /// Tải các trang tiếp theo khi Admin cuộn xuống đáy
-  Future<void> fetchNextPage() async {
+  Future<void> fetchNextPage(String token) async {
+    // Thêm token
     if (_isLoading || _isLastPage) return;
     _isLoading = true;
     notifyListeners();
 
     _currentPage++;
-    await _loadMoreData();
+    await _loadMoreData(token); // Truyền token
   }
 
   /// Tạo tài khoản bác sĩ mới
@@ -52,7 +54,9 @@ class AdminAccountViewModel extends ChangeNotifier {
 
     try {
       await dataSource.createDoctor(doctorData: doctorData, token: token);
-      await fetchFirstPage(); // Tải lại trang đầu để thấy user mới
+      await fetchFirstPage(
+        token,
+      ); // Tải lại trang đầu để thấy user mới, truyền token
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
@@ -63,14 +67,40 @@ class AdminAccountViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> _loadMoreData() async {
+  /// Thay đổi trạng thái hoạt động của bác sĩ
+  Future<bool> toggleDoctorStatus(int id, bool activate, String token) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await dataSource.toggleDoctorStatus(
+        id: id,
+        activate: activate,
+        token: token,
+      );
+      await fetchFirstPage(token); // Refresh danh sách, truyền token
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+    }
+  }
+
+  Future<void> _loadMoreData(String token) async {
+    // Thêm token
     try {
       final result = await dataSource.getDoctorAccounts(
         page: _currentPage,
         size: 15, // Tăng size lên một chút để lấp đầy màn hình Web/Tablet
+        token: token, // Truyền token
       );
       final List<DoctorAccountModel> newAccounts =
-          result['accounts'] as List<DoctorAccountModel>;
+          (result['content'] as List<DoctorAccountModel>?) ??
+          []; // Sửa từ 'accounts' sang 'content'
 
       _accounts.addAll(newAccounts);
       _isLastPage = (result['isLast'] as bool?) ?? true;

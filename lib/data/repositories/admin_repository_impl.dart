@@ -16,4 +16,14 @@ class AdminRepositoryImpl implements AdminRepository {
       token: token,
     );
   }
+
+  @override
+  Future<void> toggleDoctorStatus({
+    required int id,
+    required bool activate,
+    required String token,
+  }) async {
+    return await remoteDataSource.toggleDoctorStatus(
+        id: id, activate: activate, token: token);
+  }
 }

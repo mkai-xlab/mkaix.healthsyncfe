@@ -41,6 +41,28 @@ class AdminAccountViewModel extends ChangeNotifier {
     await _loadMoreData();
   }
 
+  /// Tạo tài khoản bác sĩ mới
+  Future<bool> createDoctor(
+    Map<String, dynamic> doctorData,
+    String token,
+  ) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await dataSource.createDoctor(doctorData: doctorData, token: token);
+      await fetchFirstPage(); // Tải lại trang đầu để thấy user mới
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> _loadMoreData() async {
     try {
       final result = await dataSource.getDoctorAccounts(

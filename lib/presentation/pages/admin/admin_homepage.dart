@@ -404,7 +404,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   ),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => _showCreateAccountDialog(context),
                   icon: const Icon(Icons.add, size: 18),
                   label: const Text('Tạo tài khoản'),
                   style: ElevatedButton.styleFrom(
@@ -561,6 +561,253 @@ class _AdminHomepageState extends State<AdminHomepage> {
           const SizedBox(height: 10),
         ],
       ),
+    );
+  }
+
+  void _showCreateAccountDialog(BuildContext context) {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController();
+    final emailController = TextEditingController();
+    final phoneController = TextEditingController();
+    final codeController = TextEditingController();
+    final licenseController = TextEditingController();
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Consumer<AdminAccountViewModel>(
+        builder: (context, viewModel, child) {
+          return AlertDialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: const Row(
+              children: [
+                Icon(Icons.person_add_outlined, color: Color(0xFF2D7E6E)),
+                SizedBox(width: 10),
+                Text('Tạo tài khoản bác sĩ mới'),
+              ],
+            ),
+            content: SizedBox(
+              width: 550,
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Điền thông tin để khởi tạo tài khoản bác sĩ. Các trường đánh dấu (*) là bắt buộc nhập.',
+                        style: TextStyle(fontSize: 13, color: Colors.black54),
+                      ),
+                      const SizedBox(height: 20),
+                      _buildFieldLabel('Họ và tên *'),
+                      TextFormField(
+                        controller: nameController,
+                        decoration: _buildInputDecoration(
+                          'Nhập họ và tên bác sĩ',
+                          Icons.person_outline,
+                        ),
+                        validator: (v) =>
+                            v!.isEmpty ? 'Vui lòng nhập họ tên' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFieldLabel('Email *'),
+                      TextFormField(
+                        controller: emailController,
+                        decoration: _buildInputDecoration(
+                          'example@email.com',
+                          Icons.email_outlined,
+                        ),
+                        validator: (v) {
+                          if (v == null || v.isEmpty)
+                            return 'Vui lòng nhập email';
+                          if (!RegExp(
+                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
+                          ).hasMatch(v))
+                            return 'Email không hợp lệ';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildFieldLabel('Số điện thoại *'),
+                                TextFormField(
+                                  controller: phoneController,
+                                  decoration: _buildInputDecoration(
+                                    'Số điện thoại',
+                                    Icons.phone_outlined,
+                                  ),
+                                  validator: (v) => v!.isEmpty
+                                      ? 'Vui lòng nhập số điện thoại'
+                                      : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                _buildFieldLabel('Mã bác sĩ *'),
+                                TextFormField(
+                                  controller: codeController,
+                                  decoration: _buildInputDecoration(
+                                    'Mã định danh',
+                                    Icons.badge_outlined,
+                                  ),
+                                  validator: (v) => v!.isEmpty
+                                      ? 'Vui lòng nhập mã bác sĩ'
+                                      : null,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFieldLabel('Số giấy phép hành nghề *'),
+                      TextFormField(
+                        controller: licenseController,
+                        decoration: _buildInputDecoration(
+                          'Nhập số giấy phép (License Number)',
+                          Icons.assignment_ind_outlined,
+                        ),
+                        validator: (v) => v!.isEmpty
+                            ? 'Vui lòng nhập số giấy phép hành nghề'
+                            : null,
+                      ),
+                      if (viewModel.errorMessage != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 10),
+                          child: Text(
+                            viewModel.errorMessage!,
+                            style: const TextStyle(
+                              color: Colors.red,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: viewModel.isLoading
+                    ? null
+                    : () => Navigator.pop(context),
+                child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+              ),
+              ElevatedButton(
+                onPressed: viewModel.isLoading
+                    ? null
+                    : () async {
+                        if (formKey.currentState!.validate()) {
+                          final doctorData = {
+                            "fullName": nameController.text.trim(),
+                            "email": emailController.text.trim(),
+                            "phone": phoneController.text.trim(),
+                            "doctorCode": codeController.text.trim(),
+                            "licenseNumber": licenseController.text.trim(),
+                            "avatarUrl": "",
+                            "specialization": "Đang cập nhật",
+                            "hospitalName": "Viện Y học Cổ truyền Quân đội",
+                            "yearsOfExperience": 0,
+                            "academicTitle": "",
+                            "degree": "",
+                            "signatureUrl": "",
+                            "bio": "",
+                            "position": "DEPARTMENT_HEAD",
+                          };
+
+                          final token =
+                              context
+                                  .read<AuthViewModel>()
+                                  .currentUser
+                                  ?.token ??
+                              '';
+                          final success = await viewModel.createDoctor(
+                            doctorData,
+                            token,
+                          );
+
+                          if (success && context.mounted) {
+                            Navigator.pop(context);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Tạo tài khoản thành công'),
+                                backgroundColor: Colors.green,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2D7E6E),
+                  foregroundColor: Colors.white,
+                ),
+                child: viewModel.isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Xác nhận tạo'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildFieldLabel(String label) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Colors.black87,
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _buildInputDecoration(String hint, IconData icon) {
+    return InputDecoration(
+      hintText: hint,
+      prefixIcon: Icon(icon, size: 20, color: const Color(0xFF2D7E6E)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: BorderSide(color: Colors.grey.shade300),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(8),
+        borderSide: const BorderSide(color: Color(0xFF2D7E6E), width: 1.5),
+      ),
+      filled: true,
+      fillColor: Colors.grey.shade50,
     );
   }
 

@@ -3,6 +3,8 @@ class ApiConstants {
   static const String loginEndpoint = '$baseUrl/auth/login';
   static const String patientsEndpoint = '$baseUrl/patients';
   static const String userAccountsEndpoint = '$baseUrl/users';
+
+  // doctors endpoints
   static const String doctorsEndpoint = '$baseUrl/doctors';
   static const String createDoctorsEndpoint = '$baseUrl/doctors';
 }

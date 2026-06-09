@@ -14,6 +14,10 @@ abstract class AdminRemoteDataSource {
     required int page,
     required int size,
   });
+  Future<void> createDoctor({
+    required Map<String, dynamic> doctorData,
+    required String token,
+  });
 }
 
 class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
@@ -110,6 +114,36 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
         };
       } else {
         throw Exception('Lỗi hệ thống: ${response.statusCode}');
+      }
+    } catch (e) {
+      throw Exception('Kết nối thất bại: $e');
+    }
+  }
+
+  @override
+  Future<void> createDoctor({
+    required Map<String, dynamic> doctorData,
+    required String token,
+  }) async {
+    final uri = Uri.parse(ApiConstants.createDoctorsEndpoint);
+
+    try {
+      final response = await client.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode(doctorData),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return;
+      } else {
+        final String decodedBody = utf8.decode(response.bodyBytes);
+        final Map<String, dynamic> errorData = jsonDecode(decodedBody);
+        throw Exception(errorData['message'] ?? 'Lỗi khi tạo tài khoản bác sĩ');
       }
     } catch (e) {
       throw Exception('Kết nối thất bại: $e');

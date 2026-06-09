@@ -12,6 +12,11 @@ class UserModel extends UserEntity {
   factory UserModel.fromJson(Map<String, dynamic> json) {
     List<String> parsedRoles = [];
 
+    // 1. Ưu tiên xử lý trường 'role' (dạng String) từ response thực tế của bạn
+    if (json['role'] != null && json['role'] is String) {
+      parsedRoles.add(json['role'].toString().replaceAll('ROLE_', ''));
+    }
+    // 2. Dự phòng xử lý trường 'roles' (dạng List) nếu backend thay đổi cấu trúc sau này
     if (json['roles'] != null) {
       final rawRoles = json['roles'] as List;
 
@@ -30,7 +35,10 @@ class UserModel extends UserEntity {
     }
 
     return UserModel(
-      id: json['id']?.toString() ?? '',
+      id:
+          json['id']?.toString() ??
+          json['username'] ??
+          '', // Dùng username làm ID nếu không có id riêng
       name:
           json['username'] ??
           json['fullName'] ??

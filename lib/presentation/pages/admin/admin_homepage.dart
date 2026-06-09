@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
@@ -510,6 +509,16 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         children: [
                           IconButton(
                             icon: const Icon(
+                              Icons.visibility_outlined,
+                              size: 18,
+                              color: Colors.blue,
+                            ),
+                            onPressed: () =>
+                                _showAccountDetailDialog(context, account),
+                            tooltip: 'Xem chi tiết',
+                          ),
+                          IconButton(
+                            icon: const Icon(
                               Icons.edit_outlined,
                               size: 18,
                               color: Color(0xFF2D7E6E),
@@ -550,6 +559,296 @@ class _AdminHomepageState extends State<AdminHomepage> {
               ),
             ),
           const SizedBox(height: 10),
+        ],
+      ),
+    );
+  }
+
+  void _showAccountDetailDialog(
+    BuildContext context,
+    DoctorAccountModel account,
+  ) {
+    final isActive = account.status == 'ACTIVE';
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
+        content: SizedBox(
+          width: 850,
+          child: IntrinsicHeight(
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Phần bên trái: Tóm tắt danh tính
+                Container(
+                  width: 260,
+                  color: const Color(0xFFF8FAF9),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 40,
+                    horizontal: 20,
+                  ),
+                  child: Column(
+                    children: [
+                      CircleAvatar(
+                        radius: 50,
+                        backgroundColor: const Color(
+                          0xFF2D7E6E,
+                        ).withOpacity(0.1),
+                        child: Text(
+                          account.fullName.isNotEmpty
+                              ? account.fullName[0]
+                              : 'U',
+                          style: const TextStyle(
+                            fontSize: 40,
+                            color: Color(0xFF2D7E6E),
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(
+                        account.fullName,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        account.role,
+                        style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: isActive
+                              ? Colors.green.shade50
+                              : Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isActive
+                                ? Colors.green.shade200
+                                : Colors.grey.shade300,
+                          ),
+                        ),
+                        child: Text(
+                          account.status,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: isActive
+                                ? Colors.green.shade700
+                                : Colors.grey.shade700,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Phần bên phải: Chi tiết đầy đủ
+                Expanded(
+                  child: Padding(
+                    padding: const EdgeInsets.all(32),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildSectionTitle('Thông tin định danh'),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDetailRow(
+                                  'Tên đăng nhập:',
+                                  account.username,
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildDetailRow(
+                                  'Số điện thoại:',
+                                  account.phone,
+                                ),
+                              ),
+                            ],
+                          ),
+                          _buildDetailRow('Email liên hệ:', account.email),
+
+                          const SizedBox(height: 24),
+                          _buildSectionTitle('Hồ sơ chuyên môn'),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDetailRow(
+                                  'Mã bác sĩ:',
+                                  account.doctorCode ?? 'N/A',
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildDetailRow(
+                                  'Số chứng chỉ:',
+                                  account.licenseNumber ?? 'N/A',
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDetailRow(
+                                  'Chuyên khoa:',
+                                  account.specialization ?? 'N/A',
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildDetailRow(
+                                  'Đơn vị công tác:',
+                                  account.hospitalName ?? 'N/A',
+                                ),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDetailRow(
+                                  'Chức vụ:',
+                                  account.position ?? 'N/A',
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildDetailRow(
+                                  'Kinh nghiệm:',
+                                  '${account.yearsOfExperience} năm',
+                                ),
+                              ),
+                            ],
+                          ),
+                          _buildDetailRow(
+                            'Học hàm/Học vị:',
+                            '${account.academicTitle ?? ""} ${account.degree ?? ""}'
+                                    .trim()
+                                    .isEmpty
+                                ? 'N/A'
+                                : '${account.academicTitle ?? ""} ${account.degree ?? ""}'
+                                      .trim(),
+                          ),
+
+                          const SizedBox(height: 24),
+                          _buildSectionTitle('Dữ liệu hệ thống'),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildDetailRow(
+                                  'Ngày tham gia:',
+                                  DateFormat(
+                                    'dd/MM/yyyy',
+                                  ).format(account.createdAt),
+                                ),
+                              ),
+                              Expanded(
+                                child: _buildDetailRow(
+                                  'Lần cuối cập nhật:',
+                                  DateFormat(
+                                    'dd/MM/yyyy HH:mm',
+                                  ).format(account.updatedAt),
+                                ),
+                              ),
+                            ],
+                          ),
+                          if (account.bio != null &&
+                              account.bio!.isNotEmpty) ...[
+                            const SizedBox(height: 24),
+                            _buildSectionTitle('Giới thiệu'),
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                account.bio!,
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.black54,
+                                  height: 1.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF2D7E6E),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 16,
+                ),
+              ),
+              child: const Text(
+                'Đóng',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Text(
+        title.toUpperCase(),
+        style: const TextStyle(
+          fontSize: 12,
+          fontWeight: FontWeight.bold,
+          color: Color(0xFF2D7E6E),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                color: Colors.black54,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(color: Colors.black87, fontSize: 13),
+            ),
+          ),
         ],
       ),
     );

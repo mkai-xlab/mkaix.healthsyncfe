@@ -13,7 +13,8 @@ abstract class AdminRemoteDataSource {
   Future<Map<String, dynamic>> getDoctorAccounts({
     required int page,
     required int size,
-    required String token, // Thêm token vào đây
+    required String token,
+    String? name,
   });
   Future<void> createDoctor({
     required Map<String, dynamic> doctorData,
@@ -75,11 +76,18 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
   Future<Map<String, dynamic>> getDoctorAccounts({
     required int page,
     required int size,
-    required String token, // Thêm token vào đây
+    required String token,
+    String? name,
   }) async {
-    final uri = Uri.parse(ApiConstants.doctorsEndpoint).replace(
-      queryParameters: {'page': page.toString(), 'size': size.toString()},
-    );
+    final Map<String, String> queryParams = {
+      'page': page.toString(),
+      'size': size.toString(),
+      if (name != null && name.isNotEmpty) 'name': name,
+    };
+
+    final uri = Uri.parse(
+      ApiConstants.doctorsEndpoint,
+    ).replace(queryParameters: queryParams);
 
     try {
       final response = await client

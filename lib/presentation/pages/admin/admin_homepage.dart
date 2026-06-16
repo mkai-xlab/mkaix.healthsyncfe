@@ -14,10 +14,7 @@ class AdminHomepage extends StatefulWidget {
 
 class _AdminHomepageState extends State<AdminHomepage> {
   int _selectedNavIndex = 0;
-  String _searchQuery = '';
-  final ScrollController _scrollController = ScrollController();
-  // Thêm Timer cho debounce
-  // Timer? _debounce;
+  DoctorAccountModel? _selectedUser;
 
   @override
   void initState() {
@@ -63,22 +60,50 @@ class _AdminHomepageState extends State<AdminHomepage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 45,
-                  height: 45,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2D7E6E),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.healing,
-                    color: Colors.white,
-                    size: 26,
-                  ),
+                Row(
+                  children: [
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Image.asset(
+                        'lib/presentation/images/logo1.jpg',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.local_hospital,
+                          color: Color(0xFF2D7E6E),
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Image.asset(
+                        'lib/presentation/images/logo2.jpg',
+                        fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.healing,
+                          color: Color(0xFF2D7E6E),
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'VIỆN Y HỌC CÓ TRUYỀN',
+                  'VIỆN Y HỌC CỔ TRUYỀN',
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 10,
@@ -190,22 +215,50 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Container(
-                    width: 45,
-                    height: 45,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.healing,
-                      color: Colors.white,
-                      size: 26,
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.asset(
+                          'lib/presentation/images/logo1.jpg',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.local_hospital,
+                            color: Color(0xFF2D7E6E),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Image.asset(
+                          'lib/presentation/images/logo2.jpg',
+                          fit: BoxFit.contain,
+                          errorBuilder: (_, __, ___) => const Icon(
+                            Icons.healing,
+                            color: Color(0xFF2D7E6E),
+                            size: 22,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   const Text(
-                    'VIỆN Y HỌC CÓ TRUYỀN QUÂN ĐỘI',
+                    'VIỆN Y HỌC CỔ TRUYỀN QUÂN ĐỘI',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 12,
@@ -323,63 +376,28 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   Widget _buildUserManagementPage(BuildContext context) {
     return Container(
-      color: const Color(0xFFF5F5F5),
+      color: const Color(0xFFF0F4F3),
       child: Column(
         children: [
           _buildTopBar(context),
           Expanded(
             child: Consumer<AdminAccountViewModel>(
               builder: (context, viewModel, child) {
-                if (viewModel.isLoading && viewModel.accounts.isEmpty) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                if (viewModel.errorMessage != null &&
-                    viewModel.accounts.isEmpty) {
-                  return Center(child: Text(viewModel.errorMessage!));
-                }
-                return NotificationListener<ScrollNotification>(
-                  onNotification: (ScrollNotification scrollInfo) {
-                    if (scrollInfo.metrics.pixels ==
-                        scrollInfo.metrics.maxScrollExtent) {
-                      final token =
-                          context.read<AuthViewModel>().currentUser?.token ??
-                          '';
-                      viewModel.fetchNextPage(token);
-                    }
-                    return true;
-                  },
-                  child: RefreshIndicator(
-                    onRefresh: () async {
-                      final token =
-                          context.read<AuthViewModel>().currentUser?.token ??
-                          '';
-                      await viewModel.fetchFirstPage(token);
-                    },
-                    child: SingleChildScrollView(
-                      physics: const AlwaysScrollableScrollPhysics(),
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Quản lý người dùng',
-                            style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          const Text(
-                            'Danh sách tài khoản nhân viên và bác sĩ trong hệ thống',
-                            style: TextStyle(color: Colors.grey, fontSize: 13),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildUserTable(viewModel),
-                        ],
-                      ),
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // ── LEFT: main list ──
+                    Expanded(
+                      flex: 7,
+                      child: _buildUserListPanel(context, viewModel),
                     ),
-                  ),
+                    // ── RIGHT: detail panel ──
+                    Container(
+                      width: 260,
+                      color: Colors.white,
+                      child: _buildUserDetailSidebar(context, viewModel),
+                    ),
+                  ],
                 );
               },
             ),
@@ -389,198 +407,988 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
-  Widget _buildUserTable(AdminAccountViewModel viewModel) {
-    final accounts = viewModel.accounts;
+  // ─── LEFT PANEL ───────────────────────────────────────────
+  Widget _buildUserListPanel(
+    BuildContext context,
+    AdminAccountViewModel viewModel,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(24, 24, 16, 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Header row
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Quản lý người dùng',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1A2B3C),
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Danh sách bác sĩ, kỹ thuật viên và nhân viên hệ thống.',
+                      style: TextStyle(fontSize: 13, color: Color(0xFF718096)),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: () {},
+                icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
+                label: const Text('Phân quyền'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF2D7E6E),
+                  side: const BorderSide(color: Color(0xFF2D7E6E)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              ElevatedButton.icon(
+                onPressed: () => _showCreateAccountDialog(context),
+                icon: const Icon(Icons.person_add_outlined, size: 16),
+                label: const Text('Thêm tài khoản'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2D7E6E),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 10,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
 
+          // Stat cards
+          _buildUserStatCards(viewModel),
+          const SizedBox(height: 20),
+
+          // Filter bar
+          _buildFilterBar(context, viewModel),
+          const SizedBox(height: 16),
+
+          // Table header
+          _buildTableHeader(),
+          const SizedBox(height: 4),
+
+          // User rows
+          if (viewModel.isLoading && viewModel.accounts.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 60),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (viewModel.errorMessage != null && viewModel.accounts.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 60),
+              child: Center(child: Text(viewModel.errorMessage!)),
+            )
+          else
+            ...viewModel.accounts.map(
+              (account) => _buildUserRow(context, account, viewModel),
+            ),
+
+          // Load more / pagination
+          if (viewModel.isLoading && viewModel.accounts.isNotEmpty)
+            const Padding(
+              padding: EdgeInsets.all(16),
+              child: Center(child: CircularProgressIndicator()),
+            ),
+
+          const SizedBox(height: 12),
+          _buildPaginationBar(context, viewModel),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserStatCards(AdminAccountViewModel viewModel) {
+    final total = viewModel.accounts.length;
+    final doctors = viewModel.accounts.where((a) => a.role == 'DOCTOR').length;
+    final ktv = viewModel.accounts.where((a) => a.role == 'KTV').length;
+    final locked = viewModel.accounts
+        .where((a) => a.status == 'INACTIVE')
+        .length;
+    final online = viewModel.accounts.where((a) => a.status == 'ACTIVE').length;
+
+    return Row(
+      children: [
+        _buildUMStatCard(
+          label: 'TỔNG SỐ',
+          value: total.toString(),
+          sub: '↑ +3 mới',
+          subColor: const Color(0xFF2D7E6E),
+          borderColor: const Color(0xFF2D7E6E),
+        ),
+        const SizedBox(width: 10),
+        _buildUMStatCard(
+          label: 'BÁC SĨ',
+          value: doctors.toString(),
+          sub: 'Đang công tác',
+        ),
+        const SizedBox(width: 10),
+        _buildUMStatCard(
+          label: 'KỸ THUẬT VIÊN',
+          value: ktv.toString(),
+          sub: 'Hỗ trợ CDHA',
+        ),
+        const SizedBox(width: 10),
+        _buildUMStatCard(
+          label: 'ĐÃ KHÓA',
+          value: locked.toString().padLeft(2, '0'),
+          sub: 'Vi phạm CS',
+          subColor: const Color(0xFFE53E3E),
+          valueColor: const Color(0xFFE53E3E),
+          borderColor: const Color(0xFFE53E3E),
+        ),
+        const SizedBox(width: 10),
+        _buildUMStatCard(
+          label: 'TRỰC TUYẾN',
+          value: online.toString(),
+          sub: '● ● ○',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUMStatCard({
+    required String label,
+    required String value,
+    String? sub,
+    Color subColor = const Color(0xFF718096),
+    Color valueColor = const Color(0xFF1A2B3C),
+    Color borderColor = Colors.transparent,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border(left: BorderSide(color: borderColor, width: 3)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF718096),
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 28,
+                fontWeight: FontWeight.bold,
+                color: valueColor,
+                height: 1,
+              ),
+            ),
+            if (sub != null) ...[
+              const SizedBox(height: 4),
+              Text(sub, style: TextStyle(fontSize: 10, color: subColor)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFilterBar(
+    BuildContext context,
+    AdminAccountViewModel viewModel,
+  ) {
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    return Row(
+      children: [
+        Expanded(
+          flex: 3,
+          child: SizedBox(
+            height: 40,
+            child: TextField(
+              onChanged: (v) {
+                viewModel.searchByNameDebounced(v, token);
+              },
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Tìm theo tên...',
+                hintStyle: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFFADB5BD),
+                ),
+                prefixIcon: const Icon(
+                  Icons.tune,
+                  size: 18,
+                  color: Color(0xFF718096),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: EdgeInsets.zero,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF2D7E6E),
+                    width: 1.5,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        _buildFilterChip('Tất cả vai trò'),
+        const SizedBox(width: 8),
+        _buildFilterChip('Trạng thái'),
+        const SizedBox(width: 8),
+        _buildFilterChip('Khoa phòng'),
+      ],
+    );
+  }
+
+  Widget _buildFilterChip(String label) {
     return Container(
+      height: 40,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Text(
+            label,
+            style: const TextStyle(fontSize: 13, color: Color(0xFF4A5568)),
+          ),
+          const SizedBox(width: 4),
+          const Icon(
+            Icons.keyboard_arrow_down,
+            size: 16,
+            color: Color(0xFF718096),
           ),
         ],
       ),
-      child: Column(
-        children: [
-          // Header Table Actions
-          Padding(
-            padding: const EdgeInsets.all(20),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Danh sách tài khoản',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
-                ),
-                ElevatedButton.icon(
-                  onPressed: () => _showCreateAccountDialog(context),
-                  icon: const Icon(Icons.add, size: 18),
-                  label: const Text('Tạo tài khoản'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D7E6E),
-                    foregroundColor: Colors.white,
-                  ),
-                ),
-              ],
-            ),
+    );
+  }
+
+  Widget _buildTableHeader() {
+    const style = TextStyle(
+      fontSize: 11,
+      fontWeight: FontWeight.bold,
+      color: Color(0xFF718096),
+      letterSpacing: 0.5,
+    );
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        children: const [
+          Expanded(flex: 5, child: Text('NGƯỜI DÙNG', style: style)),
+          Expanded(flex: 3, child: Text('TÀI KHOẢN', style: style)),
+          Expanded(flex: 2, child: Text('VAI TRÒ', style: style)),
+          Expanded(flex: 2, child: Text('KHOA', style: style)),
+          Expanded(flex: 3, child: Text('TRẠNG THÁI', style: style)),
+          SizedBox(width: 32),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildUserRow(
+    BuildContext context,
+    DoctorAccountModel account,
+    AdminAccountViewModel viewModel,
+  ) {
+    final isActive = account.status == 'ACTIVE';
+    final isSelected = _selectedUser?.id == account.id;
+
+    Color roleColor;
+    Color roleBg;
+    String roleLabel;
+    switch (account.role) {
+      case 'DOCTOR':
+        roleLabel = 'Bác sĩ';
+        roleColor = const Color(0xFF2D7E6E);
+        roleBg = const Color(0xFFE6F4F1);
+        break;
+      case 'ADMIN':
+        roleLabel = 'Admin';
+        roleColor = const Color(0xFFD97706);
+        roleBg = const Color(0xFFFEF3C7);
+        break;
+      default:
+        roleLabel = 'KTV';
+        roleColor = const Color(0xFF3B82F6);
+        roleBg = const Color(0xFFEFF6FF);
+    }
+
+    return GestureDetector(
+      onTap: () => setState(() => _selectedUser = account),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFFE6F4F1) : Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF2D7E6E)
+                : const Color(0xFFEDF2F7),
           ),
-          const Divider(height: 1),
-          // Table Content
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              columnSpacing: 32,
-              columns: const [
-                DataColumn(label: Text('Thông tin người dùng')),
-                DataColumn(label: Text('Email')),
-                DataColumn(label: Text('Vai trò')),
-                DataColumn(label: Text('Trạng thái')),
-                DataColumn(label: Text('Cập nhật')),
-                DataColumn(label: Text('Thao tác')),
-              ],
-              rows: accounts.map((account) {
-                final isActive = account.status == 'ACTIVE';
-                return DataRow(
-                  cells: [
-                    DataCell(
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            radius: 14,
-                            backgroundColor: const Color(
-                              0xFF2D7E6E,
-                            ).withOpacity(0.1),
-                            child: Text(
-                              account.fullName.isNotEmpty
-                                  ? account.fullName[0]
-                                  : 'U',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF2D7E6E),
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Text(
-                            account.fullName,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    DataCell(
-                      Text(account.email, style: const TextStyle(fontSize: 13)),
-                    ),
-                    DataCell(
-                      Text(account.role, style: const TextStyle(fontSize: 13)),
-                    ),
-                    DataCell(
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: isActive
-                              ? Colors.green.shade50
-                              : Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: isActive
-                                ? Colors.green.shade200
-                                : Colors.grey.shade300,
-                          ),
-                        ),
+        ),
+        child: Row(
+          children: [
+            // Avatar + name
+            Expanded(
+              flex: 5,
+              child: Row(
+                children: [
+                  Stack(
+                    children: [
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: const Color(
+                          0xFF2D7E6E,
+                        ).withValues(alpha: 0.15),
                         child: Text(
-                          account.status,
-                          style: TextStyle(
-                            fontSize: 11,
-                            color: isActive
-                                ? Colors.green.shade700
-                                : Colors.grey.shade700,
+                          account.fullName.isNotEmpty
+                              ? account.fullName[0]
+                              : 'U',
+                          style: const TextStyle(
+                            fontSize: 14,
                             fontWeight: FontWeight.bold,
+                            color: Color(0xFF2D7E6E),
                           ),
                         ),
                       ),
-                    ),
-                    DataCell(
-                      Text(
-                        DateFormat('dd/MM/yyyy').format(account.updatedAt),
-                        style: const TextStyle(fontSize: 13),
+                      Positioned(
+                        right: 0,
+                        bottom: 0,
+                        child: Container(
+                          width: 10,
+                          height: 10,
+                          decoration: BoxDecoration(
+                            color: isActive
+                                ? const Color(0xFF48BB78)
+                                : Colors.grey.shade400,
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 1.5),
+                          ),
+                        ),
                       ),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          account.fullName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1A2B3C),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          account.specialization ?? roleLabel,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF718096),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
-                    DataCell(
-                      Row(
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                              Icons.visibility_outlined,
-                              size: 18,
-                              color: Colors.blue,
-                            ),
-                            onPressed: () =>
-                                _showAccountDetailDialog(context, account),
-                            tooltip: 'Xem chi tiết',
-                          ),
-                          IconButton(
-                            icon: const Icon(
-                              Icons.edit_outlined,
-                              size: 18,
-                              color: Color(0xFF2D7E6E),
-                            ),
-                            onPressed: () {},
-                            tooltip: 'Chỉnh sửa',
-                          ),
-                          IconButton(
-                            icon: Icon(
-                              isActive
-                                  ? Icons.block
-                                  : Icons.check_circle_outline,
-                              size: 18,
-                              color: isActive ? Colors.red : Colors.green,
-                            ),
-                            onPressed: () =>
-                                _showToggleStatusDialog(context, account),
-                            tooltip: isActive ? 'Khóa tài khoản' : 'Kích hoạt',
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-          ),
-          if (viewModel.isLoading)
-            const Padding(
-              padding: EdgeInsets.all(20),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-          if (!viewModel.isLastPage && !viewModel.isLoading)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: TextButton(
-                onPressed: () {
-                  final token =
-                      context.read<AuthViewModel>().currentUser?.token ?? '';
-                  viewModel.fetchNextPage(token);
-                },
-                child: const Text('Xem thêm tài khoản...'),
+                  ),
+                ],
               ),
             ),
-          const SizedBox(height: 10),
+            // Username
+            Expanded(
+              flex: 3,
+              child: Text(
+                account.username,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF4A5568)),
+              ),
+            ),
+            // Role badge
+            Expanded(
+              flex: 2,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: roleBg,
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  roleLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: roleColor,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            ),
+            // Department
+            Expanded(
+              flex: 2,
+              child: Text(
+                account.hospitalName?.split(' ').last ?? '—',
+                style: const TextStyle(fontSize: 12, color: Color(0xFF4A5568)),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            // Status
+            Expanded(
+              flex: 3,
+              child: Row(
+                children: [
+                  Container(
+                    width: 7,
+                    height: 7,
+                    decoration: BoxDecoration(
+                      color: isActive
+                          ? const Color(0xFF48BB78)
+                          : Colors.red.shade400,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    isActive ? 'Online' : 'Tạm khóa',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isActive
+                          ? const Color(0xFF2D7E6E)
+                          : Colors.red.shade500,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // More menu
+            PopupMenuButton<String>(
+              icon: const Icon(
+                Icons.more_vert,
+                size: 18,
+                color: Color(0xFF718096),
+              ),
+              onSelected: (v) {
+                if (v == 'detail') {
+                  _showAccountDetailDialog(context, account);
+                } else if (v == 'toggle') {
+                  _showToggleStatusDialog(context, account);
+                }
+              },
+              itemBuilder: (_) => [
+                const PopupMenuItem(
+                  value: 'detail',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.visibility_outlined,
+                        size: 16,
+                        color: Colors.blue,
+                      ),
+                      SizedBox(width: 8),
+                      Text('Xem chi tiết'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem(
+                  value: 'toggle',
+                  child: Row(
+                    children: [
+                      Icon(
+                        isActive ? Icons.block : Icons.check_circle_outline,
+                        size: 16,
+                        color: isActive ? Colors.red : Colors.green,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(isActive ? 'Khóa tài khoản' : 'Kích hoạt'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPaginationBar(
+    BuildContext context,
+    AdminAccountViewModel viewModel,
+  ) {
+    return Row(
+      children: [
+        Text(
+          'Hiển thị ${viewModel.accounts.length} người dùng',
+          style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
+        ),
+        const Spacer(),
+        if (!viewModel.isLastPage)
+          Row(
+            children: [
+              _buildPageBtn(Icons.chevron_left, null),
+              const SizedBox(width: 4),
+              _buildPageNumBtn('1', isActive: true),
+              const SizedBox(width: 4),
+              _buildPageNumBtn('2'),
+              const SizedBox(width: 4),
+              _buildPageBtn(Icons.chevron_right, () {
+                final token =
+                    context.read<AuthViewModel>().currentUser?.token ?? '';
+                viewModel.fetchNextPage(token);
+              }),
+            ],
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPageBtn(IconData icon, VoidCallback? onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 32,
+        height: 32,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
+        ),
+        child: Icon(icon, size: 18, color: const Color(0xFF4A5568)),
+      ),
+    );
+  }
+
+  Widget _buildPageNumBtn(String num, {bool isActive = false}) {
+    return Container(
+      width: 32,
+      height: 32,
+      decoration: BoxDecoration(
+        color: isActive ? const Color(0xFF2D7E6E) : Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isActive ? const Color(0xFF2D7E6E) : const Color(0xFFE2E8F0),
+        ),
+      ),
+      child: Center(
+        child: Text(
+          num,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: isActive ? Colors.white : const Color(0xFF4A5568),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ─── RIGHT DETAIL SIDEBAR ─────────────────────────────────
+  Widget _buildUserDetailSidebar(
+    BuildContext context,
+    AdminAccountViewModel viewModel,
+  ) {
+    final user = _selectedUser;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── User card ──
+          if (user != null) ...[
+            const SizedBox(height: 8),
+            Center(
+              child: Stack(
+                alignment: Alignment.bottomRight,
+                children: [
+                  CircleAvatar(
+                    radius: 36,
+                    backgroundColor: const Color(
+                      0xFF2D7E6E,
+                    ).withValues(alpha: 0.15),
+                    child: Text(
+                      user.fullName.isNotEmpty ? user.fullName[0] : 'U',
+                      style: const TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF2D7E6E),
+                      ),
+                    ),
+                  ),
+                  Container(
+                    width: 14,
+                    height: 14,
+                    decoration: BoxDecoration(
+                      color: user.status == 'ACTIVE'
+                          ? const Color(0xFF48BB78)
+                          : Colors.grey,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Center(
+              child: Text(
+                user.fullName,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A2B3C),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                user.specialization ?? user.role,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF2D7E6E)),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Center(
+              child: Text(
+                'ID: ${user.doctorCode ?? user.id}',
+                style: const TextStyle(fontSize: 11, color: Color(0xFF718096)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildSidebarInfoBox(
+                    'CA TRỰC',
+                    user.position == 'DEPARTMENT_HEAD' ? 'Sáng' : '—',
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSidebarInfoBox(
+                    'THÂM NIÊN',
+                    '${user.yearsOfExperience} Năm',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                onPressed: () => _showAccountDetailDialog(context, user),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF2D7E6E),
+                  side: const BorderSide(color: Color(0xFFE2E8F0)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                ),
+                child: const Text(
+                  'Chi tiết hồ sơ',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ),
+          ] else ...[
+            const SizedBox(height: 40),
+            Center(
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.person_search_outlined,
+                    size: 48,
+                    color: Colors.grey.shade300,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Chọn người dùng\nđể xem chi tiết',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(fontSize: 13, color: Colors.grey.shade400),
+                  ),
+                ],
+              ),
+            ),
+          ],
+
+          const SizedBox(height: 24),
+          const Divider(color: Color(0xFFEDF2F7)),
+          const SizedBox(height: 16),
+
+          // ── Cơ cấu nhân sự ──
+          const Text(
+            'Cơ cấu nhân sự',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A2B3C),
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildStaffStructure(viewModel),
+          const SizedBox(height: 24),
+
+          // ── Hoạt động gần đây ──
+          const Text(
+            'Hoạt động gần đây',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF1A2B3C),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildRecentActivity(
+            Icons.login,
+            'BS. An vừa đăng nhập',
+            '2 phút trước',
+            color: const Color(0xFF2D7E6E),
+          ),
+          _buildRecentActivity(
+            Icons.lock_reset,
+            'Đổi pass: maile_rad',
+            '45 phút trước',
+            color: const Color(0xFFD97706),
+          ),
+          _buildRecentActivity(
+            Icons.person_add_outlined,
+            'Thêm mới: BS. Hùng',
+            '2 giờ trước',
+            color: const Color(0xFF3B82F6),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: TextButton(
+              onPressed: () {},
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF2D7E6E),
+                padding: EdgeInsets.zero,
+              ),
+              child: const Text(
+                'Toàn bộ nhật ký',
+                style: TextStyle(fontSize: 12),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSidebarInfoBox(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF718096),
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1A2B3C),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStaffStructure(AdminAccountViewModel viewModel) {
+    final total = viewModel.accounts.isEmpty ? 128 : viewModel.accounts.length;
+    final doctors = viewModel.accounts.isEmpty
+        ? 84
+        : viewModel.accounts.where((a) => a.role == 'DOCTOR').length;
+    final ktv = viewModel.accounts.isEmpty
+        ? 32
+        : viewModel.accounts.where((a) => a.role == 'KTV').length;
+    final admin = viewModel.accounts.isEmpty
+        ? 12
+        : viewModel.accounts.where((a) => a.role == 'ADMIN').length;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        // mini donut
+        SizedBox(
+          width: 56,
+          height: 56,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              CustomPaint(
+                size: const Size(56, 56),
+                painter: _MiniDonutPainter(
+                  total: total,
+                  doctors: doctors,
+                  ktv: ktv,
+                  admin: admin,
+                ),
+              ),
+              Text(
+                '${total > 0 ? ((doctors / total) * 100).round() : 65}%',
+                style: const TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF1A2B3C),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            children: [
+              _buildStructureRow('Bác sĩ', doctors, const Color(0xFF2D7E6E)),
+              const SizedBox(height: 4),
+              _buildStructureRow('KTV', ktv, const Color(0xFFD97706)),
+              const SizedBox(height: 4),
+              _buildStructureRow('Admin', admin, const Color(0xFF3B82F6)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildStructureRow(String label, int count, Color color) {
+    return Row(
+      children: [
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF4A5568)),
+          ),
+        ),
+        Text(
+          count.toString(),
+          style: const TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: Color(0xFF1A2B3C),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRecentActivity(
+    IconData icon,
+    String text,
+    String time, {
+    Color color = const Color(0xFF718096),
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 30,
+            height: 30,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, size: 14, color: color),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  text,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF1A2B3C),
+                  ),
+                ),
+                Text(
+                  time,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF718096),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -1198,11 +2006,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
           // Search Bar
           Expanded(
             child: TextField(
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value;
-                });
-              },
+              onChanged: (value) {},
               decoration: InputDecoration(
                 hintText: 'Tìm kiếm nhân viên, người dùng...',
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
@@ -1942,6 +2746,52 @@ class _AdminHomepageState extends State<AdminHomepage> {
         return Colors.grey.shade700;
     }
   }
+}
+
+// Mini Donut for sidebar staff structure
+class _MiniDonutPainter extends CustomPainter {
+  final int total, doctors, ktv, admin;
+  const _MiniDonutPainter({
+    required this.total,
+    required this.doctors,
+    required this.ktv,
+    required this.admin,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2 - 4;
+    final paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 10
+      ..strokeCap = StrokeCap.butt;
+
+    final t = total == 0 ? 1 : total;
+    final docAngle = (doctors / t) * 2 * 3.14159;
+    final ktvAngle = (ktv / t) * 2 * 3.14159;
+    final adminAngle = (admin / t) * 2 * 3.14159;
+
+    final rect = Rect.fromCircle(center: center, radius: radius);
+
+    paint.color = const Color(0xFF2D7E6E);
+    canvas.drawArc(rect, -3.14159 / 2, docAngle, false, paint);
+
+    paint.color = const Color(0xFFD97706);
+    canvas.drawArc(rect, -3.14159 / 2 + docAngle, ktvAngle, false, paint);
+
+    paint.color = const Color(0xFF3B82F6);
+    canvas.drawArc(
+      rect,
+      -3.14159 / 2 + docAngle + ktvAngle,
+      adminAngle,
+      false,
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_MiniDonutPainter old) => false;
 }
 
 // Custom Painter for Donut Chart

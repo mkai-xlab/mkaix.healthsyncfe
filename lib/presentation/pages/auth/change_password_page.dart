@@ -3,27 +3,24 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
-class ResetPasswordPage extends StatefulWidget {
-  /// Email truyền từ ForgotPasswordPage qua GoRouter extra
-  final String? email;
-
-  const ResetPasswordPage({super.key, this.email});
+class ChangePasswordPage extends StatefulWidget {
+  const ChangePasswordPage({super.key});
 
   @override
-  State<ResetPasswordPage> createState() => _ResetPasswordPageState();
+  State<ChangePasswordPage> createState() => _ChangePasswordPageState();
 }
 
-class _ResetPasswordPageState extends State<ResetPasswordPage> {
-  final _tokenController = TextEditingController();
+class _ChangePasswordPageState extends State<ChangePasswordPage> {
+  final _formKey = GlobalKey<FormState>();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
 
   bool _showNewPassword = false;
   bool _showConfirmPassword = false;
 
-  // Lưu local ngay initState — tránh mất khi GoRouter rebuild
-  String _email = '';
+  // Lưu local ngay khi initState — trước khi clear state
+  String _username = '';
+  String _oldPassword = '';
 
   static const Color _primaryGreen = Color(0xFF2D7E6E);
   static const Color _darkGreen = Color(0xFF1A5C4E);
@@ -31,17 +28,19 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   @override
   void initState() {
     super.initState();
-    // Lấy email TRƯỚC khi clearPasswordResetState có thể trigger rebuild
-    _email = widget.email ?? '';
+    // Lấy credentials TRƯỚC khi clearChangePasswordState xóa chúng
+    final vm = context.read<AuthViewModel>();
+    _username = vm.pendingUsername ?? '';
+    _oldPassword = vm.pendingOldPassword ?? '';
 
+    // Clear chỉ trạng thái change (error/success), KHÔNG xóa pending credentials
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.read<AuthViewModel>().clearPasswordResetState();
+      if (mounted) context.read<AuthViewModel>().clearChangePasswordState();
     });
   }
 
   @override
   void dispose() {
-    _tokenController.dispose();
     _newPasswordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -173,7 +172,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           child: Image.asset(
             'lib/presentation/images/logo1.jpg',
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
+            errorBuilder: (context, error, stackTrace) => const Icon(
               Icons.local_hospital,
               color: _primaryGreen,
               size: 28,
@@ -192,7 +191,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           child: Image.asset(
             'lib/presentation/images/logo2.jpg',
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
+            errorBuilder: (context, error, stackTrace) =>
                 const Icon(Icons.healing, color: _primaryGreen, size: 28),
           ),
         ),
@@ -228,6 +227,30 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white30),
+          ),
+          child: const Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.security_rounded, color: Colors.white70, size: 14),
+              SizedBox(width: 6),
+              Text(
+                'Yêu cầu bảo mật',
+                style: TextStyle(
+                  color: Colors.white70,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 20),
+        Container(
           width: 56,
           height: 56,
           decoration: BoxDecoration(
@@ -235,83 +258,68 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             borderRadius: BorderRadius.circular(16),
           ),
           child: const Icon(
-            Icons.lock_open_rounded,
+            Icons.lock_person_rounded,
             color: Colors.white,
             size: 30,
           ),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 20),
         const Text(
-          'Đặt lại\nmật khẩu',
+          'Đổi mật khẩu\nlần đầu đăng nhập',
           style: TextStyle(
             color: Colors.white,
-            fontSize: 32,
+            fontSize: 28,
             fontWeight: FontWeight.bold,
             height: 1.2,
           ),
         ),
         const SizedBox(height: 16),
-        const Text(
-          'Nhập mã xác thực đã được gửi\nqua email và tạo mật khẩu mới\ncho tài khoản của bạn.',
-          style: TextStyle(color: Colors.white70, fontSize: 14, height: 1.6),
+        Text(
+          'Xin chào, $_username!\n\nVì lý do bảo mật, bạn cần đặt mật khẩu mới trước khi sử dụng hệ thống.',
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
+            height: 1.6,
+          ),
         ),
         const SizedBox(height: 32),
-        _buildStep('1', 'Nhập email đăng ký', true, done: true),
+        const Text(
+          'YÊU CẦU MẬT KHẨU',
+          style: TextStyle(
+            color: Colors.white54,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
         const SizedBox(height: 12),
-        _buildStep('2', 'Nhận mã xác thực qua email', true, done: true),
-        const SizedBox(height: 12),
-        _buildStep('3', 'Đặt mật khẩu mới', true),
+        _buildRequirement('Ít nhất 8 ký tự'),
+        const SizedBox(height: 8),
+        _buildRequirement('Khác với mật khẩu cũ'),
+        const SizedBox(height: 8),
+        _buildRequirement('Nhập lại khớp xác nhận'),
       ],
     );
   }
 
-  Widget _buildStep(
-    String num,
-    String text,
-    bool isActive, {
-    bool done = false,
-  }) {
+  Widget _buildRequirement(String text) {
     return Row(
       children: [
         Container(
-          width: 28,
-          height: 28,
+          width: 18,
+          height: 18,
           decoration: BoxDecoration(
-            color: done
-                ? Colors.white
-                : isActive
-                ? Colors.white
-                : Colors.white.withValues(alpha: 0.2),
+            color: Colors.white.withValues(alpha: 0.15),
             shape: BoxShape.circle,
           ),
-          child: Center(
-            child: done
-                ? const Icon(
-                    Icons.check_rounded,
-                    size: 14,
-                    color: _primaryGreen,
-                  )
-                : Text(
-                    num,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: isActive ? _primaryGreen : Colors.white70,
-                    ),
-                  ),
+          child: const Icon(
+            Icons.check_rounded,
+            color: Colors.white70,
+            size: 11,
           ),
         ),
-        const SizedBox(width: 12),
-        Text(
-          text,
-          style: TextStyle(
-            fontSize: 13,
-            color: isActive ? Colors.white : Colors.white60,
-            fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-            decoration: done ? TextDecoration.lineThrough : null,
-            decorationColor: Colors.white54,
-          ),
-        ),
+        const SizedBox(width: 10),
+        Text(text, style: const TextStyle(color: Colors.white70, fontSize: 13)),
       ],
     );
   }
@@ -341,9 +349,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   Widget _buildFormContent() {
     final vm = context.watch<AuthViewModel>();
 
-    if (vm.resetSuccess) {
-      return _buildSuccessContent();
-    }
+    if (vm.changeSuccess) return _buildSuccessContent();
 
     return Form(
       key: _formKey,
@@ -351,28 +357,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Back
-          GestureDetector(
-            onTap: () => context.go('/forgot-password'),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: const [
-                Icon(
-                  Icons.arrow_back_ios_rounded,
-                  size: 14,
-                  color: Color(0xFF718096),
-                ),
-                SizedBox(width: 4),
-                Text(
-                  'Quay lại',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF718096)),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 24),
-
-          // Icon
           Container(
             width: 52,
             height: 52,
@@ -381,15 +365,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               borderRadius: BorderRadius.circular(14),
             ),
             child: const Icon(
-              Icons.lock_open_rounded,
+              Icons.lock_person_rounded,
               color: _primaryGreen,
               size: 26,
             ),
           ),
           const SizedBox(height: 16),
-
           const Text(
-            'Đặt lại mật khẩu',
+            'Đặt mật khẩu mới',
             style: TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.bold,
@@ -397,56 +380,59 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             ),
           ),
           const SizedBox(height: 6),
+          const Text(
+            'Bắt buộc khi đăng nhập lần đầu tiên.',
+            style: TextStyle(fontSize: 13, color: Color(0xFF718096)),
+          ),
+          const SizedBox(height: 24),
 
-          // Email hint — dùng _email đã lưu local
-          if (_email.isNotEmpty)
-            RichText(
-              text: TextSpan(
-                style: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
-                children: [
-                  const TextSpan(text: 'Mã xác thực đã gửi đến '),
-                  TextSpan(
-                    text: _email,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
+          // Username — read-only, hiển thị từ _username đã lưu local
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF0F4F3),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFD1E7E3)),
+            ),
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.person_outline_rounded,
+                  color: _primaryGreen,
+                  size: 18,
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  _username,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _primaryGreen,
+                  ),
+                ),
+                const Spacer(),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2D7E6E).withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: const Text(
+                    'Tài khoản',
+                    style: TextStyle(
+                      fontSize: 10,
                       color: _primaryGreen,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-                ],
-              ),
-            )
-          else
-            const Text(
-              'Nhập mã xác thực và mật khẩu mới.',
-              style: TextStyle(fontSize: 13, color: Color(0xFF718096)),
-            ),
-
-          const SizedBox(height: 28),
-
-          // Token field
-          _buildLabel('Mã xác thực'),
-          const SizedBox(height: 6),
-          TextFormField(
-            controller: _tokenController,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 2,
-              color: Color(0xFF1A2B3C),
-            ),
-            keyboardType: TextInputType.text,
-            validator: (v) {
-              if (v == null || v.trim().isEmpty) {
-                return 'Vui lòng nhập mã xác thực';
-              }
-              return null;
-            },
-            decoration: _buildInputDecoration(
-              hint: 'Nhập mã từ email',
-              icon: Icons.vpn_key_outlined,
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 20),
 
           // New password
           _buildLabel('Mật khẩu mới'),
@@ -457,12 +443,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             style: const TextStyle(fontSize: 14, color: Color(0xFF1A2B3C)),
             onChanged: (_) => setState(() {}),
             validator: (v) {
-              if (v == null || v.isEmpty) {
-                return 'Vui lòng nhập mật khẩu mới';
-              }
-              if (v.length < 8) {
-                return 'Mật khẩu phải có ít nhất 8 ký tự';
-              }
+              if (v == null || v.isEmpty) return 'Vui lòng nhập mật khẩu mới';
+              if (v.length < 8) return 'Mật khẩu phải có ít nhất 8 ký tự';
+              if (v == _oldPassword)
+                return 'Mật khẩu mới phải khác mật khẩu cũ';
               return null;
             },
             decoration: _buildInputDecoration(
@@ -484,19 +468,16 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           const SizedBox(height: 18),
 
           // Confirm password
-          _buildLabel('Xác nhận mật khẩu'),
+          _buildLabel('Xác nhận mật khẩu mới'),
           const SizedBox(height: 6),
           TextFormField(
             controller: _confirmPasswordController,
             obscureText: !_showConfirmPassword,
             style: const TextStyle(fontSize: 14, color: Color(0xFF1A2B3C)),
-            onChanged: (_) => setState(() {}),
             validator: (v) {
-              if (v == null || v.isEmpty) {
-                return 'Vui lòng xác nhận mật khẩu';
-              }
+              if (v == null || v.isEmpty) return 'Vui lòng xác nhận mật khẩu';
               if (v != _newPasswordController.text) {
-                return 'Mật khẩu không khớp';
+                return 'Mật khẩu xác nhận không khớp';
               }
               return null;
             },
@@ -524,10 +505,9 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               _confirmPasswordController.text.isNotEmpty)
             _buildMatchIndicator(),
 
-          const SizedBox(height: 20),
-
-          // Error
-          if (vm.resetError != null) ...[
+          // Error từ API
+          if (vm.changeError != null) ...[
+            const SizedBox(height: 12),
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(12),
@@ -546,7 +526,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      vm.resetError!,
+                      vm.changeError!,
                       style: const TextStyle(
                         color: Color(0xFFE53E3E),
                         fontSize: 13,
@@ -556,14 +536,14 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                 ],
               ),
             ),
-            const SizedBox(height: 16),
           ],
+          const SizedBox(height: 20),
 
-          // Submit
+          // Submit button
           SizedBox(
             width: double.infinity,
             height: 48,
-            child: vm.isResetLoading
+            child: vm.isChangeLoading
                 ? Container(
                     decoration: BoxDecoration(
                       color: _primaryGreen,
@@ -594,17 +574,65 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'Đặt lại mật khẩu',
+                          'Xác nhận đổi mật khẩu',
                           style: TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         SizedBox(width: 8),
-                        Icon(Icons.check_rounded, size: 18),
+                        Icon(Icons.check_circle_outline_rounded, size: 18),
                       ],
                     ),
                   ),
+          ),
+          const SizedBox(height: 16),
+
+          Center(
+            child: TextButton(
+              onPressed: () {
+                context.read<AuthViewModel>().logout();
+                context.go('/login');
+              },
+              style: TextButton.styleFrom(
+                foregroundColor: const Color(0xFF718096),
+                padding: EdgeInsets.zero,
+              ),
+              child: const Text(
+                'Quay lại đăng nhập',
+                style: TextStyle(fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMatchIndicator() {
+    final match =
+        _newPasswordController.text == _confirmPasswordController.text;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: match ? const Color(0xFFE6F4F1) : const Color(0xFFFFF0F0),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            match ? Icons.check_circle_outline : Icons.cancel_outlined,
+            size: 15,
+            color: match ? _primaryGreen : const Color(0xFFE53E3E),
+          ),
+          const SizedBox(width: 8),
+          Text(
+            match ? 'Mật khẩu khớp' : 'Mật khẩu chưa khớp',
+            style: TextStyle(
+              fontSize: 12,
+              color: match ? _primaryGreen : const Color(0xFFE53E3E),
+              fontWeight: FontWeight.w500,
+            ),
           ),
         ],
       ),
@@ -642,7 +670,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         ),
         const SizedBox(height: 10),
         const Text(
-          'Mật khẩu của bạn đã được cập nhật.\nVui lòng đăng nhập lại bằng mật khẩu mới.',
+          'Mật khẩu đã được cập nhật.\nVui lòng đăng nhập lại bằng mật khẩu mới.',
           textAlign: TextAlign.center,
           style: TextStyle(fontSize: 14, color: Color(0xFF718096), height: 1.6),
         ),
@@ -651,7 +679,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           width: double.infinity,
           height: 48,
           child: ElevatedButton(
-            onPressed: () => context.go('/login'),
+            onPressed: () {
+              context.read<AuthViewModel>().logout();
+              context.go('/login');
+            },
             style: ElevatedButton.styleFrom(
               backgroundColor: _primaryGreen,
               foregroundColor: Colors.white,
@@ -687,36 +718,6 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
         fontSize: 13,
         fontWeight: FontWeight.w600,
         color: Color(0xFF2D3748),
-      ),
-    );
-  }
-
-  Widget _buildMatchIndicator() {
-    final match =
-        _newPasswordController.text == _confirmPasswordController.text;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: match ? const Color(0xFFE6F4F1) : const Color(0xFFFFF0F0),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            match ? Icons.check_circle_outline : Icons.cancel_outlined,
-            size: 15,
-            color: match ? _primaryGreen : const Color(0xFFE53E3E),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            match ? 'Mật khẩu khớp' : 'Mật khẩu chưa khớp',
-            style: TextStyle(
-              fontSize: 12,
-              color: match ? _primaryGreen : const Color(0xFFE53E3E),
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ],
       ),
     );
   }
@@ -759,8 +760,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
   void _handleSubmit() {
     if (_formKey.currentState?.validate() != true) return;
-    context.read<AuthViewModel>().resetPassword(
-      token: _tokenController.text.trim(),
+    // Dùng _username và _oldPassword đã lưu local từ initState
+    context.read<AuthViewModel>().changePassword(
+      username: _username,
+      oldPassword: _oldPassword,
       newPassword: _newPasswordController.text,
     );
   }

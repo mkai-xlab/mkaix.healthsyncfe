@@ -8,4 +8,9 @@ abstract class AuthRepository {
     required String token,
     required String newPassword,
   });
+  Future<void> changePassword({
+    required String username,
+    required String oldPassword,
+    required String newPassword,
+  });
 }

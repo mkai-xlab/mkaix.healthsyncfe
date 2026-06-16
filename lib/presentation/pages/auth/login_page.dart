@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
@@ -561,7 +562,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             ),
             const Spacer(),
             TextButton(
-              onPressed: () => _showForgotPasswordDialog(context),
+              onPressed: () => context.go('/forgot-password'),
               style: TextButton.styleFrom(
                 foregroundColor: _primaryGreen,
                 padding: EdgeInsets.zero,
@@ -808,136 +809,6 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             color: Color(0xFFCBD5E0),
             letterSpacing: 1,
             fontWeight: FontWeight.w600,
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─────────────────────────────────────────────
-  // FORGOT PASSWORD DIALOG
-  // ─────────────────────────────────────────────
-  void _showForgotPasswordDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => Dialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 400),
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFE6F4F1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: const Icon(
-                      Icons.lock_reset_rounded,
-                      color: _primaryGreen,
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  const Expanded(
-                    child: Text(
-                      'Khôi phục mật khẩu',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1A2B3C),
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 20),
-                    onPressed: () => Navigator.pop(ctx),
-                    color: const Color(0xFF718096),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF7FAFC),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
-                ),
-                child: const Text(
-                  'Vui lòng liên hệ với Phòng Công nghệ thông tin của Viện để được cấp lại mật khẩu hoặc đổi mã OTP bảo mật.',
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Color(0xFF4A5568),
-                    height: 1.6,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              _buildContactRow(
-                Icons.phone_outlined,
-                'Hotline kỹ thuật:',
-                '024.1234.5678',
-              ),
-              const SizedBox(height: 10),
-              _buildContactRow(
-                Icons.email_outlined,
-                'Email:',
-                'cntt@vienyhoccotruyenqs.vn',
-              ),
-              const SizedBox(height: 24),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _primaryGreen,
-                    side: const BorderSide(color: _primaryGreen),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                  child: const Text(
-                    'Đóng',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildContactRow(IconData icon, String label, String value) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: _primaryGreen),
-        const SizedBox(width: 8),
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF2D3748),
-          ),
-        ),
-        const SizedBox(width: 6),
-        Flexible(
-          child: Text(
-            value,
-            style: const TextStyle(fontSize: 13, color: Color(0xFF4A5568)),
           ),
         ),
       ],

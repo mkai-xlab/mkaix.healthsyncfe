@@ -8,24 +8,18 @@ class AuthRemoteDataSource {
 
   AuthRemoteDataSource(this.client);
 
-  /// Hàm Đăng nhập kết nối Spring Boot Backend
-  /// Gửi POST request kèm credentials, nhận về thông tin User và Token phân quyền
+  /// Đăng nhập
   Future<UserModel> loginWithEmailAndPassword(
     String email,
     String password,
   ) async {
     try {
-      // 1. Cấu hình endpoint POST của Spring Boot (Ví dụ: /api/v1/auth/login)
       final uri = Uri.parse(ApiConstants.loginEndpoint);
-
-      // 2. Đóng gói dữ liệu gửi lên (Request Body) đúng chuẩn DTO của Backend
       final Map<String, dynamic> requestBody = {
-        'username': email
-            .trim(), // Thường Spring Boot dùng trường 'username' đại diện cho Email/Login ID
+        'username': email.trim(),
         'password': password.trim(),
       };
 
-      // 3. Tiến hành gọi API bằng phương thức POST
       final response = await client
           .post(
             uri,
@@ -37,21 +31,84 @@ class AuthRemoteDataSource {
           )
           .timeout(const Duration(seconds: 10));
 
-      // 4. Xử lý kết quả trả về từ Spring Boot
       if (response.statusCode == 200 || response.statusCode == 201) {
-        // Tránh lỗi font tiếng Việt khi giải mã thông tin User
         final String decodedBody = utf8.decode(response.bodyBytes);
         final Map<String, dynamic> responseData = jsonDecode(decodedBody);
-
-        // Trả về UserModel. Toàn bộ logic bóc tách 'roles' hoặc 'accessToken'
-        // nên được xử lý gọn gã bên trong hàm UserModel.fromJson()
         return UserModel.fromJson(responseData);
-      }
-      // 5. Xử lý các lỗi nghiệp vụ từ Spring Boot Security (Ví dụ: 401 Unauthorized, 403 Forbidden)
-      else if (response.statusCode == 401 || response.statusCode == 403) {
+      } else if (response.statusCode == 401 || response.statusCode == 403) {
         throw Exception('Tài khoản hoặc mật khẩu không chính xác!');
       } else {
         throw Exception('Hệ thống gặp sự cố (Mã lỗi: ${response.statusCode})');
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Lỗi kết nối mạng: Không thể kết nối tới máy chủ.');
+    }
+  }
+
+  /// Gửi yêu cầu quên mật khẩu — backend gửi token về email
+  Future<void> forgotPassword(String email) async {
+    try {
+      final uri = Uri.parse(ApiConstants.forgotPasswordEndpoint);
+      final response = await client
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({'email': email.trim()}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final String body = utf8.decode(response.bodyBytes);
+        String message = 'Có lỗi xảy ra (${response.statusCode})';
+        try {
+          final data = jsonDecode(body);
+          if (data is Map && data['message'] != null) {
+            message = data['message'];
+          }
+        } catch (_) {}
+        throw Exception(message);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Lỗi kết nối mạng: Không thể kết nối tới máy chủ.');
+    }
+  }
+
+  /// Đặt lại mật khẩu bằng token nhận từ email
+  Future<void> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    try {
+      final uri = Uri.parse(ApiConstants.resetPasswordEndpoint);
+      final response = await client
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'token': token.trim(),
+              'newPassword': newPassword,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final String body = utf8.decode(response.bodyBytes);
+        String message = 'Token không hợp lệ hoặc đã hết hạn';
+        try {
+          final data = jsonDecode(body);
+          if (data is Map && data['message'] != null) {
+            message = data['message'];
+          }
+        } catch (_) {}
+        throw Exception(message);
       }
     } catch (e) {
       if (e is Exception) rethrow;

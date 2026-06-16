@@ -14,7 +14,22 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> logout() async {
-    // Thêm logic xóa token ở Local Storage (Shared Preferences) nếu cần ở đây
     await Future.delayed(const Duration(milliseconds: 300));
+  }
+
+  @override
+  Future<void> forgotPassword(String email) async {
+    await remoteDataSource.forgotPassword(email);
+  }
+
+  @override
+  Future<void> resetPassword({
+    required String token,
+    required String newPassword,
+  }) async {
+    await remoteDataSource.resetPassword(
+      token: token,
+      newPassword: newPassword,
+    );
   }
 }

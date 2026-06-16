@@ -4,6 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/data/models/doctor_account_model.dart';
+import 'package:fe/data/datasources/permission_remote_datasource.dart';
+import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
+import 'package:fe/presentation/pages/admin/permission_page.dart';
+import 'package:http/http.dart' as http;
 
 class AdminHomepage extends StatefulWidget {
   const AdminHomepage({super.key});
@@ -140,13 +144,18 @@ class _AdminHomepageState extends State<AdminHomepage> {
               children: [
                 _buildNavItem(0, 'Trang chủ', Icons.home_outlined),
                 _buildNavItem(1, 'Quản lý người dùng', Icons.people_outline),
-                _buildNavItem(2, 'Lịch sử hoạt động', Icons.history_outlined),
                 _buildNavItem(
-                  3,
+                  2,
+                  'Quản lý phân quyền',
+                  Icons.admin_panel_settings_outlined,
+                ),
+                _buildNavItem(3, 'Lịch sử hoạt động', Icons.history_outlined),
+                _buildNavItem(
+                  4,
                   'Thông báo hệ thống',
                   Icons.notifications_outlined,
                 ),
-                _buildNavItem(4, 'Cấu hình hệ thống', Icons.settings_outlined),
+                _buildNavItem(5, 'Cấu hình hệ thống', Icons.settings_outlined),
               ],
             ),
           ),
@@ -274,14 +283,19 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 children: [
                   _buildNavItem(0, 'Trang chủ', Icons.home_outlined),
                   _buildNavItem(1, 'Quản lý người dùng', Icons.people_outline),
-                  _buildNavItem(2, 'Lịch sử hoạt động', Icons.history_outlined),
                   _buildNavItem(
-                    3,
+                    2,
+                    'Quản lý phân quyền',
+                    Icons.admin_panel_settings_outlined,
+                  ),
+                  _buildNavItem(3, 'Lịch sử hoạt động', Icons.history_outlined),
+                  _buildNavItem(
+                    4,
                     'Thông báo hệ thống',
                     Icons.notifications_outlined,
                   ),
                   _buildNavItem(
-                    4,
+                    5,
                     'Cấu hình hệ thống',
                     Icons.settings_outlined,
                   ),
@@ -309,9 +323,15 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildMainContent(BuildContext context) {
-    // Nếu đang ở menu Quản lý người dùng (index 1)
     if (_selectedNavIndex == 1) {
       return _buildUserManagementPage(context);
+    }
+    if (_selectedNavIndex == 2) {
+      return ChangeNotifierProvider(
+        create: (_) =>
+            PermissionViewModel(PermissionRemoteDataSourceImpl(http.Client())),
+        child: const PermissionPage(),
+      );
     }
 
     // Mặc định hiển thị Dashboard (index 0)

@@ -760,6 +760,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   void _handleSubmit() {
     if (_formKey.currentState?.validate() != true) return;
     context.read<AuthViewModel>().resetPassword(
+      email: _email,
       token: _tokenController.text.trim(),
       newPassword: _newPasswordController.text,
     );

@@ -154,6 +154,7 @@ class AuthViewModel extends ChangeNotifier {
 
   /// Đặt lại mật khẩu bằng token từ email
   Future<bool> resetPassword({
+    required String email,
     required String token,
     required String newPassword,
   }) async {
@@ -164,6 +165,7 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       await authRepository.resetPassword(
+        email: email,
         token: token,
         newPassword: newPassword,
       );

@@ -106,6 +106,7 @@ class AuthRemoteDataSource {
 
   /// Đặt lại mật khẩu bằng token nhận từ email
   Future<void> resetPassword({
+    required String email,
     required String token,
     required String newPassword,
   }) async {
@@ -119,6 +120,7 @@ class AuthRemoteDataSource {
               'Accept': 'application/json',
             },
             body: jsonEncode({
+              'email': email.trim(),
               'token': token.trim(),
               'newPassword': newPassword,
             }),

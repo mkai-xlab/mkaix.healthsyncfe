@@ -82,7 +82,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     final Map<String, String> queryParams = {
       'page': page.toString(),
       'size': size.toString(),
-      if (name != null && name.isNotEmpty) 'name': name,
+      if (name != null && name.isNotEmpty) 'keyword': name,
     };
 
     final uri = Uri.parse(

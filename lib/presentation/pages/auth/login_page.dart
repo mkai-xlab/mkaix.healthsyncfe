@@ -245,7 +245,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   Widget _buildXrayCard() {
     return Container(
       width: double.infinity,
-      height: 220,
+      height: 320,
       decoration: BoxDecoration(
         color: Colors.black,
         borderRadius: BorderRadius.circular(16),

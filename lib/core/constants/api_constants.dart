@@ -10,4 +10,10 @@ class ApiConstants {
   // doctors endpoints
   static const String doctorsEndpoint = '$baseUrl/doctors';
   static const String createDoctorsEndpoint = '$baseUrl/doctors';
+
+  // permission / role endpoints (mockAPI)
+  static const String mockBaseUrl =
+      'https://6a21b474b1d0aaf32b4fe12a.mockapi.io';
+  static const String permissionsEndpoint = '$mockBaseUrl/permissions';
+  static const String rolesEndpoint = '$mockBaseUrl/roles';
 }

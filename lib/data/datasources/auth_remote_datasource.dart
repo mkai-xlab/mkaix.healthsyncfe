@@ -3,6 +3,16 @@ import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
 import '../models/user_model.dart';
 
+/// Exception đặc biệt khi backend trả về 403 + first_time_login_required
+class FirstTimeLoginException implements Exception {
+  final String username;
+  final String oldPassword;
+  const FirstTimeLoginException({
+    required this.username,
+    required this.oldPassword,
+  });
+}
+
 class AuthRemoteDataSource {
   final http.Client client;
 
@@ -35,7 +45,23 @@ class AuthRemoteDataSource {
         final String decodedBody = utf8.decode(response.bodyBytes);
         final Map<String, dynamic> responseData = jsonDecode(decodedBody);
         return UserModel.fromJson(responseData);
-      } else if (response.statusCode == 401 || response.statusCode == 403) {
+      } else if (response.statusCode == 403) {
+        // Kiểm tra trường hợp đăng nhập lần đầu yêu cầu đổi mật khẩu
+        try {
+          final String body = utf8.decode(response.bodyBytes);
+          final data = jsonDecode(body);
+          final String? error = data['error']?.toString().toLowerCase();
+          if (error != null && error.contains('first_time_login')) {
+            throw FirstTimeLoginException(
+              username: email.trim(),
+              oldPassword: password.trim(),
+            );
+          }
+        } catch (e) {
+          if (e is FirstTimeLoginException) rethrow;
+        }
+        throw Exception('Tài khoản hoặc mật khẩu không chính xác!');
+      } else if (response.statusCode == 401) {
         throw Exception('Tài khoản hoặc mật khẩu không chính xác!');
       } else {
         throw Exception('Hệ thống gặp sự cố (Mã lỗi: ${response.statusCode})');
@@ -80,6 +106,7 @@ class AuthRemoteDataSource {
 
   /// Đặt lại mật khẩu bằng token nhận từ email
   Future<void> resetPassword({
+    required String email,
     required String token,
     required String newPassword,
   }) async {
@@ -93,6 +120,7 @@ class AuthRemoteDataSource {
               'Accept': 'application/json',
             },
             body: jsonEncode({
+              'email': email.trim(),
               'token': token.trim(),
               'newPassword': newPassword,
             }),
@@ -102,6 +130,46 @@ class AuthRemoteDataSource {
       if (response.statusCode != 200 && response.statusCode != 201) {
         final String body = utf8.decode(response.bodyBytes);
         String message = 'Token không hợp lệ hoặc đã hết hạn';
+        try {
+          final data = jsonDecode(body);
+          if (data is Map && data['message'] != null) {
+            message = data['message'];
+          }
+        } catch (_) {}
+        throw Exception(message);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Lỗi kết nối mạng: Không thể kết nối tới máy chủ.');
+    }
+  }
+
+  /// Đổi mật khẩu lần đầu đăng nhập (chưa có token, dùng username + oldPassword)
+  Future<void> changePassword({
+    required String username,
+    required String oldPassword,
+    required String newPassword,
+  }) async {
+    try {
+      final uri = Uri.parse(ApiConstants.changePasswordEndpoint);
+      final response = await client
+          .post(
+            uri,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Accept': 'application/json',
+            },
+            body: jsonEncode({
+              'username': username.trim(),
+              'oldPassword': oldPassword,
+              'newPassword': newPassword,
+            }),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final String body = utf8.decode(response.bodyBytes);
+        String message = 'Không thể đổi mật khẩu, vui lòng thử lại';
         try {
           final data = jsonDecode(body);
           if (data is Map && data['message'] != null) {

@@ -4,6 +4,10 @@ import 'package:provider/provider.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/data/models/doctor_account_model.dart';
+import 'package:fe/data/datasources/permission_remote_datasource.dart';
+import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
+import 'package:fe/presentation/pages/admin/permission_page.dart';
+import 'package:http/http.dart' as http;
 
 class AdminHomepage extends StatefulWidget {
   const AdminHomepage({super.key});
@@ -140,13 +144,18 @@ class _AdminHomepageState extends State<AdminHomepage> {
               children: [
                 _buildNavItem(0, 'Trang chủ', Icons.home_outlined),
                 _buildNavItem(1, 'Quản lý người dùng', Icons.people_outline),
-                _buildNavItem(2, 'Lịch sử hoạt động', Icons.history_outlined),
                 _buildNavItem(
-                  3,
+                  2,
+                  'Quản lý phân quyền',
+                  Icons.admin_panel_settings_outlined,
+                ),
+                _buildNavItem(3, 'Lịch sử hoạt động', Icons.history_outlined),
+                _buildNavItem(
+                  4,
                   'Thông báo hệ thống',
                   Icons.notifications_outlined,
                 ),
-                _buildNavItem(4, 'Cấu hình hệ thống', Icons.settings_outlined),
+                _buildNavItem(5, 'Cấu hình hệ thống', Icons.settings_outlined),
               ],
             ),
           ),
@@ -274,14 +283,19 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 children: [
                   _buildNavItem(0, 'Trang chủ', Icons.home_outlined),
                   _buildNavItem(1, 'Quản lý người dùng', Icons.people_outline),
-                  _buildNavItem(2, 'Lịch sử hoạt động', Icons.history_outlined),
                   _buildNavItem(
-                    3,
+                    2,
+                    'Quản lý phân quyền',
+                    Icons.admin_panel_settings_outlined,
+                  ),
+                  _buildNavItem(3, 'Lịch sử hoạt động', Icons.history_outlined),
+                  _buildNavItem(
+                    4,
                     'Thông báo hệ thống',
                     Icons.notifications_outlined,
                   ),
                   _buildNavItem(
-                    4,
+                    5,
                     'Cấu hình hệ thống',
                     Icons.settings_outlined,
                   ),
@@ -309,9 +323,15 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildMainContent(BuildContext context) {
-    // Nếu đang ở menu Quản lý người dùng (index 1)
     if (_selectedNavIndex == 1) {
       return _buildUserManagementPage(context);
+    }
+    if (_selectedNavIndex == 2) {
+      return ChangeNotifierProvider(
+        create: (_) =>
+            PermissionViewModel(PermissionRemoteDataSourceImpl(http.Client())),
+        child: const PermissionPage(),
+      );
     }
 
     // Mặc định hiển thị Dashboard (index 0)
@@ -1399,208 +1419,207 @@ class _AdminHomepageState extends State<AdminHomepage> {
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final phoneController = TextEditingController();
-    final codeController = TextEditingController();
-    final licenseController = TextEditingController();
+    // roleId mặc định — có thể mở rộng thành dropdown khi có API lấy danh sách role
+    int selectedRoleId = 1;
+
+    // Danh sách role tạm thời — khi có API roles thì thay bằng dữ liệu thực
+    final roles = [
+      {'id': 1, 'name': 'Bác sĩ'},
+      {'id': 2, 'name': 'Kỹ thuật viên'},
+      {'id': 3, 'name': 'Quản trị viên'},
+    ];
 
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Consumer<AdminAccountViewModel>(
-        builder: (context, viewModel, child) {
-          return AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Row(
-              children: [
-                Icon(Icons.person_add_outlined, color: Color(0xFF2D7E6E)),
-                SizedBox(width: 10),
-                Text('Tạo tài khoản bác sĩ mới'),
-              ],
-            ),
-            content: SizedBox(
-              width: 550,
-              child: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Điền thông tin để khởi tạo tài khoản bác sĩ. Các trường đánh dấu (*) là bắt buộc nhập.',
-                        style: TextStyle(fontSize: 13, color: Colors.black54),
-                      ),
-                      const SizedBox(height: 20),
-                      _buildFieldLabel('Họ và tên *'),
-                      TextFormField(
-                        controller: nameController,
-                        decoration: _buildInputDecoration(
-                          'Nhập họ và tên bác sĩ',
-                          Icons.person_outline,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => Consumer<AdminAccountViewModel>(
+          builder: (context, viewModel, child) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Row(
+                children: [
+                  Icon(Icons.person_add_outlined, color: Color(0xFF2D7E6E)),
+                  SizedBox(width: 10),
+                  Text('Thêm tài khoản mới'),
+                ],
+              ),
+              content: SizedBox(
+                width: 480,
+                child: Form(
+                  key: formKey,
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Điền thông tin để tạo tài khoản. Hệ thống sẽ tự động gửi mật khẩu tạm thời qua email.',
+                          style: TextStyle(fontSize: 13, color: Colors.black54),
                         ),
-                        validator: (v) =>
-                            v!.isEmpty ? 'Vui lòng nhập họ tên' : null,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Email *'),
-                      TextFormField(
-                        controller: emailController,
-                        decoration: _buildInputDecoration(
-                          'example@email.com',
-                          Icons.email_outlined,
+                        const SizedBox(height: 20),
+
+                        _buildFieldLabel('Họ và tên *'),
+                        TextFormField(
+                          controller: nameController,
+                          decoration: _buildInputDecoration(
+                            'Nhập họ và tên',
+                            Icons.person_outline,
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Vui lòng nhập họ tên'
+                              : null,
                         ),
-                        validator: (v) {
-                          if (v == null || v.isEmpty)
-                            return 'Vui lòng nhập email';
-                          if (!RegExp(
-                            r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$',
-                          ).hasMatch(v))
-                            return 'Email không hợp lệ';
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildFieldLabel('Số điện thoại *'),
-                                TextFormField(
-                                  controller: phoneController,
-                                  decoration: _buildInputDecoration(
-                                    'Số điện thoại',
-                                    Icons.phone_outlined,
-                                  ),
-                                  validator: (v) => v!.isEmpty
-                                      ? 'Vui lòng nhập số điện thoại'
-                                      : null,
+                        const SizedBox(height: 16),
+
+                        _buildFieldLabel('Email *'),
+                        TextFormField(
+                          controller: emailController,
+                          keyboardType: TextInputType.emailAddress,
+                          decoration: _buildInputDecoration(
+                            'example@email.com',
+                            Icons.email_outlined,
+                          ),
+                          validator: (v) {
+                            if (v == null || v.trim().isEmpty) {
+                              return 'Vui lòng nhập email';
+                            }
+                            if (!RegExp(
+                              r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
+                            ).hasMatch(v.trim())) {
+                              return 'Email không hợp lệ';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        _buildFieldLabel('Số điện thoại'),
+                        TextFormField(
+                          controller: phoneController,
+                          keyboardType: TextInputType.phone,
+                          decoration: _buildInputDecoration(
+                            'Số điện thoại',
+                            Icons.phone_outlined,
+                          ),
+                          validator: (v) {
+                            if (v != null &&
+                                v.isNotEmpty &&
+                                !RegExp(r'^\d+$').hasMatch(v)) {
+                              return 'Số điện thoại chỉ chứa chữ số';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        _buildFieldLabel('Vai trò *'),
+                        DropdownButtonFormField<int>(
+                          value: selectedRoleId,
+                          decoration: _buildInputDecoration(
+                            'Chọn vai trò',
+                            Icons.admin_panel_settings_outlined,
+                          ),
+                          items: roles
+                              .map(
+                                (r) => DropdownMenuItem<int>(
+                                  value: r['id'] as int,
+                                  child: Text(r['name'] as String),
                                 ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                _buildFieldLabel('Mã bác sĩ *'),
-                                TextFormField(
-                                  controller: codeController,
-                                  decoration: _buildInputDecoration(
-                                    'Mã định danh',
-                                    Icons.badge_outlined,
-                                  ),
-                                  validator: (v) => v!.isEmpty
-                                      ? 'Vui lòng nhập mã bác sĩ'
-                                      : null,
+                              )
+                              .toList(),
+                          onChanged: (v) {
+                            if (v != null) {
+                              setDialogState(() => selectedRoleId = v);
+                            }
+                          },
+                        ),
+
+                        if (viewModel.errorMessage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 12),
+                            child: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: Colors.red.shade200),
+                              ),
+                              child: Text(
+                                viewModel.errorMessage!,
+                                style: TextStyle(
+                                  color: Colors.red.shade700,
+                                  fontSize: 12,
                                 ),
-                              ],
+                              ),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Số giấy phép hành nghề *'),
-                      TextFormField(
-                        controller: licenseController,
-                        decoration: _buildInputDecoration(
-                          'Nhập số giấy phép (License Number)',
-                          Icons.assignment_ind_outlined,
-                        ),
-                        validator: (v) => v!.isEmpty
-                            ? 'Vui lòng nhập số giấy phép hành nghề'
-                            : null,
-                      ),
-                      if (viewModel.errorMessage != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 10),
-                          child: Text(
-                            viewModel.errorMessage!,
-                            style: const TextStyle(
-                              color: Colors.red,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                      const SizedBox(height: 8),
-                    ],
+                        const SizedBox(height: 8),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: viewModel.isLoading
-                    ? null
-                    : () => Navigator.pop(context),
-                child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
-              ),
-              ElevatedButton(
-                onPressed: viewModel.isLoading
-                    ? null
-                    : () async {
-                        if (formKey.currentState!.validate()) {
-                          final doctorData = {
-                            "fullName": nameController.text.trim(),
-                            "email": emailController.text.trim(),
-                            "phone": phoneController.text.trim(),
-                            "doctorCode": codeController.text.trim(),
-                            "licenseNumber": licenseController.text.trim(),
-                            "avatarUrl": "",
-                            "specialization": "Đang cập nhật",
-                            "hospitalName": "Viện Y học Cổ truyền Quân đội",
-                            "yearsOfExperience": 0,
-                            "academicTitle": "",
-                            "degree": "",
-                            "signatureUrl": "",
-                            "bio": "",
-                            "position": "DEPARTMENT_HEAD",
-                          };
-
-                          final token =
-                              context
-                                  .read<AuthViewModel>()
-                                  .currentUser
-                                  ?.token ??
-                              '';
-                          final success = await viewModel.createDoctor(
-                            doctorData,
-                            token,
-                          );
-
-                          if (success && context.mounted) {
-                            Navigator.pop(context);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Tạo tài khoản thành công'),
-                                backgroundColor: Colors.green,
-                              ),
-                            );
-                          }
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2D7E6E),
-                  foregroundColor: Colors.white,
+              actions: [
+                TextButton(
+                  onPressed: viewModel.isLoading
+                      ? null
+                      : () => Navigator.pop(context),
+                  child: const Text(
+                    'Hủy',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ),
-                child: viewModel.isLoading
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Xác nhận tạo'),
-              ),
-            ],
-          );
-        },
+                ElevatedButton(
+                  onPressed: viewModel.isLoading
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            final token =
+                                context
+                                    .read<AuthViewModel>()
+                                    .currentUser
+                                    ?.token ??
+                                '';
+                            final success = await viewModel.createUser(
+                              fullName: nameController.text.trim(),
+                              email: emailController.text.trim(),
+                              phone: phoneController.text.trim(),
+                              roleId: selectedRoleId,
+                              token: token,
+                            );
+                            if (success && context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Tạo tài khoản thành công'),
+                                  backgroundColor: Colors.green,
+                                ),
+                              );
+                            }
+                          }
+                        },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2D7E6E),
+                    foregroundColor: Colors.white,
+                  ),
+                  child: viewModel.isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : const Text('Xác nhận tạo'),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }

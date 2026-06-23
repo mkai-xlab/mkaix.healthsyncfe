@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../../presentation/pages/auth/login_page.dart';
 import '../../presentation/pages/auth/forgot_password_page.dart';
 import '../../presentation/pages/auth/reset_password_page.dart';
+import '../../presentation/pages/auth/change_password_page.dart';
 import '../../presentation/pages/doctor/doctor_homepage.dart';
 import '../../presentation/pages/admin/admin_homepage.dart';
 import '../../presentation/viewmodels/auth_viewmodel.dart';
@@ -33,6 +34,11 @@ class AppRouter {
             ResetPasswordPage(email: state.extra as String?),
       ),
       GoRoute(
+        path: '/change-password',
+        name: 'change-password',
+        builder: (context, state) => const ChangePasswordPage(),
+      ),
+      GoRoute(
         path: '/doctor',
         name: 'doctor',
         builder: (context, state) => const DoctorHomepage(),
@@ -46,13 +52,27 @@ class AppRouter {
     redirect: (BuildContext context, GoRouterState state) {
       final user = authViewModel.currentUser;
       final isLoggedIn = user != null;
+      final isFirstTimeLogin = authViewModel.isFirstTimeLogin;
       final loc = state.matchedLocation;
 
       // Các trang public — không cần đăng nhập
       final isPublicRoute =
           loc == '/login' ||
           loc == '/forgot-password' ||
-          loc == '/reset-password';
+          loc == '/reset-password' ||
+          loc == '/change-password';
+
+      // Đang ở change-password — cho phép nếu đang trong luồng first-time login
+      if (loc == '/change-password') {
+        if (isFirstTimeLogin) return null; // OK
+        if (!isLoggedIn) return '/login'; // Không có context → về login
+        return null;
+      }
+
+      // Nếu backend yêu cầu đổi mật khẩu lần đầu → bắt buộc redirect
+      if (isFirstTimeLogin && loc != '/change-password') {
+        return '/change-password';
+      }
 
       if (!isLoggedIn && !isPublicRoute) return '/login';
 

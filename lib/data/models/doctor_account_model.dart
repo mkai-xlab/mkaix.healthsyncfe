@@ -2,11 +2,14 @@ class DoctorAccountModel {
   final int id;
   final String username;
   final String fullName;
-  final String role;
+  final String role; // tên role (string) để hiển thị
+  final int? roleId; // id role để tạo user
   final String email;
   final String phone;
   final String? avatarUrl;
   final String status; // "ACTIVE" hoặc "INACTIVE"
+  final String? userType;
+  // Doctor-specific fields (nullable vì UserResponse chung không có)
   final String? doctorCode;
   final String? licenseNumber;
   final String? specialization;
@@ -25,10 +28,12 @@ class DoctorAccountModel {
     required this.username,
     required this.fullName,
     required this.role,
+    this.roleId,
     required this.email,
     required this.phone,
     this.avatarUrl,
     required this.status,
+    this.userType,
     this.doctorCode,
     this.licenseNumber,
     this.specialization,
@@ -43,16 +48,34 @@ class DoctorAccountModel {
     required this.updatedAt,
   });
 
+  /// Parse từ cả DoctorResponse lẫn UserResponse
   factory DoctorAccountModel.fromJson(Map<String, dynamic> json) {
+    // role có thể là String (DoctorResponse) hoặc Object (UserResponse)
+    String roleName = 'DOCTOR';
+    int? roleIdParsed;
+    final rawRole = json['role'];
+    if (rawRole is String) {
+      roleName = rawRole;
+    } else if (rawRole is Map<String, dynamic>) {
+      roleName = rawRole['name']?.toString() ?? 'UNKNOWN';
+      roleIdParsed = rawRole['id'] is int
+          ? rawRole['id'] as int
+          : int.tryParse(rawRole['id']?.toString() ?? '');
+    }
+
     return DoctorAccountModel(
-      id: json['id'] as int? ?? 0,
+      id: json['id'] is int
+          ? json['id'] as int
+          : int.tryParse(json['id']?.toString() ?? '') ?? 0,
       username: json['username'] as String? ?? '',
       fullName: json['fullName'] as String? ?? '',
-      role: json['role'] as String? ?? 'DOCTOR',
+      role: roleName,
+      roleId: roleIdParsed,
       email: json['email'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
       avatarUrl: json['avatarUrl'] as String?,
       status: json['status'] as String? ?? 'INACTIVE',
+      userType: json['userType'] as String?,
       doctorCode: json['doctorCode'] as String?,
       licenseNumber: json['licenseNumber'] as String?,
       specialization: json['specialization'] as String?,
@@ -63,7 +86,6 @@ class DoctorAccountModel {
       signatureUrl: json['signatureUrl'] as String?,
       bio: json['bio'] as String?,
       position: json['position'] as String?,
-      // Parse chuỗi thời gian từ Spring Boot sang DateTime của Flutter
       createdAt: json['createdAt'] != null
           ? DateTime.parse(json['createdAt'] as String)
           : DateTime.now(),

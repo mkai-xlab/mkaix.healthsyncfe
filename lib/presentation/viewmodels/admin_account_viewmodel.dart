@@ -61,17 +61,26 @@ class AdminAccountViewModel extends ChangeNotifier {
     });
   }
 
-  /// Tạo tài khoản bác sĩ mới
-  Future<bool> createDoctor(
-    Map<String, dynamic> doctorData,
-    String token,
-  ) async {
+  /// Tạo tài khoản người dùng mới (POST /users)
+  Future<bool> createUser({
+    required String fullName,
+    required String email,
+    required String phone,
+    required int roleId,
+    required String token,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      await dataSource.createDoctor(doctorData: doctorData, token: token);
+      await dataSource.createUser(
+        fullName: fullName,
+        email: email,
+        phone: phone,
+        roleId: roleId,
+        token: token,
+      );
       _currentSearchName = '';
       await fetchFirstPage(token);
       return true;

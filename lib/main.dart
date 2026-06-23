@@ -13,28 +13,37 @@ import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/doctor_viewmodel.dart';
 import 'package:fe/data/datasources/admin_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
+import 'package:fe/data/datasources/permission_remote_datasource.dart';
+import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 
 void main() {
-  // Thực hiện Dependency Injection thủ công tại đây
   final httpClient = http.Client();
+
+  // Auth
   final remoteDataSource = AuthRemoteDataSource(httpClient);
   final authRepository = AuthRepositoryImpl(remoteDataSource: remoteDataSource);
   final loginUseCase = LoginUseCase(authRepository);
 
+  // Patient
   final patientRemoteDataSource = PatientRemoteDataSourceImpl(httpClient);
   final patientRepository = PatientRepositoryImpl(
     remoteDataSource: patientRemoteDataSource,
   );
   final getAllPatientsUseCase = GetAllPatientsUseCase(patientRepository);
 
+  // Admin
   final adminRemoteDataSource = AdminRemoteDataSourceImpl(httpClient);
   final adminAccountViewModel = AdminAccountViewModel(adminRemoteDataSource);
 
+  // Permission
+  final permissionDataSource = PermissionRemoteDataSourceImpl(httpClient);
+  final permissionViewModel = PermissionViewModel(permissionDataSource);
+
+  // ViewModels
   final authViewModel = AuthViewModel(
     loginUseCase: loginUseCase,
     authRepository: authRepository,
   );
-
   final doctorViewModel = DoctorViewModel(
     getAllPatientsUseCase: getAllPatientsUseCase,
   );
@@ -47,6 +56,7 @@ void main() {
         ChangeNotifierProvider.value(value: authViewModel),
         ChangeNotifierProvider.value(value: doctorViewModel),
         ChangeNotifierProvider.value(value: adminAccountViewModel),
+        ChangeNotifierProvider.value(value: permissionViewModel),
       ],
       child: MyApp(appRouter: appRouter),
     ),

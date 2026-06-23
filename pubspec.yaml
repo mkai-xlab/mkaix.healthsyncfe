@@ -66,6 +66,9 @@ flutter:
     - lib/presentation/images/banner1.jpg
     - lib/presentation/images/logo1.jpg
     - lib/presentation/images/logo2.jpg
+    - lib/presentation/images/BaSinh_GoiThang1.png
+    - lib/presentation/images/BaSinh_GoiThang2.png
+    - lib/presentation/images/logo2.jpg
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

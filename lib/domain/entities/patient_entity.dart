@@ -1,32 +1,67 @@
 import 'package:intl/intl.dart';
 
 class PatientEntity {
-  final String id;
+  final int id;
   final String patientCode;
   final String fullName;
-  final int age;
-  final String gender;
-  final DateTime? analysisTime;
-  final String klGrade;
-  final String riskLevel;
-  final String status;
+  final DateTime? dateOfBirth;
+  final String gender; // MALE | FEMALE | OTHER
+  final String? phone;
+  final String? email;
+  final String? address;
+  final String? emergencyContactName;
+  final String? emergencyContactPhone;
+  final DateTime? createdAt;
+  final DateTime? updatedAt;
 
   PatientEntity({
     required this.id,
     required this.patientCode,
     required this.fullName,
-    required this.age,
+    this.dateOfBirth,
     required this.gender,
-    this.analysisTime,
-    required this.klGrade,
-    required this.riskLevel,
-    required this.status,
+    this.phone,
+    this.email,
+    this.address,
+    this.emergencyContactName,
+    this.emergencyContactPhone,
+    this.createdAt,
+    this.updatedAt,
   });
 
-  String get displayAgeGender => "$age tuổi • $gender";
+  /// Tính tuổi từ dateOfBirth
+  int get age {
+    if (dateOfBirth == null) return 0;
+    final now = DateTime.now();
+    int age = now.year - dateOfBirth!.year;
+    if (now.month < dateOfBirth!.month ||
+        (now.month == dateOfBirth!.month && now.day < dateOfBirth!.day)) {
+      age--;
+    }
+    return age;
+  }
 
-  String get formattedAnalysisTime {
-    if (analysisTime == null) return '---';
-    return DateFormat('HH:mm - dd/MM/yyyy').format(analysisTime!);
+  String get genderDisplay {
+    switch (gender.toUpperCase()) {
+      case 'MALE':
+        return 'Nam';
+      case 'FEMALE':
+        return 'Nữ';
+      default:
+        return 'Khác';
+    }
+  }
+
+  String get displayAgeGender =>
+      '${age > 0 ? '$age tuổi' : 'N/A'} • $genderDisplay';
+
+  String get dobDisplay {
+    if (dateOfBirth == null) return '---';
+    return DateFormat('dd/MM/yyyy').format(dateOfBirth!);
+  }
+
+  String get createdAtDisplay {
+    if (createdAt == null) return '---';
+    return DateFormat('dd/MM/yyyy').format(createdAt!);
   }
 }

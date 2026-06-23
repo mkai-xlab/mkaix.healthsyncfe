@@ -20,6 +20,13 @@ abstract class AdminRemoteDataSource {
     required Map<String, dynamic> doctorData,
     required String token,
   });
+  Future<void> createUser({
+    required String fullName,
+    required String email,
+    required String phone,
+    required int roleId,
+    required String token,
+  });
   Future<void> toggleDoctorStatus({
     required int id,
     required bool activate,
@@ -85,8 +92,9 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       if (name != null && name.isNotEmpty) 'keyword': name,
     };
 
+    // Dùng /users để lấy danh sách tất cả user (theo API doc mới)
     final uri = Uri.parse(
-      ApiConstants.doctorsEndpoint,
+      ApiConstants.userAccountsEndpoint,
     ).replace(queryParameters: queryParams);
 
     try {
@@ -95,7 +103,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
             uri,
             headers: {
               'Content-Type': 'application/json',
-              'Authorization': 'Bearer $token', // Sử dụng token
+              'Authorization': 'Bearer $token',
             },
           )
           .timeout(const Duration(seconds: 10));
@@ -104,7 +112,6 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
         final String decodedBody = utf8.decode(response.bodyBytes);
         final dynamic responseData = jsonDecode(decodedBody);
 
-        // Xử lý linh hoạt cho cả MockAPI (List) và Spring Boot (Map)
         Map<String, dynamic> pageData;
         if (responseData is List && responseData.isNotEmpty) {
           pageData = responseData[0] as Map<String, dynamic>;
@@ -122,15 +129,55 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
 
         return {
           'content': accounts,
-          'isLast':
-              pageData['last'] ??
-              pageData['isLast'] ??
-              true, // Kiểm tra cả 'last' (chuẩn Spring) và 'isLast'
+          'isLast': pageData['last'] ?? pageData['isLast'] ?? true,
+          'totalElements': pageData['totalElements'] ?? accounts.length,
         };
       } else {
         throw Exception('Lỗi hệ thống: ${response.statusCode}');
       }
     } catch (e) {
+      throw Exception('Kết nối thất bại: $e');
+    }
+  }
+
+  @override
+  Future<void> createUser({
+    required String fullName,
+    required String email,
+    required String phone,
+    required int roleId,
+    required String token,
+  }) async {
+    final uri = Uri.parse(ApiConstants.userAccountsEndpoint);
+    try {
+      final response = await client.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'fullName': fullName.trim(),
+          'email': email.trim(),
+          'phone': phone.trim(),
+          'roleId': roleId,
+        }),
+      );
+
+      if (response.statusCode != 200 && response.statusCode != 201) {
+        final String decodedBody = utf8.decode(response.bodyBytes);
+        String message = 'Lỗi khi tạo tài khoản';
+        try {
+          final data = jsonDecode(decodedBody);
+          if (data is Map && data['message'] != null) {
+            message = data['message'].toString();
+          }
+        } catch (_) {}
+        throw Exception(message);
+      }
+    } catch (e) {
+      if (e is Exception) rethrow;
       throw Exception('Kết nối thất bại: $e');
     }
   }

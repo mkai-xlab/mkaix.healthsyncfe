@@ -13,8 +13,6 @@ import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/doctor_viewmodel.dart';
 import 'package:fe/data/datasources/admin_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
-import 'package:fe/data/datasources/permission_remote_datasource.dart';
-import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 
 void main() {
   final httpClient = http.Client();
@@ -35,10 +33,6 @@ void main() {
   final adminRemoteDataSource = AdminRemoteDataSourceImpl(httpClient);
   final adminAccountViewModel = AdminAccountViewModel(adminRemoteDataSource);
 
-  // Permission
-  final permissionDataSource = PermissionRemoteDataSourceImpl(httpClient);
-  final permissionViewModel = PermissionViewModel(permissionDataSource);
-
   // ViewModels
   final authViewModel = AuthViewModel(
     loginUseCase: loginUseCase,
@@ -56,7 +50,6 @@ void main() {
         ChangeNotifierProvider.value(value: authViewModel),
         ChangeNotifierProvider.value(value: doctorViewModel),
         ChangeNotifierProvider.value(value: adminAccountViewModel),
-        ChangeNotifierProvider.value(value: permissionViewModel),
       ],
       child: MyApp(appRouter: appRouter),
     ),

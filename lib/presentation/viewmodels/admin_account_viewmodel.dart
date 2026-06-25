@@ -1,14 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../data/datasources/admin_remote_datasource.dart';
-import '../../data/models/doctor_account_model.dart';
+import '../../data/models/role_model.dart';
+import '../../domain/entities/doctor_account_entity.dart';
 
 class AdminAccountViewModel extends ChangeNotifier {
   final AdminRemoteDataSource dataSource;
   AdminAccountViewModel(this.dataSource);
 
-  List<DoctorAccountModel> _accounts = [];
-  List<DoctorAccountModel> get accounts => _accounts;
+  final List<DoctorAccountEntity> _accounts = [];
+  List<DoctorAccountEntity> get accounts => List.unmodifiable(_accounts);
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -20,11 +21,9 @@ class AdminAccountViewModel extends ChangeNotifier {
   bool _isLastPage = false;
   bool get isLastPage => _isLastPage;
 
-  // Debounce search
   Timer? _searchDebounce;
   String _currentSearchName = '';
 
-  /// Tải trang đầu tiên (hoặc khi Pull-to-Refresh)
   Future<void> fetchFirstPage(String token) async {
     _currentPage = 0;
     _isLastPage = false;
@@ -36,7 +35,6 @@ class AdminAccountViewModel extends ChangeNotifier {
     await _loadMoreData(token);
   }
 
-  /// Tải các trang tiếp theo khi Admin cuộn xuống đáy
   Future<void> fetchNextPage(String token) async {
     if (_isLoading || _isLastPage) return;
     _isLoading = true;
@@ -46,7 +44,6 @@ class AdminAccountViewModel extends ChangeNotifier {
     await _loadMoreData(token);
   }
 
-  /// Tìm kiếm theo tên với debounce — gọi từ UI
   void searchByNameDebounced(String name, String token) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 500), () {
@@ -61,7 +58,28 @@ class AdminAccountViewModel extends ChangeNotifier {
     });
   }
 
-  /// Tạo tài khoản người dùng mới (POST /users)
+  Future<bool> createDoctor({
+    required Map<String, dynamic> doctorData,
+    required String token,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await dataSource.createDoctor(doctorData: doctorData, token: token);
+      _currentSearchName = '';
+      await fetchFirstPage(token);
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> createUser({
     required String fullName,
     required String email,
@@ -93,7 +111,10 @@ class AdminAccountViewModel extends ChangeNotifier {
     }
   }
 
-  /// Thay đổi trạng thái hoạt động của bác sĩ
+  Future<List<RoleModel>> getRoles(String token) {
+    return dataSource.getRoles(token: token);
+  }
+
   Future<bool> toggleDoctorStatus(int id, bool activate, String token) async {
     _isLoading = true;
     _errorMessage = null;
@@ -124,11 +145,9 @@ class AdminAccountViewModel extends ChangeNotifier {
         token: token,
         name: _currentSearchName.isEmpty ? null : _currentSearchName,
       );
-      final List<DoctorAccountModel> newAccounts =
-          (result['content'] as List<DoctorAccountModel>?) ?? [];
 
-      _accounts.addAll(newAccounts);
-      _isLastPage = (result['isLast'] as bool?) ?? true;
+      _accounts.addAll(result.content);
+      _isLastPage = result.isLast;
       _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');

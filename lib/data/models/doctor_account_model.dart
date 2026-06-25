@@ -1,56 +1,32 @@
-class DoctorAccountModel {
-  final int id;
-  final String username;
-  final String fullName;
-  final String role; // tên role (string) để hiển thị
-  final int? roleId; // id role để tạo user
-  final String email;
-  final String phone;
-  final String? avatarUrl;
-  final String status; // "ACTIVE" hoặc "INACTIVE"
-  final String? userType;
-  // Doctor-specific fields (nullable vì UserResponse chung không có)
-  final String? doctorCode;
-  final String? licenseNumber;
-  final String? specialization;
-  final String? hospitalName;
-  final int yearsOfExperience;
-  final String? academicTitle;
-  final String? degree;
-  final String? signatureUrl;
-  final String? bio;
-  final String? position;
-  final DateTime createdAt;
-  final DateTime updatedAt;
+import '../../domain/entities/doctor_account_entity.dart';
 
-  DoctorAccountModel({
-    required this.id,
-    required this.username,
-    required this.fullName,
-    required this.role,
-    this.roleId,
-    required this.email,
-    required this.phone,
-    this.avatarUrl,
-    required this.status,
-    this.userType,
-    this.doctorCode,
-    this.licenseNumber,
-    this.specialization,
-    this.hospitalName,
-    this.yearsOfExperience = 0,
-    this.academicTitle,
-    this.degree,
-    this.signatureUrl,
-    this.bio,
-    this.position,
-    required this.createdAt,
-    required this.updatedAt,
+class DoctorAccountModel extends DoctorAccountEntity {
+  const DoctorAccountModel({
+    required super.id,
+    required super.username,
+    required super.fullName,
+    required super.role,
+    super.roleId,
+    required super.email,
+    required super.phone,
+    super.avatarUrl,
+    required super.status,
+    super.userType,
+    super.doctorCode,
+    super.licenseNumber,
+    super.specialization,
+    super.hospitalName,
+    super.yearsOfExperience = 0,
+    super.academicTitle,
+    super.degree,
+    super.signatureUrl,
+    super.bio,
+    super.position,
+    required super.createdAt,
+    required super.updatedAt,
   });
 
-  /// Parse từ cả DoctorResponse lẫn UserResponse
   factory DoctorAccountModel.fromJson(Map<String, dynamic> json) {
-    // role có thể là String (DoctorResponse) hoặc Object (UserResponse)
     String roleName = 'DOCTOR';
     int? roleIdParsed;
     final rawRole = json['role'];
@@ -86,12 +62,15 @@ class DoctorAccountModel {
       signatureUrl: json['signatureUrl'] as String?,
       bio: json['bio'] as String?,
       position: json['position'] as String?,
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'] as String)
-          : DateTime.now(),
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.parse(json['updatedAt'] as String)
-          : DateTime.now(),
+      createdAt: _parseDateTime(json['createdAt']),
+      updatedAt: _parseDateTime(json['updatedAt']),
     );
+  }
+
+  static DateTime _parseDateTime(dynamic value) {
+    if (value is String && value.isNotEmpty) {
+      return DateTime.tryParse(value) ?? DateTime.now();
+    }
+    return DateTime.now();
   }
 }

@@ -15,47 +15,98 @@ abstract class PermissionRemoteDataSource {
 
 class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
   final http.Client client;
-  PermissionRemoteDataSourceImpl(this.client);
+  final String? token;
+
+  PermissionRemoteDataSourceImpl(this.client, {this.token});
+
+  static const List<String> _knownRoleNames = ['ADMIN', 'DOCTOR'];
+
+  Map<String, String> get _headers => {
+    'Content-Type': 'application/json',
+    if (token != null && token!.isNotEmpty) 'Authorization': 'Bearer $token',
+  };
+
+  Map<String, String> get _jsonHeaders => {
+    'Content-Type': 'application/json; charset=UTF-8',
+    if (token != null && token!.isNotEmpty) 'Authorization': 'Bearer $token',
+  };
 
   @override
   Future<List<PermissionModel>> getPermissions() async {
-    final uri = Uri.parse(ApiConstants.permissionsEndpoint);
+    final uri = Uri.parse(ApiConstants.permissionsTreeEndpoint);
     try {
       final response = await client
-          .get(uri, headers: {'Content-Type': 'application/json'})
+          .get(uri, headers: _headers)
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-        return data
-            .map((e) => PermissionModel.fromJson(e as Map<String, dynamic>))
-            .toList();
+        final permissions = <PermissionModel>[];
+
+        for (final feature in data) {
+          if (feature is! Map<String, dynamic>) continue;
+
+          final resource = feature['name']?.toString() ?? '';
+          final rawPermissions = feature['permissions'];
+          if (rawPermissions is! List) continue;
+
+          for (final item in rawPermissions) {
+            if (item is! Map<String, dynamic>) continue;
+
+            permissions.add(
+              PermissionModel.fromJson({
+                ...item,
+                'resource': resource,
+                'action': item['name'],
+              }),
+            );
+          }
+        }
+
+        return permissions;
       }
-      throw Exception('Lỗi tải danh sách quyền (${response.statusCode})');
+
+      throw Exception('Loi tai danh sach quyen (${response.statusCode})');
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Lỗi kết nối: $e');
+      throw Exception('Loi ket noi: $e');
     }
   }
 
   @override
   Future<List<RoleModel>> getRoles() async {
-    final uri = Uri.parse(ApiConstants.rolesEndpoint);
     try {
-      final response = await client
-          .get(uri, headers: {'Content-Type': 'application/json'})
-          .timeout(const Duration(seconds: 10));
+      final roles = <RoleModel>[];
 
-      if (response.statusCode == 200) {
+      for (final roleName in _knownRoleNames) {
+        final uri = Uri.parse(
+          '${ApiConstants.rolePermissionsEndpoint}/$roleName',
+        );
+        final response = await client
+            .get(uri, headers: _headers)
+            .timeout(const Duration(seconds: 10));
+
+        if (response.statusCode != 200) {
+          throw Exception(
+            'Loi tai quyen vai tro $roleName (${response.statusCode})',
+          );
+        }
+
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-        return data
-            .map((e) => RoleModel.fromJson(e as Map<String, dynamic>))
-            .toList();
+        roles.add(
+          RoleModel(
+            id: roleName,
+            name: roleName,
+            code: roleName,
+            permissions: data.map((e) => e.toString()).toList(),
+          ),
+        );
       }
-      throw Exception('Lỗi tải danh sách vai trò (${response.statusCode})');
+
+      return roles;
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Lỗi kết nối: $e');
+      throw Exception('Loi ket noi: $e');
     }
   }
 
@@ -64,24 +115,34 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
     String roleId,
     List<String> permissions,
   ) async {
-    final uri = Uri.parse('${ApiConstants.rolesEndpoint}/$roleId');
+    final uri = Uri.parse('${ApiConstants.rolePermissionsEndpoint}/$roleId');
     try {
       final response = await client
           .put(
             uri,
-            headers: {'Content-Type': 'application/json; charset=UTF-8'},
-            body: jsonEncode({'permissions': permissions}),
+            headers: _jsonHeaders,
+            body: jsonEncode({
+              'permissionIds': permissions
+                  .map(int.tryParse)
+                  .whereType<int>()
+                  .toList(),
+            }),
           )
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
-        final data = jsonDecode(utf8.decode(response.bodyBytes));
-        return RoleModel.fromJson(data as Map<String, dynamic>);
+        return RoleModel(
+          id: roleId,
+          name: roleId,
+          code: roleId,
+          permissions: permissions,
+        );
       }
-      throw Exception('Lỗi cập nhật quyền (${response.statusCode})');
+
+      throw Exception('Loi cap nhat quyen (${response.statusCode})');
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Lỗi kết nối: $e');
+      throw Exception('Loi ket noi: $e');
     }
   }
 }

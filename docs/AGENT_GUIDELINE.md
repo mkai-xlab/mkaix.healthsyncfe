@@ -210,6 +210,8 @@ Widget _buildMainContent(BuildContext context) {
 
 Các trang/tab trong Admin phải dùng chung layout cha của `AdminHomepage`: sidebar/drawer và top bar được dựng ở `AdminHomepage`, page con chỉ render phần nội dung. Nếu page con vẫn cần chạy độc lập thì thêm option như `showTopBar`, nhưng khi nhúng trong admin phải tắt top bar riêng để tránh lệch navbar.
 
+Doctor homepage cũng dùng pattern shell tương tự: sidebar/drawer và top bar cố định ở `DoctorHomepage`, phần `_buildMainContent` chỉ đổi nội dung tab. Sidebar doctor lấy item theo permission cha trong `currentUser.permissionItems` từ login response (`parent_id`/`parentId`/`requiresPermissionId` rỗng hoặc null). Các item sidebar doctor hiện chỉ là điểm vào theo quyền; khi chưa link tính năng cụ thể thì nội dung page hiển thị trạng thái "đang cập nhật", không tự route sang danh sách bệnh nhân hay dashboard cứng.
+
 ### 5.2 Tab động (không dùng TabController với length thay đổi)
 `TabController` không handle tốt việc `length` thay đổi sau khi data load. Thay bằng **custom tab row + `setState` index**:
 ```dart
@@ -247,7 +249,8 @@ void searchByNameDebounced(String name, String token) {
 Tất cả trang của Doctor role dùng cùng một style top bar:
 - Height: 38px cho search field
 - Padding: `horizontal: 16, vertical: 10`
-- Logo (32x32) hiển thị trên desktop
+- Không hiển thị logo trong top bar vì sidebar/drawer đã có logo
+- Top bar của bác sĩ luôn có thanh tìm kiếm bệnh nhân, không chỉ riêng tab danh sách bệnh nhân
 - Avatar (radius 15) + tên bác sĩ + chức danh "Chẩn đoán hình ảnh"
 - Icon notification size 20
 

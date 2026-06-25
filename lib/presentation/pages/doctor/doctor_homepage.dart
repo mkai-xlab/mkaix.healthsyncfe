@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
+import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import 'patient_detail_page.dart';
 
@@ -35,17 +36,103 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       body: Row(
         children: [
           if (!isMobile) _buildSidebar(context),
-          Expanded(child: _buildMainContent(context)),
+          Expanded(
+            child: Column(
+              children: [
+                Builder(
+                  builder: (scaffoldContext) => _buildTopBar(scaffoldContext),
+                ),
+                Expanded(child: _buildMainContent(context)),
+              ],
+            ),
+          ),
         ],
       ),
       drawer: isMobile ? _buildDrawer(context) : null,
     );
   }
 
+  List<_DoctorNavItemData> _visibleNavItems(BuildContext context) {
+    final user = context.watch<AuthViewModel>().currentUser;
+    final permissionItems = user?.permissionItems ?? const [];
+    final parentPermissions = permissionItems
+        .where((permission) => permission.isParent)
+        .toList();
+
+    final source = parentPermissions.isNotEmpty
+        ? parentPermissions
+        : permissionItems;
+
+    return List.generate(source.length, (index) {
+      final permission = source[index];
+      return _DoctorNavItemData(
+        index: index,
+        label: _permissionTitle(permission),
+        icon: _permissionIcon(permission.name),
+      );
+    });
+  }
+
+  String _normalizePermissionKey(String value) {
+    return value
+        .toLowerCase()
+        .replaceAll('đ', 'd')
+        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
+        .replaceAll(RegExp(r'_+'), '_')
+        .replaceAll(RegExp(r'^_|_$'), '');
+  }
+
+  String _permissionTitle(UserPermissionEntity permission) {
+    final normalized = _normalizePermissionKey(permission.name);
+    const labels = {
+      'patient': 'Quản lý bệnh nhân',
+      'patients': 'Quản lý bệnh nhân',
+      'benh_nhan': 'Quản lý bệnh nhân',
+      'dicom': 'Hỗ trợ chẩn đoán',
+      'dicom_image': 'Hỗ trợ chẩn đoán',
+      'xray': 'Hỗ trợ chẩn đoán',
+      'x_quang': 'Hỗ trợ chẩn đoán',
+      'diagnosis': 'Hỗ trợ chẩn đoán',
+      'report': 'Báo cáo & hồ sơ',
+      'reports': 'Báo cáo & hồ sơ',
+      'notification': 'Thông báo',
+      'notifications': 'Thông báo',
+    };
+
+    if (labels.containsKey(normalized)) return labels[normalized]!;
+    return _capitalize(permission.name.replaceAll('_', ' '));
+  }
+
+  IconData _permissionIcon(String permissionName) {
+    final normalized = _normalizePermissionKey(permissionName);
+    if (normalized.contains('patient') || normalized.contains('benh_nhan')) {
+      return Icons.people_outline;
+    }
+    if (normalized.contains('dicom') ||
+        normalized.contains('xray') ||
+        normalized.contains('x_quang') ||
+        normalized.contains('diagnosis')) {
+      return Icons.medical_information_outlined;
+    }
+    if (normalized.contains('report')) {
+      return Icons.description_outlined;
+    }
+    if (normalized.contains('notification') || normalized.contains('thong_bao')) {
+      return Icons.notifications_outlined;
+    }
+    return Icons.lock_outline;
+  }
+
+  String _capitalize(String value) {
+    if (value.isEmpty) return value;
+    return value[0].toUpperCase() + value.substring(1);
+  }
+
   // ─────────────────────────────────────────────
   // SIDEBAR
   // ─────────────────────────────────────────────
   Widget _buildSidebar(BuildContext context) {
+    final navItems = _visibleNavItems(context);
     return Container(
       width: 250,
       color: _darkGreen,
@@ -56,16 +143,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           Expanded(
             child: ListView(
               padding: const EdgeInsets.symmetric(vertical: 12),
-              children: [
-                _buildNavItem(0, 'Trang chủ', Icons.home_outlined),
-                _buildNavItem(1, 'Danh sách bệnh nhân', Icons.people_outline),
-                _buildNavItem(
-                  2,
-                  'Hỗ trợ chẩn đoán',
-                  Icons.medical_information_outlined,
-                ),
-                _buildNavItem(3, 'Thông báo', Icons.notifications_outlined),
-              ],
+              children: navItems.isEmpty
+                  ? [_buildEmptyPermissionNote()]
+                  : navItems.map((item) => _buildNavItem(item)).toList(),
             ),
           ),
           const Divider(color: Colors.white24, height: 1),
@@ -139,16 +219,17 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     );
   }
 
-  Widget _buildNavItem(int index, String label, IconData icon) {
+  Widget _buildNavItem(_DoctorNavItemData item, {bool closeDrawer = false}) {
+    final index = item.index;
     final isSelected = _selectedNavIndex == index;
     return ListTile(
       leading: Icon(
-        icon,
+        item.icon,
         color: isSelected ? Colors.white : Colors.white70,
         size: 20,
       ),
       title: Text(
-        label,
+        item.label,
         style: TextStyle(
           color: isSelected ? Colors.white : Colors.white70,
           fontSize: 14,
@@ -157,8 +238,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       ),
       onTap: () {
         setState(() => _selectedNavIndex = index);
-        if (index == 1) {
-          context.read<DoctorViewModel>().fetchFirstPage(token: _token);
+        if (closeDrawer) {
+          Navigator.pop(context);
         }
       },
       tileColor: isSelected ? Colors.white.withValues(alpha: 0.1) : null,
@@ -166,6 +247,16 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
           : null,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+    );
+  }
+
+  Widget _buildEmptyPermissionNote() {
+    return const Padding(
+      padding: EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      child: Text(
+        'Chưa có quyền hiển thị',
+        style: TextStyle(color: Colors.white70, fontSize: 13),
+      ),
     );
   }
 
@@ -184,6 +275,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   }
 
   Widget _buildDrawer(BuildContext context) {
+    final navItems = _visibleNavItems(context);
     return Drawer(
       child: Container(
         color: _darkGreen,
@@ -217,16 +309,11 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 12),
-                children: [
-                  _buildNavItem(0, 'Trang chủ', Icons.home_outlined),
-                  _buildNavItem(1, 'Danh sách bệnh nhân', Icons.people_outline),
-                  _buildNavItem(
-                    2,
-                    'Hỗ trợ chẩn đoán',
-                    Icons.medical_information_outlined,
-                  ),
-                  _buildNavItem(3, 'Thông báo', Icons.notifications_outlined),
-                ],
+                children: navItems.isEmpty
+                    ? [_buildEmptyPermissionNote()]
+                    : navItems
+                          .map((item) => _buildNavItem(item, closeDrawer: true))
+                          .toList(),
               ),
             ),
             _buildLogoutTile(context),
@@ -240,18 +327,25 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   // MAIN CONTENT ROUTER
   // ─────────────────────────────────────────────
   Widget _buildMainContent(BuildContext context) {
-    switch (_selectedNavIndex) {
-      case 1:
-        return _buildPatientListPage(context);
-      default:
-        return _buildDashboard(context);
-    }
+    final navItems = _visibleNavItems(context);
+    final selectedItem =
+        _selectedNavIndex >= 0 && _selectedNavIndex < navItems.length
+        ? navItems[_selectedNavIndex]
+        : null;
+
+    return _buildFeaturePlaceholderPage(
+      title: selectedItem?.label ?? 'Đang cập nhật',
+      subtitle: selectedItem == null
+          ? 'Tài khoản hiện chưa có permission cha để hiển thị trong sidebar.'
+          : 'Tính năng này đang được cập nhật.',
+      icon: selectedItem?.icon ?? Icons.construction_outlined,
+    );
   }
 
   // ─────────────────────────────────────────────
   // TOP BAR
   // ─────────────────────────────────────────────
-  Widget _buildTopBar(BuildContext context, {bool showSearch = false}) {
+  Widget _buildTopBar(BuildContext context) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -268,59 +362,48 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                 constraints: const BoxConstraints(),
               ),
             ),
-          // Logo (desktop only — sidebar có logo rồi)
-          if (MediaQuery.of(context).size.width >= 900) ...[
-            _logoBox('lib/presentation/images/logo1.jpg'),
-            const SizedBox(width: 6),
-            _logoBox('lib/presentation/images/logo2.jpg'),
-            const SizedBox(width: 14),
-          ],
-          // Search
-          if (showSearch)
-            Expanded(
-              child: SizedBox(
-                height: 38,
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (v) => context
-                      .read<DoctorViewModel>()
-                      .searchByNameDebounced(v, _token),
-                  style: const TextStyle(fontSize: 13),
-                  decoration: InputDecoration(
-                    hintText: 'Tìm kiếm bệnh nhân, hồ sơ, mã số...',
-                    hintStyle: const TextStyle(
-                      color: Color(0xFFADB5BD),
-                      fontSize: 13,
-                    ),
-                    prefixIcon: const Icon(
-                      Icons.search,
-                      color: Color(0xFF718096),
-                      size: 18,
-                    ),
-                    filled: true,
-                    fillColor: const Color(0xFFF7FAFC),
-                    contentPadding: EdgeInsets.zero,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide: const BorderSide(
-                        color: _primaryGreen,
-                        width: 1.5,
-                      ),
+          Expanded(
+            child: SizedBox(
+              height: 38,
+              child: TextField(
+                controller: _searchController,
+                onChanged: (v) => context
+                    .read<DoctorViewModel>()
+                    .searchByNameDebounced(v, _token),
+                style: const TextStyle(fontSize: 13),
+                decoration: InputDecoration(
+                  hintText: 'Tìm kiếm bệnh nhân, hồ sơ, mã số...',
+                  hintStyle: const TextStyle(
+                    color: Color(0xFFADB5BD),
+                    fontSize: 13,
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.search,
+                    color: Color(0xFF718096),
+                    size: 18,
+                  ),
+                  filled: true,
+                  fillColor: const Color(0xFFF7FAFC),
+                  contentPadding: EdgeInsets.zero,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(8),
+                    borderSide: const BorderSide(
+                      color: _primaryGreen,
+                      width: 1.5,
                     ),
                   ),
                 ),
               ),
-            )
-          else
-            const Expanded(child: SizedBox()),
+            ),
+          ),
           const SizedBox(width: 12),
           const Icon(
             Icons.notifications_outlined,
@@ -374,43 +457,91 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     );
   }
 
+  Widget _buildFeaturePlaceholderPage({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    return Container(
+      color: const Color(0xFFF0F4F3),
+      width: double.infinity,
+      child: Center(
+        child: Container(
+          width: 420,
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE6F4F1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: _primaryGreen, size: 28),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A2B3C),
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.4,
+                  color: Color(0xFF718096),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   // ─────────────────────────────────────────────
   // DASHBOARD
   // ─────────────────────────────────────────────
   Widget _buildDashboard(BuildContext context) {
     return Container(
       color: const Color(0xFFF0F4F3),
-      child: Column(
-        children: [
-          _buildTopBar(context),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Trang chủ',
-                    style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A2B3C),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  const Text(
-                    'Tổng quan hoạt động chẩn đoán hôm nay',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF718096)),
-                  ),
-                  const SizedBox(height: 24),
-                  _buildDashboardStats(),
-                  const SizedBox(height: 24),
-                  _buildCriticalCasesAlert(),
-                ],
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Trang chủ',
+              style: TextStyle(
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A2B3C),
               ),
             ),
-          ),
-        ],
+            const SizedBox(height: 4),
+            const Text(
+              'Tổng quan hoạt động chẩn đoán hôm nay',
+              style: TextStyle(fontSize: 13, color: Color(0xFF718096)),
+            ),
+            const SizedBox(height: 24),
+            _buildDashboardStats(),
+            const SizedBox(height: 24),
+            _buildCriticalCasesAlert(),
+          ],
+        ),
       ),
     );
   }
@@ -603,36 +734,25 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   Widget _buildPatientListPage(BuildContext context) {
     return Container(
       color: const Color(0xFFF0F4F3),
-      child: Column(
-        children: [
-          _buildTopBar(context, showSearch: true),
-          Expanded(
-            child: Consumer<DoctorViewModel>(
-              builder: (context, vm, _) {
-                return Column(
-                  children: [
-                    // Filter bar + header
-                    _buildPatientListHeader(context, vm),
-                    // Content
-                    Expanded(
-                      child: vm.isLoading && vm.patients.isEmpty
-                          ? const Center(
-                              child: CircularProgressIndicator(
-                                color: _primaryGreen,
-                              ),
-                            )
-                          : vm.errorMessage != null && vm.patients.isEmpty
-                          ? _buildErrorState(vm)
-                          : vm.patients.isEmpty
-                          ? _buildEmptyState()
-                          : _buildPatientTable(context, vm),
-                    ),
-                  ],
-                );
-              },
-            ),
-          ),
-        ],
+      child: Consumer<DoctorViewModel>(
+        builder: (context, vm, _) {
+          return Column(
+            children: [
+              _buildPatientListHeader(context, vm),
+              Expanded(
+                child: vm.isLoading && vm.patients.isEmpty
+                    ? const Center(
+                        child: CircularProgressIndicator(color: _primaryGreen),
+                      )
+                    : vm.errorMessage != null && vm.patients.isEmpty
+                    ? _buildErrorState(vm)
+                    : vm.patients.isEmpty
+                    ? _buildEmptyState()
+                    : _buildPatientTable(context, vm),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -910,7 +1030,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
               icon: const Icon(
                 Icons.more_vert,
                 size: 18,
-                color: const Color(0xFF718096),
+                color: Color(0xFF718096),
               ),
               onPressed: () => Navigator.push(
                 context,
@@ -1106,6 +1226,18 @@ class _TableHeader extends StatelessWidget {
       ),
     );
   }
+}
+
+class _DoctorNavItemData {
+  final int index;
+  final String label;
+  final IconData icon;
+
+  const _DoctorNavItemData({
+    required this.index,
+    required this.label,
+    required this.icon,
+  });
 }
 
 // ─────────────────────────────────────────────

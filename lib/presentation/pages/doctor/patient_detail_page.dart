@@ -120,39 +120,14 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
             constraints: const BoxConstraints(),
           ),
           const SizedBox(width: 12),
-          // Logo
-          _logoBox('lib/presentation/images/logo1.jpg'),
-          const SizedBox(width: 6),
-          _logoBox('lib/presentation/images/logo2.jpg'),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: const [
-              Text(
-                'VIỆN Y HỌC CỔ TRUYỀN QUÂN ĐỘI',
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: _darkGreen,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              Text(
-                'Chi tiết bệnh nhân',
-                style: TextStyle(fontSize: 9, color: Color(0xFF718096)),
-              ),
-            ],
-          ),
-          const SizedBox(width: 20),
           // Search
           Expanded(
             child: SizedBox(
-              height: 36,
+              height: 38,
               child: TextField(
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Tìm kiếm bệnh nhân...',
+                  hintText: 'Tìm kiếm bệnh nhân, hồ sơ, mã số...',
                   hintStyle: const TextStyle(
                     color: Color(0xFFADB5BD),
                     fontSize: 13,

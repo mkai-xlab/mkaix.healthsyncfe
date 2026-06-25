@@ -6,6 +6,8 @@ class UserModel extends UserEntity {
     required super.name,
     required super.token,
     required super.roles,
+    super.permissions,
+    super.permissionItems,
   });
 
   // Map chính xác các Key từ JSON của Spring Boot trả về
@@ -34,6 +36,54 @@ class UserModel extends UserEntity {
       }).toList();
     }
 
+    final parsedPermissionItems = <UserPermissionEntity>[];
+    final parsedPermissions = <String>[];
+
+    if (json['permissions'] is List) {
+      for (final permission in json['permissions'] as List) {
+        if (permission is Map) {
+          final id =
+              (permission['id'] ??
+                      permission['permissionId'] ??
+                      permission['code'] ??
+                      permission['name'] ??
+                      permission['authority'] ??
+                      '')
+                  .toString();
+          final name =
+              (permission['name'] ??
+                      permission['code'] ??
+                      permission['authority'] ??
+                      permission['id'] ??
+                      '')
+                  .toString();
+          final parentId =
+              permission['parent_id'] ??
+              permission['parentId'] ??
+              permission['requiresPermissionId'];
+
+          if (name.isNotEmpty) {
+            parsedPermissions.add(name);
+            parsedPermissionItems.add(
+              UserPermissionEntity(
+                id: id.isNotEmpty ? id : name,
+                name: name,
+                description: permission['description']?.toString(),
+                parentId: parentId?.toString(),
+              ),
+            );
+          }
+          continue;
+        }
+
+        final name = permission.toString();
+        if (name.isNotEmpty) {
+          parsedPermissions.add(name);
+          parsedPermissionItems.add(UserPermissionEntity(id: name, name: name));
+        }
+      }
+    }
+
     return UserModel(
       id:
           json['id']?.toString() ??
@@ -48,6 +98,8 @@ class UserModel extends UserEntity {
           json['token'] ??
           '', // Dự phòng cả accessToken và token
       roles: parsedRoles,
+      permissions: parsedPermissions,
+      permissionItems: parsedPermissionItems,
     );
   }
 

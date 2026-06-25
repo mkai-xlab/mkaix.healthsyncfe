@@ -5,6 +5,7 @@ class ApiConstants {
   static const String resetPasswordEndpoint = '$baseUrl/auth/reset-password';
   static const String changePasswordEndpoint = '$baseUrl/auth/change-password';
   static const String patientsEndpoint = '$baseUrl/patients';
+  static const String userAccountsEndpoint = '$baseUrl/users';
 
   // doctors endpoints
   static const String doctorsEndpoint = '$baseUrl/doctors';
@@ -14,4 +15,5 @@ class ApiConstants {
   static const String permissionsEndpoint = '$baseUrl/permissions';
   static const String permissionsTreeEndpoint = '$baseUrl/permissions/tree';
   static const String rolePermissionsEndpoint = '$baseUrl/permissions/role';
+  static const String rolesEndpoint = '$baseUrl/roles';
 }

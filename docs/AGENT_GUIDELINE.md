@@ -151,6 +151,7 @@ void initState() {
 | `/permissions/role/{roleName}` | PUT | Cập nhật quyền role bằng `{permissionIds: [...]}` |
 | `/features` | POST | Tạo feature `{name, description}` |
 | `/features/{id}` | PUT | Cập nhật feature `{name, description}` |
+| `/roles` | GET | Backend hiện chưa có/chưa ổn định endpoint này. Tạm thời popup tạo user dùng role cố định: `1 = Admin`, `2 = Doctor` theo yêu cầu 25/06/2026. |
 
 **Notifications / Upload**
 | Endpoint | Method | Ghi chú |

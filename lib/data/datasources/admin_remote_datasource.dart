@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
 import '../../domain/entities/doctor_account_page_entity.dart';
 import '../models/doctor_account_model.dart';
+import '../models/role_model.dart';
 
 abstract class AdminRemoteDataSource {
   Future<DoctorAccountPageEntity> getDoctorAccounts({
@@ -16,6 +17,16 @@ abstract class AdminRemoteDataSource {
     required Map<String, dynamic> doctorData,
     required String token,
   });
+
+  Future<void> createUser({
+    required String fullName,
+    required String email,
+    required String phone,
+    required int roleId,
+    required String token,
+  });
+
+  Future<List<RoleModel>> getRoles({required String token});
 
   Future<void> toggleDoctorStatus({
     required int id,
@@ -111,6 +122,93 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Ket noi that bai: $e');
+    }
+  }
+
+  @override
+  Future<void> createUser({
+    required String fullName,
+    required String email,
+    required String phone,
+    required int roleId,
+    required String token,
+  }) async {
+    final uri = Uri.parse(ApiConstants.userAccountsEndpoint);
+
+    try {
+      final response = await client.post(
+        uri,
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'fullName': fullName.trim(),
+          'email': email.trim(),
+          'phone': phone.trim(),
+          'roleId': roleId,
+        }),
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return;
+      }
+
+      final decodedBody = utf8.decode(response.bodyBytes);
+      String message = 'Loi khi tao tai khoan';
+      try {
+        final errorData = jsonDecode(decodedBody);
+        if (errorData is Map && errorData['message'] != null) {
+          message = errorData['message'].toString();
+        }
+      } catch (_) {}
+      throw Exception(message);
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Ket noi that bai: $e');
+    }
+  }
+
+  @override
+  Future<List<RoleModel>> getRoles({required String token}) async {
+    final uri = Uri.parse(ApiConstants.rolesEndpoint);
+
+    try {
+      final response = await client
+          .get(
+            uri,
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(utf8.decode(response.bodyBytes));
+        final List<dynamic> rolesJson;
+        if (data is List) {
+          rolesJson = data;
+        } else if (data is Map && data['content'] is List) {
+          rolesJson = data['content'] as List;
+        } else if (data is Map && data['data'] is List) {
+          rolesJson = data['data'] as List;
+        } else if (data is Map && data['roles'] is List) {
+          rolesJson = data['roles'] as List;
+        } else {
+          throw Exception('Định dạng danh sách vai trò không hợp lệ');
+        }
+
+        return rolesJson
+            .map((item) => RoleModel.fromJson(item as Map<String, dynamic>))
+            .toList();
+      }
+
+      throw Exception('Lỗi tải danh sách vai trò (${response.statusCode})');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Kết nối thất bại: $e');
     }
   }
 

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../data/datasources/admin_remote_datasource.dart';
+import '../../data/models/role_model.dart';
 import '../../domain/entities/doctor_account_entity.dart';
 
 class AdminAccountViewModel extends ChangeNotifier {
@@ -77,6 +78,41 @@ class AdminAccountViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<bool> createUser({
+    required String fullName,
+    required String email,
+    required String phone,
+    required int roleId,
+    required String token,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await dataSource.createUser(
+        fullName: fullName,
+        email: email,
+        phone: phone,
+        roleId: roleId,
+        token: token,
+      );
+      _currentSearchName = '';
+      await fetchFirstPage(token);
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<List<RoleModel>> getRoles(String token) {
+    return dataSource.getRoles(token: token);
   }
 
   Future<bool> toggleDoctorStatus(int id, bool activate, String token) async {

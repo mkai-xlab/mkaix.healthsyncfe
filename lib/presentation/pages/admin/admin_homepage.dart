@@ -3,10 +3,11 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
-import 'package:fe/data/models/doctor_account_model.dart';
+import 'package:fe/domain/entities/doctor_account_entity.dart';
 import 'package:fe/data/datasources/permission_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 import 'package:fe/presentation/pages/admin/permission_page.dart';
+import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart';
 import 'package:http/http.dart' as http;
 
 class AdminHomepage extends StatefulWidget {
@@ -18,7 +19,7 @@ class AdminHomepage extends StatefulWidget {
 
 class _AdminHomepageState extends State<AdminHomepage> {
   int _selectedNavIndex = 0;
-  DoctorAccountModel? _selectedUser;
+  DoctorAccountEntity? _selectedUser;
 
   @override
   void initState() {
@@ -327,10 +328,22 @@ class _AdminHomepageState extends State<AdminHomepage> {
       return _buildUserManagementPage(context);
     }
     if (_selectedNavIndex == 2) {
-      return ChangeNotifierProvider(
-        create: (_) =>
-            PermissionViewModel(PermissionRemoteDataSourceImpl(http.Client())),
-        child: const PermissionPage(),
+      final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+      return Container(
+        color: const Color(0xFFF0F4F3),
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            Expanded(
+              child: ChangeNotifierProvider(
+                create: (_) => PermissionViewModel(
+                  PermissionRemoteDataSourceImpl(http.Client(), token: token),
+                ),
+                child: const FeaturePermissionCatalogPage(),
+              ),
+            ),
+          ],
+        ),
       );
     }
 
@@ -463,7 +476,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               ),
               const SizedBox(width: 12),
               OutlinedButton.icon(
-                onPressed: () {},
+                onPressed: () => _showRolePermissionDialog(context),
                 icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
                 label: const Text('Phân quyền'),
                 style: OutlinedButton.styleFrom(
@@ -755,7 +768,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   Widget _buildUserRow(
     BuildContext context,
-    DoctorAccountModel account,
+    DoctorAccountEntity account,
     AdminAccountViewModel viewModel,
   ) {
     final isActive = account.status == 'ACTIVE';
@@ -941,6 +954,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
               onSelected: (v) {
                 if (v == 'detail') {
                   _showAccountDetailDialog(context, account);
+                } else if (v == 'permission') {
+                  _showRolePermissionDialog(context);
                 } else if (v == 'toggle') {
                   _showToggleStatusDialog(context, account);
                 }
@@ -957,6 +972,20 @@ class _AdminHomepageState extends State<AdminHomepage> {
                       ),
                       SizedBox(width: 8),
                       Text('Xem chi tiết'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'permission',
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.admin_panel_settings_outlined,
+                        size: 16,
+                        color: Color(0xFF2D7E6E),
+                      ),
+                      SizedBox(width: 8),
+                      Text('Phan quyen'),
                     ],
                   ),
                 ),
@@ -1054,6 +1083,30 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   // ─── RIGHT DETAIL SIDEBAR ─────────────────────────────────
+  void _showRolePermissionDialog(BuildContext context) {
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.all(24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: SizedBox(
+          width: 1100,
+          height: 760,
+          child: ChangeNotifierProvider(
+            create: (_) => PermissionViewModel(
+              PermissionRemoteDataSourceImpl(http.Client(), token: token),
+            ),
+            child: PermissionPage(
+              showTopBar: false,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildUserDetailSidebar(
     BuildContext context,
     AdminAccountViewModel viewModel,
@@ -1419,6 +1472,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final phoneController = TextEditingController();
+    final doctorCodeController = TextEditingController();
+    final licenseController = TextEditingController();
+    final specializationController = TextEditingController();
+    final hospitalController = TextEditingController();
+    final experienceController = TextEditingController(text: '0');
     // roleId mặc định — có thể mở rộng thành dropdown khi có API lấy danh sách role
     int selectedRoleId = 1;
 
@@ -1537,6 +1595,72 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           },
                         ),
 
+                        const SizedBox(height: 16),
+                        _buildFieldLabel('Ma bac si *'),
+                        TextFormField(
+                          controller: doctorCodeController,
+                          decoration: _buildInputDecoration(
+                            'VD: BS001',
+                            Icons.badge_outlined,
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Vui long nhap ma bac si'
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildFieldLabel('So chung chi *'),
+                        TextFormField(
+                          controller: licenseController,
+                          decoration: _buildInputDecoration(
+                            'Nhap so chung chi',
+                            Icons.verified_user_outlined,
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Vui long nhap so chung chi'
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildFieldLabel('Chuyen khoa *'),
+                        TextFormField(
+                          controller: specializationController,
+                          decoration: _buildInputDecoration(
+                            'VD: Chan doan hinh anh',
+                            Icons.medical_services_outlined,
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Vui long nhap chuyen khoa'
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildFieldLabel('Benh vien *'),
+                        TextFormField(
+                          controller: hospitalController,
+                          decoration: _buildInputDecoration(
+                            'Nhap ten benh vien',
+                            Icons.local_hospital_outlined,
+                          ),
+                          validator: (v) => (v == null || v.trim().isEmpty)
+                              ? 'Vui long nhap ten benh vien'
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildFieldLabel('So nam kinh nghiem'),
+                        TextFormField(
+                          controller: experienceController,
+                          keyboardType: TextInputType.number,
+                          decoration: _buildInputDecoration(
+                            '0',
+                            Icons.timeline_outlined,
+                          ),
+                          validator: (v) {
+                            final value = int.tryParse(v?.trim() ?? '0');
+                            if (value == null || value < 0) {
+                              return 'Gia tri khong hop le';
+                            }
+                            return null;
+                          },
+                        ),
+
                         if (viewModel.errorMessage != null)
                           Padding(
                             padding: const EdgeInsets.only(top: 12),
@@ -1583,11 +1707,41 @@ class _AdminHomepageState extends State<AdminHomepage> {
                                     .currentUser
                                     ?.token ??
                                 '';
-                            final success = await viewModel.createUser(
-                              fullName: nameController.text.trim(),
-                              email: emailController.text.trim(),
-                              phone: phoneController.text.trim(),
-                              roleId: selectedRoleId,
+                            final normalizedPhone = phoneController.text.trim();
+                            final generatedCode =
+                                'DOC${DateTime.now().millisecondsSinceEpoch}';
+                            final doctorCode = doctorCodeController.text
+                                .trim();
+                            final licenseNumber = licenseController.text
+                                .trim();
+                            final specialization =
+                                specializationController.text.trim();
+                            final hospitalName = hospitalController.text
+                                .trim();
+                            final success = await viewModel.createDoctor(
+                              doctorData: {
+                                'fullName': nameController.text.trim(),
+                                'email': emailController.text.trim(),
+                                'phone': normalizedPhone,
+                                'doctorCode': doctorCode.isEmpty
+                                    ? generatedCode
+                                    : doctorCode,
+                                'licenseNumber': licenseNumber.isEmpty
+                                    ? generatedCode
+                                    : licenseNumber,
+                                'specialization': specialization.isEmpty
+                                    ? 'GENERAL'
+                                    : specialization,
+                                'hospitalName': hospitalName.isEmpty
+                                    ? 'Military Traditional Medicine Hospital'
+                                    : hospitalName,
+                                'yearsOfExperience':
+                                    int.tryParse(
+                                      experienceController.text.trim(),
+                                    ) ??
+                                    0,
+                                'position': 'NORMAL',
+                              },
                               token: token,
                             );
                             if (success && context.mounted) {
@@ -1662,7 +1816,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   void _showToggleStatusDialog(
     BuildContext context,
-    DoctorAccountModel account,
+    DoctorAccountEntity account,
   ) {
     final bool isActive = account.status == 'ACTIVE';
     final String actionText = isActive ? 'Khóa' : 'Kích hoạt';
@@ -1719,7 +1873,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   void _showAccountDetailDialog(
     BuildContext context,
-    DoctorAccountModel account,
+    DoctorAccountEntity account,
   ) {
     final isActive = account.status == 'ACTIVE';
     showDialog(

@@ -19,7 +19,9 @@ class PermissionModel {
       name: json['name']?.toString() ?? '',
       resource: json['resource']?.toString() ?? '',
       action: json['action']?.toString() ?? '',
-      parentId: json['parent_id']?.toString(),
+      parentId:
+          json['parent_id']?.toString() ??
+          json['requiresPermissionId']?.toString(),
     );
   }
 

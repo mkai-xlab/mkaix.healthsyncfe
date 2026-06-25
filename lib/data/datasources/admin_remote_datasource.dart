@@ -1,32 +1,22 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
+import '../../domain/entities/doctor_account_page_entity.dart';
 import '../models/doctor_account_model.dart';
-import '../models/user_account_model.dart';
-import '../../domain/entities/user_account_page_entity.dart';
 
 abstract class AdminRemoteDataSource {
-  Future<UserAccountPageEntity> getUserAccounts({
-    required int page,
-    required int size,
-  });
-  Future<Map<String, dynamic>> getDoctorAccounts({
+  Future<DoctorAccountPageEntity> getDoctorAccounts({
     required int page,
     required int size,
     required String token,
     String? name,
   });
+
   Future<void> createDoctor({
     required Map<String, dynamic> doctorData,
     required String token,
   });
-  Future<void> createUser({
-    required String fullName,
-    required String email,
-    required String phone,
-    required int roleId,
-    required String token,
-  });
+
   Future<void> toggleDoctorStatus({
     required int id,
     required bool activate,
@@ -39,62 +29,20 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
   AdminRemoteDataSourceImpl(this.client);
 
   @override
-  Future<UserAccountPageEntity> getUserAccounts({
-    required int page,
-    required int size,
-  }) async {
-    final uri = Uri.parse(ApiConstants.userAccountsEndpoint).replace(
-      queryParameters: {'page': page.toString(), 'size': size.toString()},
-    );
-
-    try {
-      final response = await client
-          .get(uri, headers: {'Content-Type': 'application/json'})
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        final String decodedBody = utf8.decode(response.bodyBytes);
-        final dynamic responseData = jsonDecode(decodedBody);
-
-        // KỊCH BẢN MOCK: Dữ liệu bị bọc mảng ngoài cùng [ { content: [...] } ]
-        if (responseData is List &&
-            responseData.isNotEmpty &&
-            responseData[0] is Map &&
-            responseData[0].containsKey('content')) {
-          final Map<String, dynamic> pageData = responseData[0];
-          return _parsePage(pageData);
-        }
-        // KỊCH BẢN SPRING BOOT THẬT: Trả về Object trực tiếp { content: [...] }
-        else if (responseData is Map) {
-          return _parsePage(responseData as Map<String, dynamic>);
-        }
-
-        throw Exception('Định dạng dữ liệu không hợp lệ');
-      } else {
-        throw Exception('Lỗi Server: ${response.statusCode}');
-      }
-    } catch (e) {
-      if (e is Exception) rethrow;
-      throw Exception('Lỗi mạng: $e');
-    }
-  }
-
-  @override
-  Future<Map<String, dynamic>> getDoctorAccounts({
+  Future<DoctorAccountPageEntity> getDoctorAccounts({
     required int page,
     required int size,
     required String token,
     String? name,
   }) async {
-    final Map<String, String> queryParams = {
+    final queryParams = <String, String>{
       'page': page.toString(),
       'size': size.toString(),
       if (name != null && name.isNotEmpty) 'keyword': name,
     };
 
-    // Dùng /users để lấy danh sách tất cả user (theo API doc mới)
     final uri = Uri.parse(
-      ApiConstants.userAccountsEndpoint,
+      ApiConstants.doctorsEndpoint,
     ).replace(queryParameters: queryParams);
 
     try {
@@ -109,76 +57,23 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        final String decodedBody = utf8.decode(response.bodyBytes);
-        final dynamic responseData = jsonDecode(decodedBody);
+        final decodedBody = utf8.decode(response.bodyBytes);
+        final responseData = jsonDecode(decodedBody);
 
-        Map<String, dynamic> pageData;
         if (responseData is List && responseData.isNotEmpty) {
-          pageData = responseData[0] as Map<String, dynamic>;
-        } else {
-          pageData = responseData as Map<String, dynamic>;
+          return _parseDoctorPage(responseData.first as Map<String, dynamic>);
+        }
+        if (responseData is Map<String, dynamic>) {
+          return _parseDoctorPage(responseData);
         }
 
-        final List<dynamic> contentList = pageData['content'] ?? [];
-        final List<DoctorAccountModel> accounts = contentList
-            .map(
-              (item) =>
-                  DoctorAccountModel.fromJson(item as Map<String, dynamic>),
-            )
-            .toList();
-
-        return {
-          'content': accounts,
-          'isLast': pageData['last'] ?? pageData['isLast'] ?? true,
-          'totalElements': pageData['totalElements'] ?? accounts.length,
-        };
-      } else {
-        throw Exception('Lỗi hệ thống: ${response.statusCode}');
+        throw Exception('Dinh dang danh sach bac si khong hop le');
       }
-    } catch (e) {
-      throw Exception('Kết nối thất bại: $e');
-    }
-  }
 
-  @override
-  Future<void> createUser({
-    required String fullName,
-    required String email,
-    required String phone,
-    required int roleId,
-    required String token,
-  }) async {
-    final uri = Uri.parse(ApiConstants.userAccountsEndpoint);
-    try {
-      final response = await client.post(
-        uri,
-        headers: {
-          'Content-Type': 'application/json; charset=UTF-8',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'fullName': fullName.trim(),
-          'email': email.trim(),
-          'phone': phone.trim(),
-          'roleId': roleId,
-        }),
-      );
-
-      if (response.statusCode != 200 && response.statusCode != 201) {
-        final String decodedBody = utf8.decode(response.bodyBytes);
-        String message = 'Lỗi khi tạo tài khoản';
-        try {
-          final data = jsonDecode(decodedBody);
-          if (data is Map && data['message'] != null) {
-            message = data['message'].toString();
-          }
-        } catch (_) {}
-        throw Exception(message);
-      }
+      throw Exception('Loi he thong: ${response.statusCode}');
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Kết nối thất bại: $e');
+      throw Exception('Ket noi that bai: $e');
     }
   }
 
@@ -202,13 +97,20 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return;
-      } else {
-        final String decodedBody = utf8.decode(response.bodyBytes);
-        final Map<String, dynamic> errorData = jsonDecode(decodedBody);
-        throw Exception(errorData['message'] ?? 'Lỗi khi tạo tài khoản bác sĩ');
       }
+
+      final decodedBody = utf8.decode(response.bodyBytes);
+      String message = 'Loi khi tao tai khoan bac si';
+      try {
+        final errorData = jsonDecode(decodedBody);
+        if (errorData is Map && errorData['message'] != null) {
+          message = errorData['message'].toString();
+        }
+      } catch (_) {}
+      throw Exception(message);
     } catch (e) {
-      throw Exception('Kết nối thất bại: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Ket noi that bai: $e');
     }
   }
 
@@ -231,27 +133,33 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       );
 
       if (response.statusCode != 200 && response.statusCode != 204) {
-        final String decodedBody = utf8.decode(response.bodyBytes);
-        final Map<String, dynamic> errorData = jsonDecode(decodedBody);
-        throw Exception(
-          errorData['message'] ?? 'Không thể thay đổi trạng thái tài khoản',
-        );
+        final decodedBody = utf8.decode(response.bodyBytes);
+        String message = 'Khong the thay doi trang thai bac si';
+        try {
+          final errorData = jsonDecode(decodedBody);
+          if (errorData is Map && errorData['message'] != null) {
+            message = errorData['message'].toString();
+          }
+        } catch (_) {}
+        throw Exception(message);
       }
     } catch (e) {
-      throw Exception('Lỗi kết nối: $e');
+      if (e is Exception) rethrow;
+      throw Exception('Loi ket noi: $e');
     }
   }
 
-  UserAccountPageEntity _parsePage(Map<String, dynamic> json) {
-    final List<dynamic> content = json['content'] ?? [];
-    return UserAccountPageEntity(
-      content: content
-          .map(
-            (item) => UserAccountModel.fromJson(item as Map<String, dynamic>),
-          )
-          .toList(),
-      totalElements: json['totalElements'] ?? 0,
-      totalPages: json['totalPages'] ?? 0,
+  DoctorAccountPageEntity _parseDoctorPage(Map<String, dynamic> json) {
+    final content = json['content'] as List<dynamic>? ?? [];
+    final doctors = content
+        .map((item) => DoctorAccountModel.fromJson(item as Map<String, dynamic>))
+        .toList();
+
+    return DoctorAccountPageEntity(
+      content: doctors,
+      totalElements: json['totalElements'] as int? ?? doctors.length,
+      totalPages: json['totalPages'] as int? ?? 1,
+      isLast: json['isLast'] as bool? ?? json['last'] as bool? ?? true,
     );
   }
 }

@@ -1,8 +1,16 @@
 # AGENT_GUIDELINE.md
 > Tài liệu ghi lại các quy tắc, bài học và quyết định kiến trúc được học trong quá trình phát triển dự án **MKAix HealthSync FE**.  
 > Cập nhật liên tục. Agent phải đọc file này trước khi thực hiện thay đổi lớn.
+> Từ 24/06/2026: mọi điều agent học được từ tài liệu, API doc, yêu cầu hoặc chỉ dẫn mới của user phải được ghi lại vào file này khi có giá trị tái sử dụng cho các lần làm việc sau.
 
 ---
+
+## 0. Quy ước làm việc với Agent
+
+- Trước khi thực hiện thay đổi lớn, agent phải đọc `docs/AGENT_GUIDELINE.md`.
+- Khi user dạy thêm quy tắc, quyết định nghiệp vụ, API mới, pattern UI/code, hoặc bài học debug có thể tái sử dụng, agent phải cập nhật lại file này.
+- Nếu thông tin mới mâu thuẫn với nội dung cũ, không xóa vội: ghi rõ nguồn/tình trạng và đánh dấu điểm cần kiểm chứng.
+- Ưu tiên cập nhật guideline bằng tiếng Việt, ngắn gọn, có ví dụ endpoint/schema/pattern khi cần.
 
 ## 1. Kiến trúc tổng thể
 
@@ -87,7 +95,7 @@ void initState() {
 
 ## 4. API & Datasource
 
-### 4.1 Endpoints (base: `https://api.vietnguyendang.xyz/api/v1`)
+### 4.1 Endpoints đã dùng trước đó (base cũ: `https://api.vietnguyendang.xyz/api/v1`)
 | Endpoint | Method | Ghi chú |
 |---|---|---|
 | `/auth/login` | POST | `{username, password}` |
@@ -101,6 +109,66 @@ void initState() {
 | `/doctors/{id}/deactivate` | POST | Khóa |
 | `/patients` | GET | `?fullName=&patientCode=&gender=&page=&size=` + Bearer token |
 | `/patients` | POST | Tạo bệnh nhân |
+
+> Lưu ý 24/06/2026: API doc OpenAPI mới user cung cấp dùng base URL `http://171.244.143.241:8000/api/v1`. Một số endpoint/query có thay đổi so với danh sách cũ, đặc biệt doc mới **không có `GET /users`** dù guideline cũ đang ghi dùng endpoint này cho danh sách user. Cần kiểm chứng với backend trước khi sửa phần danh sách user.
+
+### 4.1.1 OpenAPI doc 24/06/2026 (base mới: `http://171.244.143.241:8000/api/v1`)
+
+**Auth**
+| Endpoint | Method | Request/Response chính |
+|---|---|---|
+| `/auth/login` | POST | `{username, password}` → `LoginResponse {accessToken, refreshToken, role, username, permissions[]}` |
+| `/auth/forgot-password` | POST | `{email}` → string |
+| `/auth/reset-password` | POST | `{email, token, newPassword}` → string |
+| `/auth/change-password` | POST | `{username, oldPassword, newPassword}` → string |
+
+**Users / Doctors**
+| Endpoint | Method | Ghi chú |
+|---|---|---|
+| `/users` | POST | Tạo user `{fullName, email, phone, roleId}` → `UserResponse` |
+| `/doctors` | GET | Query: `keyword`, `specialization`, `status`, `pageable` → `PageResponseDoctorResponse` |
+| `/doctors` | POST | Tạo doctor bằng `CreateDoctorRequest` |
+| `/doctors/active` | GET | Danh sách doctor active |
+| `/doctors/{id}/activate` | POST | Kích hoạt doctor |
+| `/doctors/{id}/deactivate` | POST | Khóa doctor |
+| `/doctors/{id}` | DELETE | OperationId cũng là deactivateDoctor |
+
+**Patients**
+| Endpoint | Method | Ghi chú |
+|---|---|---|
+| `/patients` | GET | Query object: `filter` (`PatientFilterRequest`) + `pageable` |
+| `/patients` | POST | Tạo bệnh nhân bằng `CreatePatientRequest`; required: `patientCode`, `fullName` |
+| `/patients/{id}` | PUT | Cập nhật bệnh nhân bằng `EditPatientRequest` |
+| `/patients/{id}` | DELETE | Xóa bệnh nhân |
+
+**Permissions / Features**
+| Endpoint | Method | Ghi chú |
+|---|---|---|
+| `/permissions/tree` | GET | Trả `FeatureResponse[]`, mỗi feature có `permissions[]` |
+| `/permissions` | POST | Tạo permission `{name, description, featureId, requiresPermissionId}` |
+| `/permissions/{id}` | PUT | Cập nhật permission `{name, description, requiresPermissionId}` |
+| `/permissions/role/{roleName}` | GET | Trả danh sách permission id (`int64[]`) |
+| `/permissions/role/{roleName}` | PUT | Cập nhật quyền role bằng `{permissionIds: [...]}` |
+| `/features` | POST | Tạo feature `{name, description}` |
+| `/features/{id}` | PUT | Cập nhật feature `{name, description}` |
+
+**Notifications / Upload**
+| Endpoint | Method | Ghi chú |
+|---|---|---|
+| `/notifications/unread` | GET | Trả `NotificationDto[]` |
+| `/notifications/{id}/read` | PUT | Mark as read |
+| `/notifications/send` | POST | Test notification `{userId, title, message, type}` |
+| `/dicom/upload` | POST | Multipart `file` → `DicomTagResponse[]` |
+| `/s3/test-upload` | POST | Multipart `file`, query `folderName`, `fileName` → string |
+
+**Schema lưu ý**
+- Password mới trong login/reset/change-password: `minLength: 8`, `maxLength: 32`.
+- `ResetPasswordRequest` bắt buộc đủ `email`, `token`, `newPassword`; `token` đúng 6 ký tự.
+- `CreateUserRequest` bắt buộc `fullName`, `email`, `roleId`; `phone` chỉ gồm chữ số nếu có.
+- `CreateDoctorRequest` bắt buộc `doctorCode`, `email`, `fullName`, `hospitalName`, `licenseNumber`, `phone`, `specialization`.
+- Gender dùng enum `MALE`, `FEMALE`, `OTHER`.
+- Doctor status dùng enum `ACTIVE`, `INACTIVE`.
+- Doctor position dùng enum `DEPARTMENT_HEAD`, `NORMAL`.
 
 **MockAPI:** `https://6a21b474b1d0aaf32b4fe12a.mockapi.io`
 - `/permission` — danh sách quyền
@@ -138,6 +206,8 @@ Widget _buildMainContent(BuildContext context) {
   return _buildDashboard(context); // mặc định index 0
 }
 ```
+
+Các trang/tab trong Admin phải dùng chung layout cha của `AdminHomepage`: sidebar/drawer và top bar được dựng ở `AdminHomepage`, page con chỉ render phần nội dung. Nếu page con vẫn cần chạy độc lập thì thêm option như `showTopBar`, nhưng khi nhúng trong admin phải tắt top bar riêng để tránh lệch navbar.
 
 ### 5.2 Tab động (không dùng TabController với length thay đổi)
 `TabController` không handle tốt việc `length` thay đổi sau khi data load. Thay bằng **custom tab row + `setState` index**:

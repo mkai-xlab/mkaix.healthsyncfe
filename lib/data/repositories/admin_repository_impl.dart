@@ -24,6 +24,9 @@ class AdminRepositoryImpl implements AdminRepository {
     required String token,
   }) async {
     return await remoteDataSource.toggleDoctorStatus(
-        id: id, activate: activate, token: token);
+      id: id,
+      activate: activate,
+      token: token,
+    );
   }
 }

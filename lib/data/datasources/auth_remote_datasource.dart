@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
@@ -39,7 +40,7 @@ class AuthRemoteDataSource {
             },
             body: jsonEncode(requestBody),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         final String decodedBody = utf8.decode(response.bodyBytes);
@@ -66,6 +67,10 @@ class AuthRemoteDataSource {
       } else {
         throw Exception('Hệ thống gặp sự cố (Mã lỗi: ${response.statusCode})');
       }
+    } on TimeoutException {
+      throw Exception(
+        'Kết nối tới máy chủ quá thời gian. Vui lòng kiểm tra mạng hoặc thử lại sau.',
+      );
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Lỗi kết nối mạng: Không thể kết nối tới máy chủ.');
@@ -85,7 +90,7 @@ class AuthRemoteDataSource {
             },
             body: jsonEncode({'email': email.trim()}),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode != 200 && response.statusCode != 201) {
         final String body = utf8.decode(response.bodyBytes);
@@ -98,6 +103,10 @@ class AuthRemoteDataSource {
         } catch (_) {}
         throw Exception(message);
       }
+    } on TimeoutException {
+      throw Exception(
+        'Kết nối tới máy chủ quá thời gian. Vui lòng kiểm tra mạng hoặc thử lại sau.',
+      );
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Lỗi kết nối mạng: Không thể kết nối tới máy chủ.');
@@ -125,7 +134,7 @@ class AuthRemoteDataSource {
               'newPassword': newPassword,
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode != 200 && response.statusCode != 201) {
         final String body = utf8.decode(response.bodyBytes);
@@ -138,6 +147,10 @@ class AuthRemoteDataSource {
         } catch (_) {}
         throw Exception(message);
       }
+    } on TimeoutException {
+      throw Exception(
+        'Kết nối tới máy chủ quá thời gian. Vui lòng kiểm tra mạng hoặc thử lại sau.',
+      );
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Lỗi kết nối mạng: Không thể kết nối tới máy chủ.');
@@ -165,7 +178,7 @@ class AuthRemoteDataSource {
               'newPassword': newPassword,
             }),
           )
-          .timeout(const Duration(seconds: 10));
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode != 200 && response.statusCode != 201) {
         final String body = utf8.decode(response.bodyBytes);
@@ -178,6 +191,10 @@ class AuthRemoteDataSource {
         } catch (_) {}
         throw Exception(message);
       }
+    } on TimeoutException {
+      throw Exception(
+        'Kết nối tới máy chủ quá thời gian. Vui lòng kiểm tra mạng hoặc thử lại sau.',
+      );
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Lỗi kết nối mạng: Không thể kết nối tới máy chủ.');

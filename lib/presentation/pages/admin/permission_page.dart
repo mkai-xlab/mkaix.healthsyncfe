@@ -5,7 +5,10 @@ import '../../../data/models/permission_model.dart';
 import '../../../data/models/role_model.dart';
 
 class PermissionPage extends StatefulWidget {
-  const PermissionPage({super.key});
+  final bool showTopBar;
+  final String? initialRoleId;
+
+  const PermissionPage({super.key, this.showTopBar = true, this.initialRoleId});
 
   @override
   State<PermissionPage> createState() => _PermissionPageState();
@@ -14,6 +17,7 @@ class PermissionPage extends StatefulWidget {
 class _PermissionPageState extends State<PermissionPage> {
   // Dùng int thay vì TabController để tránh vấn đề rebuild với length động
   int _selectedRoleIndex = 0;
+  bool _didApplyInitialRole = false;
 
   static const Color _primaryGreen = Color(0xFF2D7E6E);
   static const Color _darkGreen = Color(0xFF1B5A4E);
@@ -36,7 +40,7 @@ class _PermissionPageState extends State<PermissionPage> {
           color: const Color(0xFFF0F4F3),
           child: Column(
             children: [
-              _buildTopBar(context),
+              if (widget.showTopBar) _buildTopBar(context),
               Expanded(
                 child: vm.isLoading
                     ? _buildLoading()
@@ -139,6 +143,18 @@ class _PermissionPageState extends State<PermissionPage> {
     }
 
     // Đảm bảo index hợp lệ sau khi load
+    if (!_didApplyInitialRole && widget.initialRoleId != null) {
+      final roleIndex = vm.roles.indexWhere(
+        (role) =>
+            role.id == widget.initialRoleId ||
+            role.name == widget.initialRoleId ||
+            role.code == widget.initialRoleId,
+      );
+      if (roleIndex >= 0 && _selectedRoleIndex != roleIndex) {
+        _selectedRoleIndex = roleIndex;
+      }
+      _didApplyInitialRole = true;
+    }
     final safeIndex = _selectedRoleIndex.clamp(0, vm.roles.length - 1);
     final currentRole = vm.roles[safeIndex];
 

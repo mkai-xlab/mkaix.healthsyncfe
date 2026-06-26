@@ -4,7 +4,8 @@ import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
-import 'patient_detail_page.dart';
+import 'dicom_upload_page.dart';
+import 'examination_list_page.dart';
 
 class DoctorHomepage extends StatefulWidget {
   const DoctorHomepage({super.key});
@@ -17,6 +18,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   int _selectedNavIndex = 0;
   final _searchController = TextEditingController();
   String _filterGender = '';
+  bool _hasRequestedPatientList = false;
 
   static const Color _primaryGreen = Color(0xFF2D7E6E);
   static const Color _darkGreen = Color(0xFF1B5A4E);
@@ -62,15 +64,59 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     final source = parentPermissions.isNotEmpty
         ? parentPermissions
         : permissionItems;
+    final navSource = List<UserPermissionEntity>.from(source);
+    _appendChildPermissionNavItem(
+      navSource,
+      permissionItems,
+      permissionKey: 'read_patient_list',
+      duplicateLabel: 'Quản lý bệnh nhân',
+    );
+    _appendChildPermissionNavItem(
+      navSource,
+      permissionItems,
+      permissionKey: 'create_patient_exam',
+      duplicateLabel: 'Danh sách ca khám',
+    );
+    _appendChildPermissionNavItem(
+      navSource,
+      permissionItems,
+      permissionKey: 'upload_dicom_image',
+      duplicateLabel: 'Hỗ trợ chẩn đoán',
+    );
 
-    return List.generate(source.length, (index) {
-      final permission = source[index];
+    return List.generate(navSource.length, (index) {
+      final permission = navSource[index];
       return _DoctorNavItemData(
         index: index,
+        permissionName: permission.name,
         label: _permissionTitle(permission),
         icon: _permissionIcon(permission.name),
       );
     });
+  }
+
+  void _appendChildPermissionNavItem(
+    List<UserPermissionEntity> navSource,
+    List<UserPermissionEntity> permissionItems, {
+    required String permissionKey,
+    required String duplicateLabel,
+  }) {
+    UserPermissionEntity? uploadDicomPermission;
+    for (final permission in permissionItems) {
+      if (_normalizePermissionKey(permission.name) == permissionKey) {
+        uploadDicomPermission = permission;
+        break;
+      }
+    }
+
+    if (uploadDicomPermission != null &&
+        !navSource.any(
+          (permission) =>
+              _normalizePermissionKey(permission.name) == permissionKey ||
+              _permissionTitle(permission) == duplicateLabel,
+        )) {
+      navSource.add(uploadDicomPermission);
+    }
   }
 
   String _normalizePermissionKey(String value) {
@@ -88,8 +134,11 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       'patient': 'Quản lý bệnh nhân',
       'patients': 'Quản lý bệnh nhân',
       'benh_nhan': 'Quản lý bệnh nhân',
+      'read_patient_list': 'Quản lý bệnh nhân',
+      'create_patient_exam': 'Danh sách ca khám',
       'dicom': 'Hỗ trợ chẩn đoán',
       'dicom_image': 'Hỗ trợ chẩn đoán',
+      'upload_dicom_image': 'Hỗ trợ chẩn đoán',
       'xray': 'Hỗ trợ chẩn đoán',
       'x_quang': 'Hỗ trợ chẩn đoán',
       'diagnosis': 'Hỗ trợ chẩn đoán',
@@ -105,10 +154,14 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   IconData _permissionIcon(String permissionName) {
     final normalized = _normalizePermissionKey(permissionName);
+    if (normalized == 'create_patient_exam') {
+      return Icons.assignment_outlined;
+    }
     if (normalized.contains('patient') || normalized.contains('benh_nhan')) {
       return Icons.people_outline;
     }
     if (normalized.contains('dicom') ||
+        normalized.contains('upload_dicom_image') ||
         normalized.contains('xray') ||
         normalized.contains('x_quang') ||
         normalized.contains('diagnosis')) {
@@ -117,7 +170,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     if (normalized.contains('report')) {
       return Icons.description_outlined;
     }
-    if (normalized.contains('notification') || normalized.contains('thong_bao')) {
+    if (normalized.contains('notification') ||
+        normalized.contains('thong_bao')) {
       return Icons.notifications_outlined;
     }
     return Icons.lock_outline;
@@ -213,7 +267,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       child: Image.asset(
         asset,
         fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) =>
+        errorBuilder: (context, error, stackTrace) =>
             const Icon(Icons.local_hospital, color: _primaryGreen, size: 22),
       ),
     );
@@ -333,6 +387,32 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         ? navItems[_selectedNavIndex]
         : null;
 
+    final selectedLabel = selectedItem?.label ?? '';
+    final selectedPermission = _normalizePermissionKey(
+      selectedItem?.permissionName ?? '',
+    );
+    final hasUploadDicomPermission =
+        context.read<AuthViewModel>().currentUser?.permissions.any(
+          (name) => _normalizePermissionKey(name) == 'upload_dicom_image',
+        ) ??
+        false;
+
+    if (selectedPermission == 'create_patient_exam' ||
+        selectedLabel == 'Danh sách ca khám') {
+      return const ExaminationListPage(embedded: true);
+    }
+    if (selectedPermission == 'read_patient_list' ||
+        selectedLabel == 'Quản lý bệnh nhân') {
+      return _buildPatientListPage(context);
+    }
+    if (selectedLabel == 'Trang chủ') {
+      return _buildDashboard(context);
+    }
+    if (selectedPermission == 'upload_dicom_image' ||
+        (selectedLabel == 'Hỗ trợ chẩn đoán' && hasUploadDicomPermission)) {
+      return const DicomUploadPage();
+    }
+
     return _buildFeaturePlaceholderPage(
       title: selectedItem?.label ?? 'Đang cập nhật',
       subtitle: selectedItem == null
@@ -413,7 +493,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           const SizedBox(width: 12),
           // Doctor info — đồng bộ với patient_detail_page
           Consumer<AuthViewModel>(
-            builder: (_, vm, __) => Row(
+            builder: (context, vm, child) => Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 CircleAvatar(
@@ -736,6 +816,17 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       color: const Color(0xFFF0F4F3),
       child: Consumer<DoctorViewModel>(
         builder: (context, vm, _) {
+          if (!_hasRequestedPatientList &&
+              !vm.isLoading &&
+              vm.patients.isEmpty &&
+              vm.errorMessage == null) {
+            _hasRequestedPatientList = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (!mounted) return;
+              context.read<DoctorViewModel>().fetchFirstPage(token: _token);
+            });
+          }
+
           return Column(
             children: [
               _buildPatientListHeader(context, vm),
@@ -846,7 +937,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     return GestureDetector(
       onTap: () {
         setState(() => _filterGender = value);
-        vm.fetchFirstPage(token: _token, gender: value.isEmpty ? null : value);
+        vm.fetchFirstPage(token: _token, gender: value);
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -904,7 +995,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
               onRefresh: () => vm.fetchFirstPage(token: _token),
               child: ListView.separated(
                 itemCount: vm.patients.length + (vm.isLastPage ? 0 : 1),
-                separatorBuilder: (_, __) =>
+                separatorBuilder: (context, index) =>
                     const Divider(height: 1, color: Color(0xFFEDF2F7)),
                 itemBuilder: (context, i) {
                   if (i >= vm.patients.length) {
@@ -953,7 +1044,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     return InkWell(
       onTap: () => Navigator.push(
         context,
-        MaterialPageRoute(builder: (_) => PatientDetailPage(patient: p)),
+        MaterialPageRoute(builder: (_) => ExaminationListPage(patient: p)),
       ),
       hoverColor: const Color(0xFFF0F4F3),
       child: Container(
@@ -1035,7 +1126,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => PatientDetailPage(patient: p),
+                  builder: (_) => ExaminationListPage(patient: p),
                 ),
               ),
             ),
@@ -1230,11 +1321,13 @@ class _TableHeader extends StatelessWidget {
 
 class _DoctorNavItemData {
   final int index;
+  final String permissionName;
   final String label;
   final IconData icon;
 
   const _DoctorNavItemData({
     required this.index,
+    required this.permissionName,
     required this.label,
     required this.icon,
   });
@@ -1531,7 +1624,7 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
 
   Widget _genderField() {
     return DropdownButtonFormField<String>(
-      value: _gender,
+      initialValue: _gender,
       decoration: InputDecoration(
         labelText: 'Giới tính',
         prefixIcon: const Icon(

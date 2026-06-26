@@ -127,7 +127,7 @@ void initState() {
 |---|---|---|
 | `/users` | POST | Tạo user `{fullName, email, phone, roleId}` → `UserResponse` |
 | `/doctors` | GET | Query: `keyword`, `specialization`, `status`, `pageable` → `PageResponseDoctorResponse` |
-| `/doctors` | POST | Tạo doctor bằng `CreateDoctorRequest` |
+| `/doctors` | POST | Tạo doctor bằng `CreateDoctorRequest`; từ 26/06/2026, màn admin tạo tài khoản bác sĩ phải dùng endpoint này thay vì `POST /users` vì backend đang xử lý tạo bác sĩ ở đây |
 | `/doctors/active` | GET | Danh sách doctor active |
 | `/doctors/{id}/activate` | POST | Kích hoạt doctor |
 | `/doctors/{id}/deactivate` | POST | Khóa doctor |
@@ -138,6 +138,7 @@ void initState() {
 |---|---|---|
 | `/patients` | GET | Query object: `filter` (`PatientFilterRequest`) + `pageable` |
 | `/patients` | POST | Tạo bệnh nhân bằng `CreatePatientRequest`; required: `patientCode`, `fullName` |
+| `/patients/{patientId}/details` | GET | Tạm dùng để lấy `PatientDetailsResponse {patient, recentExaminations[]}` cho dữ liệu ca khám; `patientId` trong path hiện ưu tiên mã bệnh nhân `patientCode`/`patient_id` (vd `2600056713`), không phải DB `id`; vì chưa có endpoint examination tổng, trang danh sách ca khám tổng hợp bằng cách lấy `/patients` rồi gọi detail từng bệnh nhân |
 | `/patients/{id}` | PUT | Cập nhật bệnh nhân bằng `EditPatientRequest` |
 | `/patients/{id}` | DELETE | Xóa bệnh nhân |
 
@@ -160,6 +161,7 @@ void initState() {
 | `/notifications/{id}/read` | PUT | Mark as read |
 | `/notifications/send` | POST | Test notification `{userId, title, message, type}` |
 | `/dicom/upload` | POST | Multipart `file` → `DicomTagResponse[]` |
+| `/dicom/upload/batch` | POST | Multipart `files` (array binary) → `BatchDicomUploadResponse {errors[], successfulPatients[]}` |
 | `/s3/test-upload` | POST | Multipart `file`, query `folderName`, `fileName` → string |
 
 **Schema lưu ý**
@@ -170,23 +172,14 @@ void initState() {
 - Gender dùng enum `MALE`, `FEMALE`, `OTHER`.
 - Doctor status dùng enum `ACTIVE`, `INACTIVE`.
 - Doctor position dùng enum `DEPARTMENT_HEAD`, `NORMAL`.
+- `BatchDicomUploadResponse` trả `errors[]` gồm `{filename, errorReason}` và `successfulPatients[]` gồm `{patient, recentExaminations[]}`; UI upload batch hiển thị số bệnh nhân thành công và số file lỗi, không dựa vào `DicomTagResponse[]`.
 
 **MockAPI:** `https://6a21b474b1d0aaf32b4fe12a.mockapi.io`
 - `/permission` — danh sách quyền
 - `/role` — danh sách vai trò, PUT `{permissions: [...]}` để cập nhật
 
-### 4.2 Mock data fallback
-Khi backend chưa có dữ liệu, datasource tự fallback sang mock:
-```dart
-// Trong PatientRemoteDataSourceImpl
-try {
-  // Gọi API...
-  if (result.content.isEmpty) return _mockPage(...); // fallback
-} catch (_) {
-  return _mockPage(...); // fallback khi lỗi
-}
-```
-Mock data đặt trong `lib/data/mock/`.
+### 4.2 Patient list không dùng mock fallback
+Danh sách bệnh nhân trong Doctor role phải lấy dữ liệu thật từ backend `/patients`. Không fallback sang `MockPatients.samples`; nếu API trả rỗng thì hiển thị rỗng, nếu API lỗi thì báo lỗi để tránh nhầm dữ liệu tạm là dữ liệu thật.
 
 ### 4.3 First-time login (403 + first_time_login)
 - Backend trả `403` với body `{ "error": "first_time_login..." }` khi lần đầu đăng nhập.
@@ -253,6 +246,15 @@ Tất cả trang của Doctor role dùng cùng một style top bar:
 - Top bar của bác sĩ luôn có thanh tìm kiếm bệnh nhân, không chỉ riêng tab danh sách bệnh nhân
 - Avatar (radius 15) + tên bác sĩ + chức danh "Chẩn đoán hình ảnh"
 - Icon notification size 20
+- Permission doctor `READ_PATIENT_LIST` là màn xem danh sách bệnh nhân.
+- Khi bấm một bệnh nhân trong danh sách, đi tới `ExaminationListPage` để xem danh sách ca khám trước; không vào thẳng `PatientDetailPage` mock.
+- Permission doctor `CREATE_PATIENT_EXAM` là entry "Danh sách ca khám": mở trực tiếp `ExaminationListPage` tổng hợp tất cả ca khám, không qua bước chọn bệnh nhân. Nguồn dữ liệu tạm thời vẫn phải gom từ `/patients/{patientId}/details`.
+- `ExaminationListPage` hiện chỉ hiển thị các trường tối thiểu: ID ca khám, tên bệnh nhân, ngày tháng năm sinh, giới tính, ngày chụp; chưa hiển thị ảnh/thumbnail trong list.
+- Bấm một ca khám trong `ExaminationListPage` mở `ExaminationDetailPage` ngay trong content doctor shell để giữ nguyên sidebar/topbar. Detail gồm thanh thông tin bệnh nhân/ca khám phía trên, vùng ảnh lớn ở giữa/trái, và panel thông tin ca khám bên phải.
+- Một examination có thể có nhiều ảnh; `ExaminationDetailPage` hiển thị ảnh đang chọn ở viewer lớn, có thanh thumbnail nhỏ để đổi ảnh, và nút toàn màn hình mở ảnh hiện tại trong viewer có thể zoom/pan.
+- Permission doctor `UPLOAD_DICOM_IMAGE` là màn upload DICOM. Màn này cho chọn/kéo-thả nhiều file `.DCM/.dcm`, nút xanh ở cuối card upload batch lên `/dicom/upload/batch`.
+- Màn upload DICOM ưu tiên layout gọn trong một viewport desktop: bên trái là danh sách file chờ gửi, sau khi upload batch thành công tự clear file chờ; bên phải là danh sách file đã upload trong session hiện tại.
+- Thông báo kết quả upload DICOM dùng toast/SnackBar nổi; không render khối notification thành công/lỗi chen trong card upload. Lịch sử chi tiết vẫn hiển thị ở panel "File đã upload phiên này".
 
 ---
 
@@ -280,14 +282,9 @@ Image.asset(path, fit: BoxFit.contain,
 
 ---
 
-## 7. Dữ liệu mock bệnh nhân
+## 7. Dữ liệu mock exam
 
-### 7.1 Bệnh nhân mẫu từ DICOM thực
-- **Nguyễn Bá Sinh** — patientCode: `2600056713`, sinh 1963, nam
-  - DICOM tags: BodyPart=KNEE, KVP=54, Device=GE Healthcare Optima XR646, Protocol=GOI THANG
-  - Ảnh X-quang: `BaSinh_GoiThang1.png`, `BaSinh_GoiThang2.png`
-
-### 7.2 Cấu trúc mock exam
+### 7.1 Cấu trúc mock exam
 ```dart
 class MockExam {
   final String id, diagnosis, device, protocol;
@@ -304,7 +301,7 @@ Tra cứu bằng `MockExams.forPatient(patientCode)`.
 | Quyết định | Lý do |
 |---|---|
 | Danh sách user dùng `GET /users` thay `GET /doctors` | API doc mới trả về `UserResponse` chung, không phải `DoctorResponse` riêng |
-| Tạo user dùng `POST /users` với `{fullName, email, phone, roleId}` | `CreateUserRequest` schema mới, bỏ các field doctor-specific |
+| Tạo tài khoản bác sĩ trong admin dùng `POST /doctors` với `CreateDoctorRequest` | User xác nhận 26/06/2026 backend đang xử lý tạo bác sĩ qua endpoint này; không dùng `POST /users` cho luồng tạo bác sĩ |
 | `DoctorAccountModel` parse được cả `DoctorResponse` lẫn `UserResponse` | Field `role` có thể là String hoặc Object `{id, name, permissions[]}` |
 | `PatientDetailPage` dùng `Navigator.push` không phải GoRouter | Trang con trong cùng Doctor role, không cần URL-based routing |
-| Patient list page tải data khi switch sang tab index 1 | Không load sẵn khi vào homepage để tránh gọi API không cần thiết |
+| Patient list page tự tải trang đầu khi màn danh sách bệnh nhân được render lần đầu | Tránh trạng thái chip "Tất cả" hiển thị rỗng dù backend có bệnh nhân; chỉ gọi khi màn danh sách thật sự mở để không load sẵn không cần thiết |

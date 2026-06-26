@@ -7,12 +7,18 @@ import 'package:fe/data/datasources/auth_remote_datasource.dart';
 import 'package:fe/data/repositories/auth_repository_impl.dart';
 import 'package:fe/data/datasources/patient_remote_datasource.dart';
 import 'package:fe/data/repositories/patient_repository_impl.dart';
+import 'package:fe/data/datasources/examination_remote_datasource.dart';
+import 'package:fe/data/repositories/examination_repository_impl.dart';
 import 'package:fe/domain/usecases/login_usecase.dart';
 import 'package:fe/domain/usecases/get_all_patients_usecase.dart';
+import 'package:fe/domain/usecases/get_patient_examinations_usecase.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/doctor_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/examination_viewmodel.dart';
 import 'package:fe/data/datasources/admin_remote_datasource.dart';
+import 'package:fe/data/datasources/dicom_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/dicom_upload_viewmodel.dart';
 
 void main() {
   final httpClient = http.Client();
@@ -29,9 +35,24 @@ void main() {
   );
   final getAllPatientsUseCase = GetAllPatientsUseCase(patientRepository);
 
+  // Examination
+  final examinationRemoteDataSource = ExaminationRemoteDataSourceImpl(
+    httpClient,
+  );
+  final examinationRepository = ExaminationRepositoryImpl(
+    remoteDataSource: examinationRemoteDataSource,
+  );
+  final getPatientExaminationsUseCase = GetPatientExaminationsUseCase(
+    examinationRepository,
+  );
+
   // Admin
   final adminRemoteDataSource = AdminRemoteDataSourceImpl(httpClient);
   final adminAccountViewModel = AdminAccountViewModel(adminRemoteDataSource);
+
+  // DICOM upload
+  final dicomRemoteDataSource = DicomRemoteDataSourceImpl(httpClient);
+  final dicomUploadViewModel = DicomUploadViewModel(dicomRemoteDataSource);
 
   // ViewModels
   final authViewModel = AuthViewModel(
@@ -41,6 +62,9 @@ void main() {
   final doctorViewModel = DoctorViewModel(
     getAllPatientsUseCase: getAllPatientsUseCase,
   );
+  final examinationViewModel = ExaminationViewModel(
+    getPatientExaminationsUseCase: getPatientExaminationsUseCase,
+  );
 
   final appRouter = AppRouter(authViewModel);
 
@@ -49,7 +73,9 @@ void main() {
       providers: [
         ChangeNotifierProvider.value(value: authViewModel),
         ChangeNotifierProvider.value(value: doctorViewModel),
+        ChangeNotifierProvider.value(value: examinationViewModel),
         ChangeNotifierProvider.value(value: adminAccountViewModel),
+        ChangeNotifierProvider.value(value: dicomUploadViewModel),
       ],
       child: MyApp(appRouter: appRouter),
     ),

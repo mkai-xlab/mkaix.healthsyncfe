@@ -495,7 +495,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               ElevatedButton.icon(
                 onPressed: () => _showCreateUserDialog(context),
                 icon: const Icon(Icons.person_add_outlined, size: 16),
-                label: const Text('Thêm tài khoản'),
+                label: const Text('Thêm bác sĩ'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2D7E6E),
                   foregroundColor: Colors.white,
@@ -1098,9 +1098,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             create: (_) => PermissionViewModel(
               PermissionRemoteDataSourceImpl(http.Client(), token: token),
             ),
-            child: PermissionPage(
-              showTopBar: false,
-            ),
+            child: PermissionPage(showTopBar: false),
           ),
         ),
       ),
@@ -1470,12 +1468,15 @@ class _AdminHomepageState extends State<AdminHomepage> {
   void _showCreateUserDialog(BuildContext context) {
     final pageContext = context;
     final formKey = GlobalKey<FormState>();
+    final doctorCodeController = TextEditingController();
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final phoneController = TextEditingController();
+    final specializationController = TextEditingController();
+    final hospitalNameController = TextEditingController();
+    final licenseNumberController = TextEditingController();
     final token = pageContext.read<AuthViewModel>().currentUser?.token ?? '';
     final viewModel = pageContext.read<AdminAccountViewModel>();
-    int? selectedRoleId;
     bool isSubmitting = false;
     String? submitError;
 
@@ -1485,311 +1486,326 @@ class _AdminHomepageState extends State<AdminHomepage> {
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setDialogState) {
           return AlertDialog(
-                backgroundColor: Colors.white,
-                surfaceTintColor: Colors.white,
-                insetPadding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 24,
-                ),
-                titlePadding: EdgeInsets.zero,
-                contentPadding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
-                actionsPadding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                title: Container(
-                  padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFE6F4F1),
-                    borderRadius: BorderRadius.vertical(
-                      top: Radius.circular(16),
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 24,
+            ),
+            titlePadding: EdgeInsets.zero,
+            contentPadding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
+            actionsPadding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Container(
+              padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE6F4F1),
+                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+              ),
+              child: const Row(
+                children: [
+                  CircleAvatar(
+                    radius: 20,
+                    backgroundColor: Colors.white,
+                    child: Icon(
+                      Icons.person_add_outlined,
+                      color: Color(0xFF2D7E6E),
                     ),
                   ),
-                  child: const Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: Colors.white,
-                        child: Icon(
-                          Icons.person_add_outlined,
-                          color: Color(0xFF2D7E6E),
+                  SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Thêm bác sĩ mới',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF1A2B3C),
+                          ),
                         ),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
+                        SizedBox(height: 3),
+                        Text(
+                          'Tạo hồ sơ bác sĩ theo backend hiện tại',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF4F6F68),
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            content: SizedBox(
+              width: 500,
+              child: Form(
+                key: formKey,
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF7FBFA),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: const Color(0xFFD8E7E3)),
+                        ),
+                        child: const Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              'Thêm tài khoản mới',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF1A2B3C),
-                              ),
+                            Icon(
+                              Icons.info_outline,
+                              color: Color(0xFF2D7E6E),
+                              size: 18,
                             ),
-                            SizedBox(height: 3),
-                            Text(
-                              'Tạo user với vai trò Admin hoặc Doctor',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF4F6F68),
-                                fontWeight: FontWeight.w500,
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Nhập đầy đủ thông tin bác sĩ. Backend hiện tạo tài khoản bác sĩ qua endpoint /doctors.',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  height: 1.4,
+                                  color: Color(0xFF4F6F68),
+                                ),
                               ),
                             ),
                           ],
                         ),
                       ),
+                      const SizedBox(height: 20),
+                      _buildFieldLabel('Mã bác sĩ *'),
+                      TextFormField(
+                        controller: doctorCodeController,
+                        decoration: _buildInputDecoration(
+                          'VD: BS001',
+                          Icons.badge_outlined,
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Vui lòng nhập mã bác sĩ'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFieldLabel('Họ và tên *'),
+                      TextFormField(
+                        controller: nameController,
+                        decoration: _buildInputDecoration(
+                          'Nhập họ và tên',
+                          Icons.person_outline,
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Vui lòng nhập họ tên'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFieldLabel('Email *'),
+                      TextFormField(
+                        controller: emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: _buildInputDecoration(
+                          'example@email.com',
+                          Icons.email_outlined,
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Vui lòng nhập email';
+                          }
+                          if (!RegExp(
+                            r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
+                          ).hasMatch(v.trim())) {
+                            return 'Email không hợp lệ';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFieldLabel('Số điện thoại *'),
+                      TextFormField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: _buildInputDecoration(
+                          'Số điện thoại',
+                          Icons.phone_outlined,
+                        ),
+                        validator: (v) {
+                          if (v == null || v.trim().isEmpty) {
+                            return 'Vui lòng nhập số điện thoại';
+                          }
+                          if (!RegExp(r'^\d+$').hasMatch(v.trim())) {
+                            return 'Số điện thoại chỉ chứa chữ số';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFieldLabel('Chuyên khoa *'),
+                      TextFormField(
+                        controller: specializationController,
+                        decoration: _buildInputDecoration(
+                          'VD: Chẩn đoán hình ảnh',
+                          Icons.medical_information_outlined,
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Vui lòng nhập chuyên khoa'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFieldLabel('Bệnh viện *'),
+                      TextFormField(
+                        controller: hospitalNameController,
+                        decoration: _buildInputDecoration(
+                          'Tên bệnh viện',
+                          Icons.local_hospital_outlined,
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Vui lòng nhập bệnh viện'
+                            : null,
+                      ),
+                      const SizedBox(height: 16),
+                      _buildFieldLabel('Số giấy phép hành nghề *'),
+                      TextFormField(
+                        controller: licenseNumberController,
+                        decoration: _buildInputDecoration(
+                          'Số giấy phép',
+                          Icons.verified_user_outlined,
+                        ),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Vui lòng nhập số giấy phép'
+                            : null,
+                      ),
+                      if (submitError != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 12),
+                          child: Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF0F0),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(0xFFFFCDD2),
+                              ),
+                            ),
+                            child: Text(
+                              submitError!,
+                              style: const TextStyle(
+                                color: Color(0xFFE53E3E),
+                                fontSize: 12,
+                              ),
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),
-                content: SizedBox(
-                  width: 500,
-                  child: Form(
-                    key: formKey,
-                    child: SingleChildScrollView(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF7FBFA),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: const Color(0xFFD8E7E3),
-                              ),
-                            ),
-                            child: const Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  color: Color(0xFF2D7E6E),
-                                  size: 18,
-                                ),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'Nhập thông tin cơ bản để tạo tài khoản. Tạm thời hệ thống dùng role 1 là Admin và role 2 là Doctor.',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      height: 1.4,
-                                      color: Color(0xFF4F6F68),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          _buildFieldLabel('Họ và tên *'),
-                          TextFormField(
-                            controller: nameController,
-                            decoration: _buildInputDecoration(
-                              'Nhập họ và tên',
-                              Icons.person_outline,
-                            ),
-                            validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Vui lòng nhập họ tên'
-                                : null,
-                          ),
-                          const SizedBox(height: 16),
-                          _buildFieldLabel('Email *'),
-                          TextFormField(
-                            controller: emailController,
-                            keyboardType: TextInputType.emailAddress,
-                            decoration: _buildInputDecoration(
-                              'example@email.com',
-                              Icons.email_outlined,
-                            ),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return 'Vui lòng nhập email';
-                              }
-                              if (!RegExp(
-                                r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
-                              ).hasMatch(v.trim())) {
-                                return 'Email không hợp lệ';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          _buildFieldLabel('Số điện thoại'),
-                          TextFormField(
-                            controller: phoneController,
-                            keyboardType: TextInputType.phone,
-                            decoration: _buildInputDecoration(
-                              'Số điện thoại',
-                              Icons.phone_outlined,
-                            ),
-                            validator: (v) {
-                              if (v != null &&
-                                  v.trim().isNotEmpty &&
-                                  !RegExp(r'^\d+$').hasMatch(v.trim())) {
-                                return 'Số điện thoại chỉ chứa chữ số';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: 16),
-                          _buildFieldLabel('Vai trò *'),
-                          DropdownButtonFormField<int>(
-                            value: selectedRoleId,
-                            isExpanded: true,
-                            decoration: _buildInputDecoration(
-                              'Chọn vai trò',
-                              Icons.admin_panel_settings_outlined,
-                            ),
-                            items: const [
-                              DropdownMenuItem<int>(
-                                value: 1,
-                                child: Text('Admin'),
-                              ),
-                              DropdownMenuItem<int>(
-                                value: 2,
-                                child: Text('Doctor'),
-                              ),
-                            ],
-                            validator: (v) =>
-                                v == null ? 'Vui lòng chọn vai trò' : null,
-                            onChanged: (v) {
-                              if (v != null) {
-                                setDialogState(() => selectedRoleId = v);
-                              }
-                            },
-                          ),
-                          if (submitError != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Container(
-                                width: double.infinity,
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFFFF0F0),
-                                  borderRadius: BorderRadius.circular(10),
-                                  border: Border.all(
-                                    color: const Color(0xFFFFCDD2),
-                                  ),
-                                ),
-                                child: Text(
-                                  submitError!,
-                                  style: const TextStyle(
-                                    color: Color(0xFFE53E3E),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFF2D7E6E),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 12,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
-                actions: [
-                  TextButton(
-                    onPressed: isSubmitting
-                        ? null
-                        : () => Navigator.pop(dialogContext),
-                    style: TextButton.styleFrom(
-                      foregroundColor: const Color(0xFF2D7E6E),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 12,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: const Text(
-                      'Hủy',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                child: const Text(
+                  'Hủy',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              ElevatedButton(
+                onPressed: isSubmitting
+                    ? null
+                    : () async {
+                        if (formKey.currentState!.validate()) {
+                          setDialogState(() {
+                            isSubmitting = true;
+                            submitError = null;
+                          });
+                          final success = await viewModel.createDoctor(
+                            doctorData: {
+                              'doctorCode': doctorCodeController.text.trim(),
+                              'fullName': nameController.text.trim(),
+                              'email': emailController.text.trim(),
+                              'phone': phoneController.text.trim(),
+                              'specialization': specializationController.text
+                                  .trim(),
+                              'hospitalName': hospitalNameController.text
+                                  .trim(),
+                              'licenseNumber': licenseNumberController.text
+                                  .trim(),
+                            },
+                            token: token,
+                          );
+                          if (success && pageContext.mounted) {
+                            Navigator.pop(dialogContext);
+                            ScaffoldMessenger.of(pageContext).showSnackBar(
+                              const SnackBar(
+                                content: Text('Tạo bác sĩ thành công'),
+                                backgroundColor: Color(0xFF2D7E6E),
+                              ),
+                            );
+                          }
+                          if (!success && pageContext.mounted) {
+                            setDialogState(() {
+                              isSubmitting = false;
+                              submitError =
+                                  viewModel.errorMessage ??
+                                  'Không thể tạo bác sĩ';
+                            });
+                          }
+                        }
+                      },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF2D7E6E),
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 20,
+                    vertical: 13,
                   ),
-                  ElevatedButton(
-                    onPressed: isSubmitting
-                        ? null
-                        : () async {
-                            if (formKey.currentState!.validate()) {
-                              final roleId = selectedRoleId;
-                              if (roleId == null) {
-                                ScaffoldMessenger.of(pageContext).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Vui lòng chọn vai trò trước khi tạo tài khoản',
-                                    ),
-                                    backgroundColor: Color(0xFFE53E3E),
-                                  ),
-                                );
-                                return;
-                              }
-
-                              setDialogState(() {
-                                isSubmitting = true;
-                                submitError = null;
-                              });
-                              final success = await viewModel.createUser(
-                                fullName: nameController.text.trim(),
-                                email: emailController.text.trim(),
-                                phone: phoneController.text.trim(),
-                                roleId: roleId,
-                                token: token,
-                              );
-                              if (success && pageContext.mounted) {
-                                Navigator.pop(dialogContext);
-                                ScaffoldMessenger.of(pageContext).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                      'Tạo tài khoản thành công',
-                                    ),
-                                    backgroundColor: Color(0xFF2D7E6E),
-                                  ),
-                                );
-                              }
-                              if (!success && pageContext.mounted) {
-                                setDialogState(() {
-                                  isSubmitting = false;
-                                  submitError =
-                                      viewModel.errorMessage ??
-                                      'Không thể tạo tài khoản';
-                                });
-                              }
-                            }
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF2D7E6E),
-                      foregroundColor: Colors.white,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 20,
-                        vertical: 13,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    child: isSubmitting
-                        ? const SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                        )
-                        : const Text('Xác nhận tạo'),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
                   ),
-                ],
-              );
+                ),
+                child: isSubmitting
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Text('Xác nhận tạo'),
+              ),
+            ],
+          );
         },
       ),
     ).whenComplete(() {
+      doctorCodeController.dispose();
       nameController.dispose();
       emailController.dispose();
       phoneController.dispose();
+      specializationController.dispose();
+      hospitalNameController.dispose();
+      licenseNumberController.dispose();
     });
   }
 
@@ -1855,9 +1871,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFE6F4F1),
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(
-                              color: const Color(0xFFD8E7E3),
-                            ),
+                            border: Border.all(color: const Color(0xFFD8E7E3)),
                           ),
                           child: const Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1883,10 +1897,13 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         ),
                         const SizedBox(height: 14),
                         if (showLegacyDescription)
-                        const Text(
-                          'Điền thông tin để tạo tài khoản. Hệ thống sẽ tự động gửi mật khẩu tạm thời qua email.',
-                          style: TextStyle(fontSize: 13, color: Colors.black54),
-                        ),
+                          const Text(
+                            'Điền thông tin để tạo tài khoản. Hệ thống sẽ tự động gửi mật khẩu tạm thời qua email.',
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: Colors.black54,
+                            ),
+                          ),
                         const SizedBox(height: 20),
 
                         _buildFieldLabel('Họ và tên *'),

@@ -1,113 +1,131 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
-import '../../../data/mock/mock_exams.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/examination_viewmodel.dart';
 
 class PatientDetailPage extends StatefulWidget {
   final PatientEntity patient;
+  final bool embedded;
 
-  const PatientDetailPage({super.key, required this.patient});
+  const PatientDetailPage({
+    super.key,
+    required this.patient,
+    this.embedded = false,
+  });
 
   @override
   State<PatientDetailPage> createState() => _PatientDetailPageState();
 }
 
 class _PatientDetailPageState extends State<PatientDetailPage> {
-  int _selectedExamIndex = 0;
-  int _selectedImageIndex = 0;
-  final _noteController = TextEditingController();
-
   static const Color _primaryGreen = Color(0xFF2D7E6E);
-  static const Color _darkGreen = Color(0xFF1B5A4E);
+  static const Color _pageBg = Color(0xFFF0F4F3);
 
-  List<MockExam> get _exams => MockExams.forPatient(widget.patient.patientCode);
+  bool _didLoad = false;
 
-  MockExam? get _currentExam =>
-      _exams.isEmpty ? null : _exams[_selectedExamIndex];
+  String get _patientDetailId {
+    return widget.patient.patientCode.isNotEmpty
+        ? widget.patient.patientCode
+        : widget.patient.id.toString();
+  }
 
   @override
-  void dispose() {
-    _noteController.dispose();
-    super.dispose();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didLoad) return;
+    _didLoad = true;
+
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    context.read<ExaminationViewModel>().loadPatientExaminations(
+      patientId: _patientDetailId,
+      token: token,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final isMobile = MediaQuery.of(context).size.width < 1000;
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF0F4F3),
-      body: Column(
-        children: [
-          _buildTopBar(context),
-          Expanded(
-            child: isMobile
-                ? SingleChildScrollView(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      children: [
-                        _buildPatientInfoBar(),
-                        const SizedBox(height: 16),
-                        _buildLeftPanel(),
-                        const SizedBox(height: 16),
-                        _buildXrayViewer(),
-                        const SizedBox(height: 16),
-                        _buildRightPanel(),
-                      ],
-                    ),
-                  )
-                : Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Left panel
-                      SizedBox(
-                        width: 260,
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: _buildLeftPanel(),
+    final content = Container(
+      color: _pageBg,
+      child: Consumer<ExaminationViewModel>(
+        builder: (context, vm, _) {
+          final examinations = _sortedExaminations(vm.examinations);
+          return Column(
+            children: [
+              if (!widget.embedded) _standaloneTopBar(context),
+              Expanded(
+                child: RefreshIndicator(
+                  color: _primaryGreen,
+                  onRefresh: () {
+                    final token =
+                        context.read<AuthViewModel>().currentUser?.token ?? '';
+                    return vm.loadPatientExaminations(
+                      patientId: _patientDetailId,
+                      token: token,
+                    );
+                  },
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(24, 22, 24, 14),
+                          child: _patientHeader(vm, examinations.length),
                         ),
                       ),
-                      // Center — X-ray viewer
-                      Expanded(
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            children: [
-                              _buildPatientInfoBar(),
-                              const SizedBox(height: 16),
-                              _buildXrayViewer(),
-                            ],
+                      if (vm.isLoading && examinations.isEmpty)
+                        const SliverFillRemaining(
+                          child: Center(
+                            child: CircularProgressIndicator(
+                              color: _primaryGreen,
+                            ),
+                          ),
+                        )
+                      else if (vm.errorMessage != null && examinations.isEmpty)
+                        SliverFillRemaining(child: _errorState(context, vm))
+                      else if (examinations.isEmpty)
+                        const SliverFillRemaining(child: _EmptyState())
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(24, 0, 24, 28),
+                          sliver: SliverList.separated(
+                            itemCount: examinations.length,
+                            separatorBuilder: (context, index) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final examination = examinations[index];
+                              return _examCard(
+                                examination,
+                                onTap: () => _showExamDialog(
+                                  context,
+                                  examinations,
+                                  index,
+                                ),
+                              );
+                            },
                           ),
                         ),
-                      ),
-                      // Right panel
-                      SizedBox(
-                        width: 240,
-                        child: SingleChildScrollView(
-                          padding: const EdgeInsets.all(16),
-                          child: _buildRightPanel(),
-                        ),
-                      ),
                     ],
                   ),
-          ),
-          _buildStatusBar(),
-        ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
+
+    if (widget.embedded) return content;
+    return Scaffold(backgroundColor: _pageBg, body: content);
   }
 
-  // ─────────────────────────────────────────────
-  // TOP BAR
-  // ─────────────────────────────────────────────
-  Widget _buildTopBar(BuildContext context) {
+  Widget _standaloneTopBar(BuildContext context) {
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       child: Row(
         children: [
-          // ← Nút back
           IconButton(
             icon: const Icon(
               Icons.arrow_back_ios_rounded,
@@ -120,78 +138,15 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
             constraints: const BoxConstraints(),
           ),
           const SizedBox(width: 12),
-          // Search
           Expanded(
-            child: SizedBox(
-              height: 38,
-              child: TextField(
-                style: const TextStyle(fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Tìm kiếm bệnh nhân, hồ sơ, mã số...',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFFADB5BD),
-                    fontSize: 13,
-                  ),
-                  prefixIcon: const Icon(
-                    Icons.search,
-                    size: 18,
-                    color: Color(0xFF718096),
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF7FAFC),
-                  contentPadding: EdgeInsets.zero,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                ),
+            child: Text(
+              widget.patient.fullName,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF1A2B3C),
               ),
-            ),
-          ),
-          const SizedBox(width: 16),
-          // Doctor info
-          Consumer<AuthViewModel>(
-            builder: (_, vm, __) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  radius: 15,
-                  backgroundColor: const Color(0xFFE6F4F1),
-                  child: Text(
-                    vm.currentUser?.name.isNotEmpty == true
-                        ? vm.currentUser!.name[0].toUpperCase()
-                        : 'B',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: _primaryGreen,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'BS. ${vm.currentUser?.name ?? 'Bác sĩ'}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A2B3C),
-                      ),
-                    ),
-                    const Text(
-                      'Chẩn đoán hình ảnh',
-                      style: TextStyle(fontSize: 10, color: Color(0xFF718096)),
-                    ),
-                  ],
-                ),
-              ],
             ),
           ),
         ],
@@ -199,1040 +154,800 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
     );
   }
 
-  Widget _logoBox(String asset) {
+  Widget _patientHeader(ExaminationViewModel vm, int examCount) {
+    final patient = widget.patient;
     return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Image.asset(
-        asset,
-        fit: BoxFit.contain,
-        errorBuilder: (_, __, ___) =>
-            const Icon(Icons.local_hospital, size: 18, color: _primaryGreen),
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────
-  // PATIENT INFO BAR
-  // ─────────────────────────────────────────────
-  Widget _buildPatientInfoBar() {
-    final p = widget.patient;
-    final exam = _currentExam;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFEDF2F7)),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Row 1: action buttons + risk badge
           Row(
             children: [
-              ElevatedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add_circle_outline, size: 15),
-                label: const Text(
-                  'Tạo chẩn đoán mới',
-                  style: TextStyle(fontSize: 12),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryGreen,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              CircleAvatar(
+                radius: 25,
+                backgroundColor: const Color(0xFFE6F4F1),
+                child: Text(
+                  patient.fullName.isNotEmpty
+                      ? patient.fullName[0].toUpperCase()
+                      : 'P',
+                  style: const TextStyle(
+                    color: _primaryGreen,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                 ),
               ),
-              const SizedBox(width: 8),
-              OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.picture_as_pdf_outlined, size: 15),
-                label: const Text(
-                  'Xuất báo cáo PDF',
-                  style: TextStyle(fontSize: 12),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _primaryGreen,
-                  side: const BorderSide(color: _primaryGreen),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 8,
-                  ),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      patient.fullName,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF1A2B3C),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Mã bệnh nhân: ${patient.patientCode.isEmpty ? '---' : patient.patientCode}',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: Color(0xFF718096),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              const Spacer(),
-              // AI status badge
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFFE6F4F1),
-                  borderRadius: BorderRadius.circular(6),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.check_circle, color: _primaryGreen, size: 13),
-                    SizedBox(width: 5),
-                    Text(
-                      'Trạng thái AI: Đã hoàn thành',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _primaryGreen,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              // Risk badge
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F0),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: const Color(0xFFFFCDD2)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: const [
-                    Icon(Icons.circle, color: Color(0xFFE53E3E), size: 7),
-                    SizedBox(width: 5),
-                    Text(
-                      'Nghiêm trọng · Grade 4',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFE53E3E),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  '$examCount lần khám',
+                  style: const TextStyle(
+                    color: _primaryGreen,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 13,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          const Divider(height: 1, color: Color(0xFFEDF2F7)),
-          const SizedBox(height: 10),
-          // Row 2: patient fields
+          const SizedBox(height: 16),
+          const Divider(height: 1, color: Color(0xFFE2E8F0)),
+          const SizedBox(height: 14),
           Wrap(
-            spacing: 28,
-            runSpacing: 8,
+            spacing: 30,
+            runSpacing: 12,
             children: [
-              _infoField('MÃ BỆNH NHÂN', p.patientCode),
-              _infoField('HỌ VÀ TÊN', p.fullName),
-              _infoField(
-                'TUỔI / GIỚI TÍNH',
-                '${p.age > 0 ? p.age.toString() : 'N/A'} / ${p.genderDisplay}',
-              ),
-              _infoField(
-                'NGÀY KHÁM',
-                exam != null ? _fmtDate(exam.examDate) : '—',
-              ),
-              if (exam != null) _infoField('GIAO THỨC', exam.protocol),
+              _infoField('Ngày sinh', patient.dobDisplay),
+              _infoField('Tuổi / giới tính', patient.displayAgeGender),
+              _infoField('Điện thoại', patient.phone ?? '---'),
+              _infoField('Email', patient.email ?? '---'),
+              _infoField('Địa chỉ', patient.address ?? '---'),
             ],
           ),
+          if (vm.isLoading && examCount > 0) ...[
+            const SizedBox(height: 14),
+            const LinearProgressIndicator(
+              color: _primaryGreen,
+              backgroundColor: Color(0xFFE6F4F1),
+              minHeight: 3,
+            ),
+          ],
         ],
       ),
     );
   }
 
   Widget _infoField(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 9,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF718096),
-            letterSpacing: 0.4,
+    return SizedBox(
+      width: 180,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF8A9A96),
+            ),
           ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1A2B3C),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _examCard(
+    ExaminationEntity examination, {
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
         ),
-        const SizedBox(height: 2),
+        child: Row(
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: BoxDecoration(
+                color: const Color(0xFFEAF8F4),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: const Icon(
+                Icons.medical_information_outlined,
+                color: _primaryGreen,
+                size: 28,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          _examTitle(examination),
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF1A2B3C),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      _statusBadge(examination),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 20,
+                    runSpacing: 8,
+                    children: [
+                      _cardMeta(
+                        Icons.schedule,
+                        'Thời gian khám',
+                        _examDateTime(examination),
+                        strong: true,
+                      ),
+                      _cardMeta(
+                        Icons.image_outlined,
+                        'Số ảnh',
+                        examination.images.length.toString(),
+                      ),
+                      _cardMeta(
+                        Icons.accessibility_new,
+                        'Vùng chụp',
+                        examination.bodyPart.isEmpty
+                            ? '---'
+                            : examination.bodyPart,
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            const Icon(Icons.chevron_right, color: Color(0xFF718096)),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _cardMeta(
+    IconData icon,
+    String label,
+    String value, {
+    bool strong = false,
+  }) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          icon,
+          size: 15,
+          color: strong ? _primaryGreen : const Color(0xFF718096),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '$label: ',
+          style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
+        ),
         Text(
           value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1A2B3C),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: strong ? FontWeight.w800 : FontWeight.w600,
+            color: strong ? _primaryGreen : const Color(0xFF1A2B3C),
           ),
         ),
       ],
     );
   }
 
-  // ─────────────────────────────────────────────
-  // LEFT PANEL
-  // ─────────────────────────────────────────────
-  Widget _buildLeftPanel() {
-    final exam = _currentExam;
+  void _showExamDialog(
+    BuildContext context,
+    List<ExaminationEntity> examinations,
+    int selectedIndex,
+  ) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return _ExaminationDialog(
+          examinations: examinations,
+          initialIndex: selectedIndex,
+        );
+      },
+    );
+  }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // OCR info
-        _card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: const [
-                  Icon(
-                    Icons.document_scanner_outlined,
-                    size: 16,
-                    color: _primaryGreen,
+  Widget _errorState(BuildContext context, ExaminationViewModel vm) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.error_outline, color: Color(0xFFE53E3E), size: 48),
+          const SizedBox(height: 12),
+          Text(
+            vm.errorMessage ?? 'Không thể tải chi tiết bệnh nhân',
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Color(0xFF718096)),
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () {
+              final token =
+                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              vm.loadPatientExaminations(
+                patientId: _patientDetailId,
+                token: token,
+              );
+            },
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Thử lại'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<ExaminationEntity> _sortedExaminations(
+    List<ExaminationEntity> examinations,
+  ) {
+    final sorted = List<ExaminationEntity>.from(examinations);
+    sorted.sort((a, b) => _examTime(b).compareTo(_examTime(a)));
+    return sorted;
+  }
+
+  DateTime _examTime(ExaminationEntity examination) {
+    return examination.visitTime ??
+        examination.studyDate ??
+        DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  String _examTitle(ExaminationEntity examination) {
+    if (examination.encounterCode.isNotEmpty) {
+      return examination.encounterCode;
+    }
+    if (examination.examinationId > 0) {
+      return 'Ca khám #${examination.examinationId}';
+    }
+    return 'Ca khám';
+  }
+
+  String _examDateTime(ExaminationEntity examination) {
+    final time = examination.visitTime ?? examination.studyDate;
+    if (time == null) return '---';
+    return _formatDateTime(time);
+  }
+
+  String _formatDateTime(DateTime time) {
+    return '${time.day.toString().padLeft(2, '0')}/'
+        '${time.month.toString().padLeft(2, '0')}/'
+        '${time.year} '
+        '${time.hour.toString().padLeft(2, '0')}:'
+        '${time.minute.toString().padLeft(2, '0')}';
+  }
+
+  Widget _statusBadge(ExaminationEntity examination) {
+    final color = _statusColor(examination.statusGroup);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        examination.statusDisplay,
+        style: TextStyle(
+          color: color,
+          fontSize: 11,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case 'PENDING':
+        return const Color(0xFFB7791F);
+      case 'ANALYZING':
+        return const Color(0xFF3182CE);
+      case 'AWAITING_REVIEW':
+        return const Color(0xFF805AD5);
+      case 'COMPLETED':
+        return _primaryGreen;
+      default:
+        return const Color(0xFF718096);
+    }
+  }
+}
+
+class _ExaminationDialog extends StatefulWidget {
+  final List<ExaminationEntity> examinations;
+  final int initialIndex;
+
+  const _ExaminationDialog({
+    required this.examinations,
+    required this.initialIndex,
+  });
+
+  @override
+  State<_ExaminationDialog> createState() => _ExaminationDialogState();
+}
+
+class _ExaminationDialogState extends State<_ExaminationDialog> {
+  static const Color _primaryGreen = Color(0xFF2D7E6E);
+  int _selectedIndex = 0;
+  int _selectedImageIndex = 0;
+
+  ExaminationEntity get _selectedExamination =>
+      widget.examinations[_selectedIndex];
+
+  List<String> get _imageUrls {
+    final examination = _selectedExamination;
+    final urls = examination.images
+        .map((image) => image.imageUrl)
+        .where((url) => url.isNotEmpty)
+        .toList();
+    if (urls.isNotEmpty) return urls;
+    if (examination.thumbnailUrl.isNotEmpty) return [examination.thumbnailUrl];
+    return const [];
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedIndex = widget.initialIndex.clamp(
+      0,
+      widget.examinations.length - 1,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    return Dialog(
+      insetPadding: const EdgeInsets.all(24),
+      backgroundColor: Colors.transparent,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1180, maxHeight: 760),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Material(
+            color: const Color(0xFFF0F4F3),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    children: [
+                      _dialogHeader(context),
+                      Expanded(child: _dialogBody(token)),
+                    ],
                   ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Thông tin OCR',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A2B3C),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (exam != null) ...[
-                _ocrRow('Ngày chụp:', _fmtDateTime(exam.examDate)),
-                const SizedBox(height: 6),
-                _ocrRow('Thiết bị:', exam.device),
-                const SizedBox(height: 6),
-                _ocrRow('Giao thức:', exam.protocol),
-                const SizedBox(height: 10),
+                ),
+                SizedBox(width: 280, child: _examSideList()),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _dialogHeader(BuildContext context) {
+    final examination = _selectedExamination;
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
                 Text(
-                  'Ghi chú lâm sàng:',
+                  _examTitle(examination),
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF718096),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF1A2B3C),
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  exam.diagnosis,
+                  'Thời gian khám: ${_examDateTime(examination)}',
                   style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF4A5568),
-                    height: 1.5,
-                  ),
-                ),
-              ] else
-                const Text(
-                  'Chưa có dữ liệu OCR',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF718096)),
-                ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Lịch sử y tế
-        _card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: const [
-                  Icon(Icons.history_outlined, size: 16, color: _primaryGreen),
-                  SizedBox(width: 8),
-                  Text(
-                    'Lịch sử y tế',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A2B3C),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              if (_exams.isEmpty)
-                const Text(
-                  'Chưa có lần khám nào',
-                  style: TextStyle(fontSize: 12, color: Color(0xFF718096)),
-                )
-              else
-                ...List.generate(_exams.length, (i) {
-                  final e = _exams[i];
-                  final isSelected = i == _selectedExamIndex;
-                  return GestureDetector(
-                    onTap: () => setState(() {
-                      _selectedExamIndex = i;
-                      _selectedImageIndex = 0;
-                    }),
-                    child: Container(
-                      margin: const EdgeInsets.only(bottom: 10),
-                      padding: const EdgeInsets.all(10),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? const Color(0xFFE6F4F1)
-                            : Colors.transparent,
-                        borderRadius: BorderRadius.circular(8),
-                        border: isSelected
-                            ? Border.all(color: _primaryGreen)
-                            : null,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            margin: const EdgeInsets.only(top: 4),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? _primaryGreen
-                                  : const Color(0xFFCBD5E0),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _fmtDate(e.examDate),
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: isSelected
-                                        ? _primaryGreen
-                                        : const Color(0xFF718096),
-                                  ),
-                                ),
-                                Text(
-                                  e.protocol,
-                                  style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w500,
-                                    color: Color(0xFF1A2B3C),
-                                  ),
-                                ),
-                                Text(
-                                  e.device,
-                                  style: const TextStyle(
-                                    fontSize: 10,
-                                    color: Color(0xFF718096),
-                                  ),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (e.images.isNotEmpty)
-                            const Icon(
-                              Icons.image_outlined,
-                              size: 14,
-                              color: Color(0xFF718096),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                }),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Ghi chú bác sĩ
-        _card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: const [
-                  Icon(
-                    Icons.edit_note_outlined,
-                    size: 16,
-                    color: _primaryGreen,
-                  ),
-                  SizedBox(width: 8),
-                  Text(
-                    'Ghi chú bác sĩ',
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A2B3C),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              TextField(
-                controller: _noteController,
-                maxLines: 4,
-                style: const TextStyle(fontSize: 13),
-                decoration: InputDecoration(
-                  hintText: 'Nhập nhận xét của bác sĩ...',
-                  hintStyle: const TextStyle(
-                    color: Color(0xFFADB5BD),
                     fontSize: 13,
-                  ),
-                  filled: true,
-                  fillColor: const Color(0xFFF7FAFC),
-                  contentPadding: const EdgeInsets.all(12),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(
-                      color: _primaryGreen,
-                      width: 1.5,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton(
-                  onPressed: () {},
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _primaryGreen,
-                    side: const BorderSide(color: _primaryGreen),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                  ),
-                  child: const Text('Lưu ghi chú'),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Quay lại
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.arrow_back, size: 16),
-            label: const Text('Quay lại'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: const Color(0xFF4A5568),
-              side: const BorderSide(color: Color(0xFFCBD5E0)),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ─────────────────────────────────────────────
-  // X-RAY VIEWER (CENTER)
-  // ─────────────────────────────────────────────
-  Widget _buildXrayViewer() {
-    final exam = _currentExam;
-    final images = exam?.images ?? [];
-
-    return _card(
-      padding: EdgeInsets.zero,
-      child: Column(
-        children: [
-          // Tab bar: Ảnh gốc / Grad-CAM / Overlay AI
-          Container(
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: Color(0xFFEDF2F7))),
-            ),
-            child: Row(
-              children: [
-                _xrayTab('Ảnh gốc', true),
-                _xrayTab('Grad-CAM', false),
-                _xrayTab('Overlay AI', false),
-                const Spacer(),
-                // Tools
-                _iconTool(Icons.zoom_in),
-                _iconTool(Icons.zoom_out),
-                _iconTool(Icons.rotate_right_outlined),
-                _iconTool(Icons.brightness_6_outlined),
-                _iconTool(Icons.contrast_outlined),
-              ],
-            ),
-          ),
-
-          // Image display
-          Container(
-            height: 420,
-            color: Colors.black,
-            child: images.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: const [
-                        Icon(
-                          Icons.image_not_supported_outlined,
-                          color: Colors.white30,
-                          size: 64,
-                        ),
-                        SizedBox(height: 12),
-                        Text(
-                          'Chưa có ảnh X-quang cho lần khám này',
-                          style: TextStyle(color: Colors.white38, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  )
-                : Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      // Main image
-                      Positioned.fill(
-                        child: Image.asset(
-                          images[_selectedImageIndex],
-                          fit: BoxFit.contain,
-                          errorBuilder: (_, __, ___) => const Center(
-                            child: Icon(
-                              Icons.broken_image_outlined,
-                              color: Colors.white30,
-                              size: 64,
-                            ),
-                          ),
-                        ),
-                      ),
-                      // Image counter
-                      Positioned(
-                        bottom: 12,
-                        right: 12,
-                        child: Row(
-                          children: [
-                            // Dimensions
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: const Text(
-                                'W: 2048  H: 1024',
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 10,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            // Prev/next
-                            _navBtn(
-                              Icons.chevron_left,
-                              _selectedImageIndex > 0
-                                  ? () => setState(() => _selectedImageIndex--)
-                                  : null,
-                            ),
-                            const SizedBox(width: 4),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 4,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.black54,
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Text(
-                                '${_selectedImageIndex + 1} / ${images.length}',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 4),
-                            _navBtn(
-                              Icons.chevron_right,
-                              _selectedImageIndex < images.length - 1
-                                  ? () => setState(() => _selectedImageIndex++)
-                                  : null,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-          ),
-
-          // Thumbnails
-          if (images.length > 1)
-            Container(
-              height: 72,
-              color: const Color(0xFF1A1A2E),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: images.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 8),
-                itemBuilder: (_, i) => GestureDetector(
-                  onTap: () => setState(() => _selectedImageIndex = i),
-                  child: Container(
-                    width: 56,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(
-                        color: i == _selectedImageIndex
-                            ? _primaryGreen
-                            : Colors.transparent,
-                        width: 2,
-                      ),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: Image.asset(
-                      images[i],
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(
-                        color: Colors.grey.shade800,
-                        child: const Icon(
-                          Icons.image,
-                          color: Colors.white30,
-                          size: 20,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _xrayTab(String label, bool isActive) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(
-            color: isActive ? _primaryGreen : Colors.transparent,
-            width: 2,
-          ),
-        ),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: isActive ? FontWeight.w600 : FontWeight.normal,
-          color: isActive ? _primaryGreen : const Color(0xFF718096),
-        ),
-      ),
-    );
-  }
-
-  Widget _iconTool(IconData icon) {
-    return IconButton(
-      icon: Icon(icon, size: 18, color: const Color(0xFF718096)),
-      onPressed: () {},
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      constraints: const BoxConstraints(),
-    );
-  }
-
-  Widget _navBtn(IconData icon, VoidCallback? onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 28,
-        height: 28,
-        decoration: BoxDecoration(
-          color: onTap != null ? Colors.black54 : Colors.black26,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Icon(icon, color: Colors.white, size: 18),
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────
-  // RIGHT PANEL
-  // ─────────────────────────────────────────────
-  Widget _buildRightPanel() {
-    return Column(
-      children: [
-        // AI Analysis result
-        _card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: const [
-                  Icon(Icons.auto_awesome, size: 14, color: _primaryGreen),
-                  SizedBox(width: 6),
-                  Text(
-                    'Kết quả AI Analysis',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A2B3C),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              // Grade display
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFFF0F0),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  children: const [
-                    Text(
-                      'KELLGREN · LAWRENCE',
-                      style: TextStyle(
-                        fontSize: 9,
-                        color: Color(0xFF718096),
-                        letterSpacing: 1,
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      'GRADE 4',
-                      style: TextStyle(
-                        fontSize: 36,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFFE53E3E),
-                        height: 1,
-                      ),
-                    ),
-                    Text(
-                      'Giai đoạn cuối (Nghiêm trọng)',
-                      style: TextStyle(fontSize: 11, color: Color(0xFFE53E3E)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              _confidenceBar('Độ tin cậy (Confidence)', 0.984, '98.4%'),
-              const SizedBox(height: 10),
-              _confidenceBar(
-                'Xác suất cần thiếp phẫu thuật',
-                0.803,
-                '80.3%',
-                color: const Color(0xFFE53E3E),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // AI Insights
-        _card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: const [
-                  Icon(Icons.lightbulb_outline, size: 14, color: _primaryGreen),
-                  SizedBox(width: 6),
-                  Text(
-                    'AI Insights & Gợi ý',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A2B3C),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _insightItem(
-                Icons.warning_amber_rounded,
-                const Color(0xFFE53E3E),
-                const Color(0xFFFFF0F0),
-                'Cảnh báo rủi ro cao',
-                'Thu hẹp khoang khớp hoàn toàn. Xuất hiện gai xương lớn và tiêu biến đầu xương.',
-              ),
-              const SizedBox(height: 8),
-              _insightItem(
-                Icons.medical_services_outlined,
-                const Color(0xFFD97706),
-                const Color(0xFFFEF3C7),
-                'Chẩn đoán gợi ý',
-                'Thoái hóa khớp gối nguyên phát. Cần cân nhắc phẫu thuật thay khớp gối toàn phần.',
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-
-        // Ca liên quan
-        _card(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: const [
-                  Icon(Icons.people_outline, size: 14, color: _primaryGreen),
-                  SizedBox(width: 6),
-                  Text(
-                    'Ca liên quan tương đồng',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1A2B3C),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _similarCase('BN-2023-0142', '88% tương đồng hình thái'),
-              const SizedBox(height: 8),
-              _similarCase('BN-2022-0988', '82% tương đồng hình thái'),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _confidenceBar(
-    String label,
-    double value,
-    String text, {
-    Color color = _primaryGreen,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
-              ),
-            ),
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: value,
-            backgroundColor: const Color(0xFFE2E8F0),
-            valueColor: AlwaysStoppedAnimation<Color>(color),
-            minHeight: 6,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _insightItem(
-    IconData icon,
-    Color iconColor,
-    Color bg,
-    String title,
-    String body,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, size: 14, color: iconColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: iconColor,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF4A5568),
-                    height: 1.4,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _similarCase(String code, String similarity) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF7FAFC),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.folder_outlined, size: 14, color: _primaryGreen),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  code,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF1A2B3C),
-                  ),
-                ),
-                Text(
-                  similarity,
-                  style: const TextStyle(
-                    fontSize: 10,
                     color: Color(0xFF718096),
                   ),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.open_in_new, size: 13, color: Color(0xFF718096)),
-        ],
-      ),
-    );
-  }
-
-  // ─────────────────────────────────────────────
-  // STATUS BAR
-  // ─────────────────────────────────────────────
-  Widget _buildStatusBar() {
-    return Container(
-      color: const Color(0xFF1A2B3C),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 6),
-      child: Row(
-        children: const [
-          Text(
-            'Phiên bản hệ thống: KNEE-AI v4.0.2',
-            style: TextStyle(fontSize: 9, color: Colors.white38),
-          ),
-          SizedBox(width: 16),
-          Text('•', style: TextStyle(color: Colors.white24)),
-          SizedBox(width: 16),
-          Text(
-            'Kết nối: PACS-SERVER-01 (Đang hoạt động)',
-            style: TextStyle(fontSize: 9, color: Colors.white38),
-          ),
-          Spacer(),
-          Text(
-            '© 2026 Viện Y Học Cổ Truyền Quân Đội · Phân ban AI',
-            style: TextStyle(fontSize: 9, color: Colors.white24),
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: const Icon(Icons.close),
+            tooltip: 'Đóng',
           ),
         ],
       ),
     );
   }
 
-  // ─────────────────────────────────────────────
-  // HELPERS
-  // ─────────────────────────────────────────────
-  Widget _card({required Widget child, EdgeInsets? padding}) {
+  Widget _dialogBody(String token) {
+    final examination = _selectedExamination;
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(18),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _xrayViewer(token),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Wrap(
+              spacing: 30,
+              runSpacing: 14,
+              children: [
+                _detailField(
+                  'ID ca khám',
+                  examination.examinationId.toString(),
+                ),
+                _detailField('Encounter code', examination.encounterCode),
+                _detailField('Trạng thái', examination.statusDisplay),
+                _detailField('Vùng chụp', examination.bodyPart),
+                _detailField('Ngày chụp', examination.studyDateDisplay),
+                _detailField('Thời gian khám', examination.visitTimeDisplay),
+                _detailField('Bác sĩ chỉ định', examination.referringPhysician),
+                _detailField('Số ảnh', examination.images.length.toString()),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _xrayViewer(String token) {
+    final imageUrls = _imageUrls;
+    final hasImages = imageUrls.isNotEmpty;
+    final selectedUrl = hasImages
+        ? imageUrls[_selectedImageIndex.clamp(0, imageUrls.length - 1)]
+        : '';
     return Container(
-      width: double.infinity,
-      padding: padding ?? const EdgeInsets.all(16),
+      height: 430,
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Colors.black,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFEDF2F7)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 6,
-            offset: const Offset(0, 2),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 38,
+            color: const Color(0xFF17211F),
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Row(
+              children: [
+                const Text(
+                  'Ảnh X-quang',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const Spacer(),
+                if (hasImages)
+                  Text(
+                    '${_selectedImageIndex + 1}/${imageUrls.length}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                  ),
+              ],
+            ),
           ),
+          Expanded(
+            child: Center(
+              child: hasImages
+                  ? Image.network(
+                      selectedUrl,
+                      headers: token.isEmpty
+                          ? null
+                          : {'Authorization': 'Bearer $token'},
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.broken_image_outlined,
+                          color: Colors.white54,
+                          size: 60,
+                        );
+                      },
+                    )
+                  : const Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.image_not_supported_outlined,
+                          color: Colors.white54,
+                          size: 60,
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          'Ca khám này chưa có ảnh X-quang',
+                          style: TextStyle(color: Colors.white54),
+                        ),
+                      ],
+                    ),
+            ),
+          ),
+          if (imageUrls.length > 1)
+            Container(
+              height: 76,
+              color: const Color(0xFF111816),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: imageUrls.length,
+                separatorBuilder: (context, index) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final isSelected = index == _selectedImageIndex;
+                  return InkWell(
+                    onTap: () => setState(() => _selectedImageIndex = index),
+                    child: Container(
+                      width: 70,
+                      clipBehavior: Clip.antiAlias,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: isSelected ? _primaryGreen : Colors.white24,
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Image.network(
+                        imageUrls[index],
+                        headers: token.isEmpty
+                            ? null
+                            : {'Authorization': 'Bearer $token'},
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Icon(
+                              Icons.broken_image_outlined,
+                              color: Colors.white54,
+                            ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
         ],
       ),
-      child: child,
     );
   }
 
-  Widget _ocrRow(String label, String value) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 70,
-          child: Text(
+  Widget _detailField(String label, String value) {
+    return SizedBox(
+      width: 190,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
             label,
-            style: const TextStyle(fontSize: 10, color: Color(0xFF718096)),
+            style: const TextStyle(fontSize: 11, color: Color(0xFF8A9A96)),
           ),
-        ),
-        Expanded(
-          child: Text(
-            value,
+          const SizedBox(height: 5),
+          Text(
+            value.isEmpty ? '---' : value,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w500,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
               color: Color(0xFF1A2B3C),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
-  String _fmtDate(DateTime d) =>
-      '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+  Widget _examSideList() {
+    return Container(
+      color: Colors.white,
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Các ca khám khác',
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF1A2B3C),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Expanded(
+            child: ListView.separated(
+              itemCount: widget.examinations.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 10),
+              itemBuilder: (context, index) {
+                final examination = widget.examinations[index];
+                final isSelected = index == _selectedIndex;
+                return InkWell(
+                  onTap: () => setState(() {
+                    _selectedIndex = index;
+                    _selectedImageIndex = 0;
+                  }),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? const Color(0xFFE6F4F1)
+                          : const Color(0xFFF8FBFA),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: isSelected
+                            ? _primaryGreen
+                            : const Color(0xFFE2E8F0),
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          _examTitle(examination),
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: isSelected
+                                ? _primaryGreen
+                                : const Color(0xFF1A2B3C),
+                          ),
+                        ),
+                        const SizedBox(height: 5),
+                        Text(
+                          _examDateTime(examination),
+                          style: const TextStyle(
+                            fontSize: 11,
+                            color: Color(0xFF718096),
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Text(
+                          examination.statusDisplay,
+                          style: const TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF4A5568),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-  String _fmtDateTime(DateTime d) =>
-      '${_fmtDate(d)} – ${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')} AM';
+  String _examTitle(ExaminationEntity examination) {
+    if (examination.encounterCode.isNotEmpty) {
+      return examination.encounterCode;
+    }
+    if (examination.examinationId > 0) {
+      return 'Ca khám #${examination.examinationId}';
+    }
+    return 'Ca khám';
+  }
+
+  String _examDateTime(ExaminationEntity examination) {
+    final time = examination.visitTime ?? examination.studyDate;
+    if (time == null) return '---';
+    return '${time.day.toString().padLeft(2, '0')}/'
+        '${time.month.toString().padLeft(2, '0')}/'
+        '${time.year} '
+        '${time.hour.toString().padLeft(2, '0')}:'
+        '${time.minute.toString().padLeft(2, '0')}';
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.assignment_outlined, color: Color(0xFFADB5BD), size: 56),
+          SizedBox(height: 14),
+          Text(
+            'Bệnh nhân chưa có lần khám nào',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF718096),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

@@ -206,6 +206,15 @@ class DicomUploadViewModel extends ChangeNotifier {
     }
   }
 
+  void removeSelectedFileAt(int index) {
+    if (index < 0 || index >= _selectedFiles.length) return;
+    final updatedFiles = List<DicomUploadFile>.from(_selectedFiles)
+      ..removeAt(index);
+    _selectedFiles = updatedFiles;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   void clear() {
     _selectedFiles = [];
     _clearBatchResult();

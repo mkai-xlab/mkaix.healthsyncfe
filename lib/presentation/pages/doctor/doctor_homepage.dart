@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
+import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import 'dicom_upload_page.dart';
 import 'examination_list_page.dart';
+import 'patient_detail_page.dart';
 
 class DoctorHomepage extends StatefulWidget {
   const DoctorHomepage({super.key});
@@ -19,6 +21,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   final _searchController = TextEditingController();
   String _filterGender = '';
   bool _hasRequestedPatientList = false;
+  bool _showUploadExaminationList = false;
+  List<ExaminationEntity> _newUploadExaminations = const [];
+  PatientEntity? _selectedPatientDetail;
 
   static const Color _primaryGreen = Color(0xFF2D7E6E);
   static const Color _darkGreen = Color(0xFF1B5A4E);
@@ -291,7 +296,11 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         ),
       ),
       onTap: () {
-        setState(() => _selectedNavIndex = index);
+        setState(() {
+          _selectedNavIndex = index;
+          _showUploadExaminationList = false;
+          _selectedPatientDetail = null;
+        });
         if (closeDrawer) {
           Navigator.pop(context);
         }
@@ -381,6 +390,18 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   // MAIN CONTENT ROUTER
   // ─────────────────────────────────────────────
   Widget _buildMainContent(BuildContext context) {
+    final selectedPatientDetail = _selectedPatientDetail;
+    if (selectedPatientDetail != null) {
+      return PatientDetailPage(patient: selectedPatientDetail, embedded: true);
+    }
+
+    if (_showUploadExaminationList) {
+      return ExaminationListPage(
+        embedded: true,
+        newExaminations: _newUploadExaminations,
+      );
+    }
+
     final navItems = _visibleNavItems(context);
     final selectedItem =
         _selectedNavIndex >= 0 && _selectedNavIndex < navItems.length
@@ -399,7 +420,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
     if (selectedPermission == 'create_patient_exam' ||
         selectedLabel == 'Danh sách ca khám') {
-      return const ExaminationListPage(embedded: true);
+      return ExaminationListPage(
+        embedded: true,
+        newExaminations: _newUploadExaminations,
+      );
     }
     if (selectedPermission == 'read_patient_list' ||
         selectedLabel == 'Quản lý bệnh nhân') {
@@ -410,7 +434,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     }
     if (selectedPermission == 'upload_dicom_image' ||
         (selectedLabel == 'Hỗ trợ chẩn đoán' && hasUploadDicomPermission)) {
-      return const DicomUploadPage();
+      return DicomUploadPage(onGoToExaminations: _openNewUploadExaminations);
     }
 
     return _buildFeaturePlaceholderPage(
@@ -420,6 +444,22 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           : 'Tính năng này đang được cập nhật.',
       icon: selectedItem?.icon ?? Icons.construction_outlined,
     );
+  }
+
+  void _openNewUploadExaminations(List<ExaminationEntity> examinations) {
+    final navItems = _visibleNavItems(context);
+    final examIndex = navItems.indexWhere((item) {
+      final permission = _normalizePermissionKey(item.permissionName);
+      return permission == 'create_patient_exam' ||
+          item.label == 'Danh sách ca khám';
+    });
+    setState(() {
+      _newUploadExaminations = List.unmodifiable(examinations);
+      _showUploadExaminationList = true;
+      if (examIndex >= 0) {
+        _selectedNavIndex = examIndex;
+      }
+    });
   }
 
   // ─────────────────────────────────────────────
@@ -1042,10 +1082,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   Widget _buildPatientRow(BuildContext context, PatientEntity p) {
     return InkWell(
-      onTap: () => Navigator.push(
-        context,
-        MaterialPageRoute(builder: (_) => ExaminationListPage(patient: p)),
-      ),
+      onTap: () => setState(() => _selectedPatientDetail = p),
       hoverColor: const Color(0xFFF0F4F3),
       child: Container(
         color: Colors.white,
@@ -1123,12 +1160,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                 size: 18,
                 color: Color(0xFF718096),
               ),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (_) => ExaminationListPage(patient: p),
-                ),
-              ),
+              onPressed: () => setState(() => _selectedPatientDetail = p),
             ),
           ],
         ),

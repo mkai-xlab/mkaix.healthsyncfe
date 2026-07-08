@@ -112,16 +112,16 @@ class _ToastOverlayState extends State<_ToastOverlay>
     final screenWidth = MediaQuery.sizeOf(context).width;
     final toastWidth = screenWidth < 600
         ? screenWidth - 32
-        : (screenWidth * 0.2).clamp(280.0, 420.0);
+        : (screenWidth * 0.2).clamp(280.0, 360.0);
 
     return Positioned.fill(
       child: IgnorePointer(
         ignoring: false,
         child: SafeArea(
           child: Align(
-            alignment: Alignment.topCenter,
+            alignment: Alignment.bottomRight,
             child: Padding(
-              padding: const EdgeInsets.only(top: 18),
+              padding: const EdgeInsets.only(right: 16, bottom: 16),
               child: Material(
                 color: Colors.transparent,
                 child: AnimatedBuilder(
@@ -138,106 +138,93 @@ class _ToastOverlayState extends State<_ToastOverlay>
                       child: child,
                     );
                   },
-                  child: Container(
+                  child: SizedBox(
                     width: toastWidth,
-                    constraints: const BoxConstraints(minHeight: 72),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x24000000),
-                          blurRadius: 18,
-                          offset: Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Stack(
-                        children: [
-                          Positioned.fill(
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Expanded(
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 16,
-                                      vertical: 14,
-                                    ),
-                                    child: Row(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Container(
-                                          width: 34,
-                                          height: 34,
-                                          decoration: BoxDecoration(
-                                            color: scheme.softBackground,
-                                            shape: BoxShape.circle,
-                                          ),
-                                          child: Icon(
-                                            scheme.icon,
-                                            size: 20,
-                                            color: scheme.accent,
-                                          ),
-                                        ),
-                                        const SizedBox(width: 12),
-                                        Expanded(
-                                          child: Padding(
-                                            padding: const EdgeInsets.only(
-                                              top: 4,
-                                            ),
-                                            child: Text(
-                                              widget.message,
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: const TextStyle(
-                                                fontSize: 14,
-                                                height: 1.35,
-                                                fontWeight: FontWeight.w500,
-                                                color: Color(0xFF1F2937),
-                                              ),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(width: 8),
-                                        IconButton(
-                                          padding: EdgeInsets.zero,
-                                          constraints: const BoxConstraints(
-                                            minWidth: 28,
-                                            minHeight: 28,
-                                          ),
-                                          visualDensity: VisualDensity.compact,
-                                          onPressed: widget.onDismiss,
-                                          icon: const Icon(
-                                            Icons.close,
-                                            size: 18,
-                                            color: Color(0xFF9CA3AF),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                                AnimatedBuilder(
-                                  animation: _controller,
-                                  builder: (context, _) {
-                                    return FractionallySizedBox(
-                                      alignment: Alignment.centerLeft,
-                                      widthFactor: 1 - _controller.value,
-                                      child: Container(
-                                        height: 4,
-                                        color: scheme.accent,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: const [
+                          BoxShadow(
+                            color: Color(0x24000000),
+                            blurRadius: 18,
+                            offset: Offset(0, 8),
                           ),
                         ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 12,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 30,
+                                    height: 30,
+                                    decoration: BoxDecoration(
+                                      color: scheme.softBackground,
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(
+                                      scheme.icon,
+                                      size: 18,
+                                      color: scheme.accent,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      widget.message,
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
+                                        fontSize: 13,
+                                        height: 1.3,
+                                        fontWeight: FontWeight.w500,
+                                        color: Color(0xFF1F2937),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  IconButton(
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(
+                                      minWidth: 26,
+                                      minHeight: 26,
+                                    ),
+                                    visualDensity: VisualDensity.compact,
+                                    onPressed: widget.onDismiss,
+                                    icon: const Icon(
+                                      Icons.close,
+                                      size: 16,
+                                      color: Color(0xFF9CA3AF),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            AnimatedBuilder(
+                              animation: _controller,
+                              builder: (context, _) {
+                                return FractionallySizedBox(
+                                  alignment: Alignment.centerLeft,
+                                  widthFactor: 1 - _controller.value,
+                                  child: Container(
+                                    height: 4,
+                                    color: scheme.accent,
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),

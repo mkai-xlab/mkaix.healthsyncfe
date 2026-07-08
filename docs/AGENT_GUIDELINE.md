@@ -266,7 +266,7 @@ Tất cả trang của Doctor role dùng cùng một style top bar:
 - Một examination có thể có nhiều ảnh; `ExaminationDetailPage` hiển thị ảnh đang chọn ở viewer lớn, có thanh thumbnail nhỏ để đổi ảnh, và nút toàn màn hình mở ảnh hiện tại trong viewer có thể zoom/pan.
 - Permission doctor `UPLOAD_DICOM_IMAGE` là màn upload DICOM. Màn này cho chọn/kéo-thả nhiều file `.DCM/.dcm`, nút xanh ở cuối card upload batch lên `/dicom/upload/batch`.
 - Màn upload DICOM ưu tiên layout gọn trong một viewport desktop: bên trái là danh sách file chờ gửi, có nút xóa từng file; sau khi upload batch thành công tự clear file chờ. Bên phải hiển thị danh sách bệnh nhân trong `successfulPatients[]` của response, không hiển thị lịch sử file đã upload.
-- Thông báo trong app dùng toast overlay chung (`AppToast`), tự ẩn sau 5 giây và có nút `X` để đóng sớm. Không dùng `SnackBar` riêng cho từng màn nữa.
+- Thông báo trong app dùng toast overlay chung (`AppToast`) ở góc dưới bên phải, dạng thanh nhỏ, tự ẩn sau 5 giây và có nút `X` để đóng sớm. Không dùng `SnackBar` riêng cho từng màn nữa.
 - Sau upload batch, panel response có nút "Đi tới ca khám" để mở `ExaminationListPage` trong doctor shell và truyền các `recentExaminations[]` vừa trả về. `ExaminationListPage` luôn có chip đầu tiên và mặc định là "Ca khám mới"; chip đó hiển thị dữ liệu từ response upload, còn các chip trạng thái còn lại vẫn đọc dữ liệu ca khám theo luồng patient detail/tổng hợp hiện có.
 
 ---

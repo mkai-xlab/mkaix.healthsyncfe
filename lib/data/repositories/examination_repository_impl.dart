@@ -8,8 +8,14 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
   ExaminationRepositoryImpl({required this.remoteDataSource});
 
   @override
-  Future<List<ExaminationEntity>> getAllExaminations({required String token}) {
-    return remoteDataSource.getAllExaminations(token: token);
+  Future<List<ExaminationEntity>> getDoctorExaminations({
+    required int doctorId,
+    required String token,
+  }) {
+    return remoteDataSource.getDoctorExaminations(
+      doctorId: doctorId,
+      token: token,
+    );
   }
 
   @override

@@ -68,8 +68,6 @@ class AdminAccountViewModel extends ChangeNotifier {
 
     try {
       await dataSource.createDoctor(doctorData: doctorData, token: token);
-      _currentSearchName = '';
-      await fetchFirstPage(token);
       return true;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');

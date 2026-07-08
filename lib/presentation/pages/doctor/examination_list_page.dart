@@ -69,9 +69,10 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     _didLoad = true;
 
     final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    final doctorId = context.read<AuthViewModel>().currentUser?.id ?? '';
     final vm = context.read<ExaminationViewModel>();
     if (widget.patient == null) {
-      vm.loadAllExaminations(token: token);
+      vm.loadDoctorExaminations(doctorId: doctorId, token: token);
     } else {
       vm.loadPatientExaminations(patientId: _patientDetailId, token: token);
     }
@@ -268,9 +269,13 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     return RefreshIndicator(
       color: _primaryGreen,
       onRefresh: () {
-        final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+        final currentUser = context.read<AuthViewModel>().currentUser;
+        final token = currentUser?.token ?? '';
         if (widget.patient == null) {
-          return vm.loadAllExaminations(token: token);
+          return vm.loadDoctorExaminations(
+            doctorId: currentUser?.id ?? '',
+            token: token,
+          );
         }
         return vm.loadPatientExaminations(
           patientId: _patientDetailId,
@@ -399,10 +404,13 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () {
-              final token =
-                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              final currentUser = context.read<AuthViewModel>().currentUser;
+              final token = currentUser?.token ?? '';
               if (widget.patient == null) {
-                vm.loadAllExaminations(token: token);
+                vm.loadDoctorExaminations(
+                  doctorId: currentUser?.id ?? '',
+                  token: token,
+                );
               } else {
                 vm.loadPatientExaminations(
                   patientId: _patientDetailId,

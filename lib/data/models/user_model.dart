@@ -84,11 +84,25 @@ class UserModel extends UserEntity {
       }
     }
 
+    final doctorJson = json['doctor'] is Map
+        ? Map<String, dynamic>.from(json['doctor'] as Map)
+        : null;
+    final userJson = json['user'] is Map
+        ? Map<String, dynamic>.from(json['user'] as Map)
+        : null;
+    final resolvedId =
+        json['doctorId'] ??
+        json['doctor_id'] ??
+        doctorJson?['id'] ??
+        json['userId'] ??
+        json['user_id'] ??
+        userJson?['id'] ??
+        json['id'] ??
+        json['username'] ??
+        '';
+
     return UserModel(
-      id:
-          json['id']?.toString() ??
-          json['username'] ??
-          '', // Dùng username làm ID nếu không có id riêng
+      id: resolvedId.toString(),
       name:
           json['username'] ??
           json['fullName'] ??
@@ -106,8 +120,10 @@ class UserModel extends UserEntity {
   // --- 💡 TIỆN ÍCH PHÂN QUYỀN (Hỗ trợ Routing điều hướng màn hình ở tầng UI) ---
 
   /// Kiểm tra xem User này có phải là Bác sĩ không
+  @override
   bool get isDoctor => roles.contains('DOCTOR');
 
   /// Kiểm tra xem User này có phải là Admin không
+  @override
   bool get isAdmin => roles.contains('ADMIN');
 }

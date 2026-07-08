@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:fe/core/services/toast_service.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/domain/entities/doctor_account_entity.dart';
@@ -1468,13 +1469,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
   void _showCreateUserDialog(BuildContext context) {
     final pageContext = context;
     final formKey = GlobalKey<FormState>();
-    final doctorCodeController = TextEditingController();
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final phoneController = TextEditingController();
-    final specializationController = TextEditingController();
-    final hospitalNameController = TextEditingController();
-    final licenseNumberController = TextEditingController();
     final token = pageContext.read<AuthViewModel>().currentUser?.token ?? '';
     final viewModel = pageContext.read<AdminAccountViewModel>();
     bool isSubmitting = false;
@@ -1529,7 +1526,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         ),
                         SizedBox(height: 3),
                         Text(
-                          'Tạo hồ sơ bác sĩ theo backend hiện tại',
+                          'Tạo hồ sơ bác sĩ theo API mới',
                           style: TextStyle(
                             fontSize: 12,
                             color: Color(0xFF4F6F68),
@@ -1570,7 +1567,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Nhập đầy đủ thông tin bác sĩ. Backend hiện tạo tài khoản bác sĩ qua endpoint /doctors.',
+                                'API mới tạo bác sĩ qua /doctors với họ tên, email và số điện thoại.',
                                 style: TextStyle(
                                   fontSize: 13,
                                   height: 1.4,
@@ -1582,18 +1579,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      _buildFieldLabel('Mã bác sĩ *'),
-                      TextFormField(
-                        controller: doctorCodeController,
-                        decoration: _buildInputDecoration(
-                          'VD: BS001',
-                          Icons.badge_outlined,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Vui lòng nhập mã bác sĩ'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
                       _buildFieldLabel('Họ và tên *'),
                       TextFormField(
                         controller: nameController,
@@ -1644,42 +1629,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           }
                           return null;
                         },
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Chuyên khoa *'),
-                      TextFormField(
-                        controller: specializationController,
-                        decoration: _buildInputDecoration(
-                          'VD: Chẩn đoán hình ảnh',
-                          Icons.medical_information_outlined,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Vui lòng nhập chuyên khoa'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Bệnh viện *'),
-                      TextFormField(
-                        controller: hospitalNameController,
-                        decoration: _buildInputDecoration(
-                          'Tên bệnh viện',
-                          Icons.local_hospital_outlined,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Vui lòng nhập bệnh viện'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Số giấy phép hành nghề *'),
-                      TextFormField(
-                        controller: licenseNumberController,
-                        decoration: _buildInputDecoration(
-                          'Số giấy phép',
-                          Icons.verified_user_outlined,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Vui lòng nhập số giấy phép'
-                            : null,
                       ),
                       if (submitError != null)
                         Padding(
@@ -1739,29 +1688,19 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           });
                           final success = await viewModel.createDoctor(
                             doctorData: {
-                              'doctorCode': doctorCodeController.text.trim(),
                               'fullName': nameController.text.trim(),
                               'email': emailController.text.trim(),
                               'phone': phoneController.text.trim(),
-                              'specialization': specializationController.text
-                                  .trim(),
-                              'hospitalName': hospitalNameController.text
-                                  .trim(),
-                              'licenseNumber': licenseNumberController.text
-                                  .trim(),
                             },
                             token: token,
                           );
-                          if (success && pageContext.mounted) {
+                          if (!mounted || !dialogContext.mounted) return;
+                          if (success) {
                             Navigator.pop(dialogContext);
-                            ScaffoldMessenger.of(pageContext).showSnackBar(
-                              const SnackBar(
-                                content: Text('Tạo bác sĩ thành công'),
-                                backgroundColor: Color(0xFF2D7E6E),
-                              ),
-                            );
+                            await viewModel.fetchFirstPage(token);
+                            AppToast.showSuccess('Tạo bác sĩ thành công');
                           }
-                          if (!success && pageContext.mounted) {
+                          if (!success) {
                             setDialogState(() {
                               isSubmitting = false;
                               submitError =
@@ -1799,13 +1738,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
         },
       ),
     ).whenComplete(() {
-      doctorCodeController.dispose();
       nameController.dispose();
       emailController.dispose();
       phoneController.dispose();
-      specializationController.dispose();
-      hospitalNameController.dispose();
-      licenseNumberController.dispose();
     });
   }
 
@@ -2047,12 +1982,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             );
                             if (success && context.mounted) {
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Tạo tài khoản thành công'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
+                              AppToast.showSuccess('Tạo tài khoản thành công');
                             }
                           }
                         },
@@ -2162,19 +2092,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
               if (context.mounted) {
                 Navigator.pop(context);
                 if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${actionText} tài khoản thành công!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                  AppToast.showSuccess('${actionText} tài khoản thành công!');
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Có lỗi xảy ra, vui lòng thử lại.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  AppToast.showError('Có lỗi xảy ra, vui lòng thử lại.');
                 }
               }
             },

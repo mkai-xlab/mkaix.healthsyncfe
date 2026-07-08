@@ -6,8 +6,11 @@ class GetPatientExaminationsUseCase {
 
   GetPatientExaminationsUseCase(this.repository);
 
-  Future<List<ExaminationEntity>> executeAll({required String token}) {
-    return repository.getAllExaminations(token: token);
+  Future<List<ExaminationEntity>> executeDoctor({
+    required int doctorId,
+    required String token,
+  }) {
+    return repository.getDoctorExaminations(doctorId: doctorId, token: token);
   }
 
   Future<List<ExaminationEntity>> execute({

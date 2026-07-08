@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fe/core/services/toast_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
 import '../../../domain/entities/examination_entity.dart';
@@ -1699,12 +1700,7 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
     if (mounted) {
       setState(() => _isLoading = false);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Chức năng tạo bệnh nhân đang hoàn thiện'),
-          backgroundColor: Color(0xFF2D7E6E),
-        ),
-      );
+      AppToast.showWarning('Chức năng tạo bệnh nhân đang hoàn thiện');
     }
   }
 }

@@ -39,6 +39,13 @@ class ExaminationModel extends ExaminationEntity {
     required super.thumbnailUrl,
     required super.bodyPart,
     required super.referringPhysician,
+    super.studyTime,
+    super.chiefComplaint,
+    super.clinicalNotes,
+    super.priority,
+    super.finalDiagnosis,
+    super.description,
+    super.doctorName,
     required super.images,
   });
 
@@ -46,18 +53,24 @@ class ExaminationModel extends ExaminationEntity {
     Map<String, dynamic> json, {
     Map<String, dynamic>? patientJson,
   }) {
+    final resolvedPatientJson = json['patient'] is Map
+        ? Map<String, dynamic>.from(json['patient'] as Map)
+        : patientJson;
+    final doctorJson = json['doctor'] is Map
+        ? Map<String, dynamic>.from(json['doctor'] as Map)
+        : null;
     return ExaminationModel(
-      patientDbId: patientJson?['id'] is int
-          ? patientJson!['id'] as int
-          : int.tryParse(patientJson?['id']?.toString() ?? '') ?? 0,
+      patientDbId: resolvedPatientJson?['id'] is int
+          ? resolvedPatientJson!['id'] as int
+          : int.tryParse(resolvedPatientJson?['id']?.toString() ?? '') ?? 0,
       patientCode:
-          patientJson?['patientCode']?.toString() ??
-          patientJson?['patient_id']?.toString() ??
+          resolvedPatientJson?['patientCode']?.toString() ??
+          resolvedPatientJson?['patient_id']?.toString() ??
           '',
-      patientName: patientJson?['fullName']?.toString() ?? '',
-      patientGender: patientJson?['gender']?.toString() ?? '',
-      patientDateOfBirth: patientJson?['dateOfBirth'] != null
-          ? DateTime.tryParse(patientJson!['dateOfBirth'].toString())
+      patientName: resolvedPatientJson?['fullName']?.toString() ?? '',
+      patientGender: resolvedPatientJson?['gender']?.toString() ?? '',
+      patientDateOfBirth: resolvedPatientJson?['dateOfBirth'] != null
+          ? DateTime.tryParse(resolvedPatientJson!['dateOfBirth'].toString())
           : null,
       examinationId: json['examinationId'] is int
           ? json['examinationId'] as int
@@ -73,6 +86,16 @@ class ExaminationModel extends ExaminationEntity {
       thumbnailUrl: json['thumbnailUrl']?.toString() ?? '',
       bodyPart: json['bodyPart']?.toString() ?? '',
       referringPhysician: json['referringPhysician']?.toString() ?? '',
+      studyTime: json['studyTime']?.toString() ?? '',
+      chiefComplaint: json['chiefComplaint']?.toString() ?? '',
+      clinicalNotes: json['clinicalNotes']?.toString() ?? '',
+      priority: json['priority']?.toString() ?? '',
+      finalDiagnosis: json['finalDiagnosis']?.toString() ?? '',
+      description: json['description']?.toString() ?? '',
+      doctorName:
+          doctorJson?['fullName']?.toString() ??
+          doctorJson?['username']?.toString() ??
+          '',
       images: (json['images'] as List? ?? const [])
           .whereType<Map>()
           .map(

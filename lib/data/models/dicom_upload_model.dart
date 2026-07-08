@@ -198,9 +198,15 @@ class DicomExaminationSummaryModel {
   final String status;
   final DateTime? studyDate;
   final DateTime? visitTime;
+  final String studyTime;
   final String bodyPart;
   final String thumbnailUrl;
   final String referringPhysician;
+  final String chiefComplaint;
+  final String clinicalNotes;
+  final String priority;
+  final String finalDiagnosis;
+  final String description;
   final List<DicomExaminationImageSummaryModel> images;
   final int imageCount;
 
@@ -210,9 +216,15 @@ class DicomExaminationSummaryModel {
     this.status = '',
     this.studyDate,
     this.visitTime,
+    this.studyTime = '',
     this.bodyPart = '',
     this.thumbnailUrl = '',
     this.referringPhysician = '',
+    this.chiefComplaint = '',
+    this.clinicalNotes = '',
+    this.priority = '',
+    this.finalDiagnosis = '',
+    this.description = '',
     this.images = const [],
     this.imageCount = 0,
   });
@@ -253,6 +265,7 @@ class DicomExaminationSummaryModel {
               _valueAt(json, ['visitTime', 'visit_time']).toString(),
             )
           : null,
+      studyTime: _valueAt(json, ['studyTime', 'study_time'])?.toString() ?? '',
       bodyPart: _valueAt(json, ['bodyPart', 'body_part'])?.toString() ?? '',
       thumbnailUrl:
           _valueAt(json, ['thumbnailUrl', 'thumbnail_url'])?.toString() ?? '',
@@ -262,6 +275,16 @@ class DicomExaminationSummaryModel {
             'referring_physician',
           ])?.toString() ??
           '',
+      chiefComplaint:
+          _valueAt(json, ['chiefComplaint', 'chief_complaint'])?.toString() ??
+          '',
+      clinicalNotes:
+          _valueAt(json, ['clinicalNotes', 'clinical_notes'])?.toString() ?? '',
+      priority: json['priority']?.toString() ?? '',
+      finalDiagnosis:
+          _valueAt(json, ['finalDiagnosis', 'final_diagnosis'])?.toString() ??
+          '',
+      description: json['description']?.toString() ?? '',
       images: parsedImages,
       imageCount: parsedImages.isNotEmpty
           ? parsedImages.length

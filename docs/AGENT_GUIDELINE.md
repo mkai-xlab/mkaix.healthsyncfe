@@ -168,7 +168,7 @@ void initState() {
 - Password mới trong login/reset/change-password: `minLength: 8`, `maxLength: 32`.
 - `ResetPasswordRequest` bắt buộc đủ `email`, `token`, `newPassword`; `token` đúng 6 ký tự.
 - `CreateUserRequest` bắt buộc `fullName`, `email`, `roleId`; `phone` chỉ gồm chữ số nếu có.
-- `CreateDoctorRequest` bắt buộc `doctorCode`, `email`, `fullName`, `hospitalName`, `licenseNumber`, `phone`, `specialization`.
+- `CreateDoctorRequest` theo OpenAPI 24/06 từng bắt buộc `doctorCode`, `email`, `fullName`, `hospitalName`, `licenseNumber`, `phone`, `specialization`; nhưng OpenAPI 08/07 đã thay schema mới, xem mục 4.1.2 trước khi sửa form tạo bác sĩ.
 - Gender dùng enum `MALE`, `FEMALE`, `OTHER`.
 - Doctor status dùng enum `ACTIVE`, `INACTIVE`.
 - Doctor position dùng enum `DEPARTMENT_HEAD`, `NORMAL`.
@@ -177,6 +177,18 @@ void initState() {
 **MockAPI:** `https://6a21b474b1d0aaf32b4fe12a.mockapi.io`
 - `/permission` — danh sách quyền
 - `/role` — danh sách vai trò, PUT `{permissions: [...]}` để cập nhật
+
+### 4.1.2 OpenAPI doc 08/07/2026 (base mới: `http://54.254.113.71:8000/api/v1`)
+
+> Nguồn: file OpenAPI user gửi ngày 08/07/2026 và Swagger UI `http://54.254.113.71:8000/api/v1/swagger-ui/index.html#/`. Link Swagger UI chỉ dùng để xem docs; app gọi API bằng base `http://54.254.113.71:8000/api/v1`. Nếu mâu thuẫn với ghi chú cũ, giữ cả hai nguồn và ưu tiên kiểm chứng backend trước khi sửa luồng đang chạy.
+
+- Base URL đổi từ `http://171.244.143.241:8000/api/v1` sang `http://54.254.113.71:8000/api/v1`.
+- Có nhóm endpoint ca khám chính thức: `GET /examinations`, `GET /examinations/{id}`, `GET /examinations/patient/{patientId}`, `GET /examinations/doctor/{doctorId}`. Các endpoint list trả `PageResponseExaminationDto`, dùng `pageable`; `patientId`/`doctorId` trong path là `int64`. Với Doctor role, danh sách ca khám tổng hợp chỉ được hiển thị ca khám của bác sĩ hiện tại nên dùng `GET /examinations/doctor/{doctorId}`, không tự gom toàn bộ bệnh nhân nữa.
+- `GET /patients/{patientId}/details` vẫn còn và `patientId` là string, trả `PatientDetailsResponse {patient, recentExaminations[]}`; có thể tiếp tục dùng cho màn chi tiết bệnh nhân khi cần gom patient + exam + images.
+- `ExaminationDto` mở rộng nhiều field: `studyTime`, `chiefComplaint`, `clinicalNotes`, `priority`, `finalDiagnosis`, `description`, `patient`, `doctor`, `images[]`.
+- DICOM có thêm `POST /dicom/upload/zip-batch` để upload một file zip batch và `GET /dicom/instances/{id}/image` trả binary image.
+- `CreateDoctorRequest` mới đơn giản hơn: required `fullName`, `email`, `phone`. Không còn các field cũ như `doctorCode`, `hospitalName`, `licenseNumber`, `specialization` trong schema mới.
+- Permission schema đổi trọng tâm sang `code`, `priority`, `presentation`; `CreatePermissionRequest` required `code`, `featureId`, không required `name`.
 
 ### 4.2 Patient list không dùng mock fallback
 Danh sách bệnh nhân trong Doctor role phải lấy dữ liệu thật từ backend `/patients`. Không fallback sang `MockPatients.samples`; nếu API trả rỗng thì hiển thị rỗng, nếu API lỗi thì báo lỗi để tránh nhầm dữ liệu tạm là dữ liệu thật.
@@ -247,14 +259,14 @@ Tất cả trang của Doctor role dùng cùng một style top bar:
 - Avatar (radius 15) + tên bác sĩ + chức danh "Chẩn đoán hình ảnh"
 - Icon notification size 20
 - Permission doctor `READ_PATIENT_LIST` là màn xem danh sách bệnh nhân.
-- Khi bấm một bệnh nhân trong danh sách, mở `PatientDetailPage(embedded: true)` ngay trong doctor shell để giữ sidebar/topbar. Màn chi tiết bệnh nhân không dùng mock: phần trên hiển thị thông tin bệnh nhân, phần dưới là các thẻ lần khám thật lấy từ `/patients/{patientId}/details`, sắp xếp giảm dần theo thời gian khám. Bấm thẻ lần khám mở popup chi tiết có ảnh X-quang, thông tin ca khám, và panel cuộn bên phải để đổi sang các ca khám khác.
+- Khi bấm một bệnh nhân trong danh sách, mở `PatientDetailPage(embedded: true)` ngay trong doctor shell để giữ sidebar/topbar. Màn chi tiết bệnh nhân không dùng mock: phần trên hiển thị thông tin bệnh nhân, phần dưới là các thẻ lần khám thật lấy từ `/patients/{patientId}/details`, sắp xếp giảm dần theo thời gian khám. Thẻ lần khám dùng ngày giờ khám làm tiêu đề chính, không lặp thêm mục meta "Thời gian khám". Bấm thẻ lần khám mở popup chi tiết có ảnh X-quang, thông tin ca khám, và panel cuộn bên phải chỉ hiển thị các ca khám khác. Khi chọn một ca khác làm ca khám phụ, popup chuyển sang so sánh hai ca song song: ca chính bên trái, ca phụ bên phải; nút X ở ca phụ tắt chế độ so sánh và quay lại panel chọn ca phụ. Popup so sánh không hiển thị chữ "ca khám chính/phụ", không hiển thị ID ca khám hoặc encounter code; tiêu đề ca khám trong danh sách dùng ngày giờ khám làm thông tin chính. Khi so sánh hai ca, hai cột chi tiết phải nằm trong cùng vùng cuộn để bác sĩ kéo scroll song song cả hai bên. Ca đang xem bên trái được nhấn bằng badge "Đang xem" và nền mint nhạt, không dùng viền nổi bật quanh nội dung.
 - Permission doctor `CREATE_PATIENT_EXAM` là entry "Danh sách ca khám": mở trực tiếp `ExaminationListPage` tổng hợp tất cả ca khám, không qua bước chọn bệnh nhân. Nguồn dữ liệu tạm thời vẫn phải gom từ `/patients/{patientId}/details`.
 - `ExaminationListPage` hiện chỉ hiển thị các trường tối thiểu: ID ca khám, tên bệnh nhân, ngày tháng năm sinh, giới tính, ngày chụp; chưa hiển thị ảnh/thumbnail trong list.
 - Bấm một ca khám trong `ExaminationListPage` mở `ExaminationDetailPage` ngay trong content doctor shell để giữ nguyên sidebar/topbar. Detail gồm thanh thông tin bệnh nhân/ca khám phía trên, vùng ảnh lớn ở giữa/trái, và panel thông tin ca khám bên phải.
 - Một examination có thể có nhiều ảnh; `ExaminationDetailPage` hiển thị ảnh đang chọn ở viewer lớn, có thanh thumbnail nhỏ để đổi ảnh, và nút toàn màn hình mở ảnh hiện tại trong viewer có thể zoom/pan.
 - Permission doctor `UPLOAD_DICOM_IMAGE` là màn upload DICOM. Màn này cho chọn/kéo-thả nhiều file `.DCM/.dcm`, nút xanh ở cuối card upload batch lên `/dicom/upload/batch`.
 - Màn upload DICOM ưu tiên layout gọn trong một viewport desktop: bên trái là danh sách file chờ gửi, có nút xóa từng file; sau khi upload batch thành công tự clear file chờ. Bên phải hiển thị danh sách bệnh nhân trong `successfulPatients[]` của response, không hiển thị lịch sử file đã upload.
-- Thông báo kết quả upload DICOM dùng toast/SnackBar nổi; không render khối notification thành công/lỗi chen trong card upload. Chi tiết sau upload ưu tiên hiển thị bệnh nhân và ca khám từ response batch.
+- Thông báo trong app dùng toast overlay chung (`AppToast`), tự ẩn sau 5 giây và có nút `X` để đóng sớm. Không dùng `SnackBar` riêng cho từng màn nữa.
 - Sau upload batch, panel response có nút "Đi tới ca khám" để mở `ExaminationListPage` trong doctor shell và truyền các `recentExaminations[]` vừa trả về. `ExaminationListPage` luôn có chip đầu tiên và mặc định là "Ca khám mới"; chip đó hiển thị dữ liệu từ response upload, còn các chip trạng thái còn lại vẫn đọc dữ liệu ca khám theo luồng patient detail/tổng hợp hiện có.
 
 ---
@@ -302,7 +314,7 @@ Tra cứu bằng `MockExams.forPatient(patientCode)`.
 | Quyết định | Lý do |
 |---|---|
 | Danh sách user dùng `GET /users` thay `GET /doctors` | API doc mới trả về `UserResponse` chung, không phải `DoctorResponse` riêng |
-| Tạo tài khoản bác sĩ trong admin dùng `POST /doctors` với `CreateDoctorRequest` | User xác nhận 26/06/2026 backend đang xử lý tạo bác sĩ qua endpoint này; không dùng `POST /users` cho luồng tạo bác sĩ |
+| Tạo tài khoản bác sĩ trong admin dùng `POST /doctors` với `CreateDoctorRequest` | Theo OpenAPI 08/07/2026, payload chỉ gửi `fullName`, `email`, `phone`; không gửi các field cũ `doctorCode`, `hospitalName`, `licenseNumber`, `specialization`. |
 | `DoctorAccountModel` parse được cả `DoctorResponse` lẫn `UserResponse` | Field `role` có thể là String hoặc Object `{id, name, permissions[]}` |
 | `PatientDetailPage` dùng `Navigator.push` không phải GoRouter | Trang con trong cùng Doctor role, không cần URL-based routing |
 | Patient list page tự tải trang đầu khi màn danh sách bệnh nhân được render lần đầu | Tránh trạng thái chip "Tất cả" hiển thị rỗng dù backend có bệnh nhân; chỉ gọi khi màn danh sách thật sự mở để không load sẵn không cần thiết |

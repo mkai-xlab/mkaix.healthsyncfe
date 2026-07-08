@@ -30,6 +30,13 @@ class ExaminationEntity {
   final String thumbnailUrl;
   final String bodyPart;
   final String referringPhysician;
+  final String studyTime;
+  final String chiefComplaint;
+  final String clinicalNotes;
+  final String priority;
+  final String finalDiagnosis;
+  final String description;
+  final String doctorName;
   final List<ExaminationImageEntity> images;
 
   const ExaminationEntity({
@@ -46,6 +53,13 @@ class ExaminationEntity {
     required this.thumbnailUrl,
     required this.bodyPart,
     required this.referringPhysician,
+    this.studyTime = '',
+    this.chiefComplaint = '',
+    this.clinicalNotes = '',
+    this.priority = '',
+    this.finalDiagnosis = '',
+    this.description = '',
+    this.doctorName = '',
     required this.images,
   });
 

@@ -440,12 +440,46 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               examination.bodyPart.isEmpty ? '---' : examination.bodyPart,
             ),
             _infoRow('Ngày chụp', examination.studyDateDisplay),
+            _infoRow(
+              'Giờ chụp',
+              examination.studyTime.isEmpty ? '---' : examination.studyTime,
+            ),
             _infoRow('Thời gian khám', examination.visitTimeDisplay),
             _infoRow(
               'Bác sĩ chỉ định',
               examination.referringPhysician.isEmpty
                   ? '---'
                   : examination.referringPhysician,
+            ),
+            _infoRow(
+              'Bác sĩ phụ trách',
+              examination.doctorName.isEmpty ? '---' : examination.doctorName,
+            ),
+            _infoRow(
+              'Mức ưu tiên',
+              examination.priority.isEmpty ? '---' : examination.priority,
+            ),
+            _infoRow(
+              'Lý do khám',
+              examination.chiefComplaint.isEmpty
+                  ? '---'
+                  : examination.chiefComplaint,
+            ),
+            _infoRow(
+              'Ghi chú lâm sàng',
+              examination.clinicalNotes.isEmpty
+                  ? '---'
+                  : examination.clinicalNotes,
+            ),
+            _infoRow(
+              'Chẩn đoán cuối',
+              examination.finalDiagnosis.isEmpty
+                  ? '---'
+                  : examination.finalDiagnosis,
+            ),
+            _infoRow(
+              'Mô tả',
+              examination.description.isEmpty ? '---' : examination.description,
             ),
             _infoRow('Số ảnh', examination.images.length.toString()),
             _infoRow(

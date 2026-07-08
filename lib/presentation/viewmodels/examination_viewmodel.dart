@@ -27,7 +27,10 @@ class ExaminationViewModel extends ChangeNotifier {
         .toList();
   }
 
-  Future<void> loadAllExaminations({required String token}) async {
+  Future<void> loadDoctorExaminations({
+    required String doctorId,
+    required String token,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
@@ -35,7 +38,12 @@ class ExaminationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _examinations = await getPatientExaminationsUseCase.executeAll(
+      final parsedDoctorId = int.tryParse(doctorId);
+      if (parsedDoctorId == null || parsedDoctorId <= 0) {
+        throw Exception('Không tìm thấy doctorId hợp lệ để tải ca khám');
+      }
+      _examinations = await getPatientExaminationsUseCase.executeDoctor(
+        doctorId: parsedDoctorId,
         token: token,
       );
     } catch (e) {

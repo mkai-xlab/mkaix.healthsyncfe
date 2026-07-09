@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -24,8 +25,8 @@ class ExaminationListPage extends StatefulWidget {
 }
 
 class _ExaminationListPageState extends State<ExaminationListPage> {
-  static const Color _primaryGreen = Color(0xFF2D7E6E);
-  static const Color _pageBg = Color(0xFFF0F4F3);
+  static const Color _primaryGreen = AppColors.primary;
+  static const Color _pageBg = AppColors.surface1;
   static const String _newExaminationFilter = '__NEW_EXAMINATIONS__';
 
   bool _didLoad = false;

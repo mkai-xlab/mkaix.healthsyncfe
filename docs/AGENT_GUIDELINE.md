@@ -146,13 +146,24 @@ void initState() {
 | Endpoint | Method | Ghi chú |
 |---|---|---|
 | `/permissions/tree` | GET | Trả `FeatureResponse[]`, mỗi feature có `permissions[]` |
-| `/permissions` | POST | Tạo permission `{name, description, featureId, requiresPermissionId}` |
-| `/permissions/{id}` | PUT | Cập nhật permission `{name, description, requiresPermissionId}` |
+| `/permissions` | POST | Tạo permission; schema mới ưu tiên `code`, `featureId`, `priority`, `presentation`, `requiresPermissionId` |
+| `/permissions/{id}` | PUT | Cập nhật permission với payload tương tự, dùng `id` trong path |
 | `/permissions/role/{roleName}` | GET | Trả danh sách permission id (`int64[]`) |
 | `/permissions/role/{roleName}` | PUT | Cập nhật quyền role bằng `{permissionIds: [...]}` |
 | `/features` | POST | Tạo feature `{name, description}` |
 | `/features/{id}` | PUT | Cập nhật feature `{name, description}` |
 | `/roles` | GET | Backend hiện chưa có/chưa ổn định endpoint này. Tạm thời popup tạo user dùng role cố định: `1 = Admin`, `2 = Doctor` theo yêu cầu 25/06/2026. |
+
+**Permission admin phase 1**
+- Màn admin quản lý permission/feature nên bám theo schema mới của backend: tab riêng cho `Features`, `Permissions`, `Roles`.
+- UI CRUD ưu tiên tạo/sửa trước; nếu docs chưa có DELETE thì không nên tự dựng nút xóa.
+- `FeatureResponse.permissions[]` là nguồn dữ liệu để hiển thị permission con theo feature; danh sách phẳng permission nên sort theo `priority` rồi theo tên/code để dễ đọc.
+- Khi render permission theo cây cha-con trong admin, luôn ưu tiên hiển thị permission cha trước, rồi đến các permission con ngay bên dưới cha trong cùng nhóm resource/feature để dễ đọc và dễ bật/tắt.
+- `presentation` là khóa liên kết sang màn frontend, còn `priority` là thứ tự hiển thị trên sidebar hoặc trong nhóm permission.
+- Doctor shell hiện đã tách `patient_list_page` thành page riêng: `PatientListPage` dùng trong shell, còn `PatientDetailPage` vẫn mở theo callback từ list để giữ sidebar/top bar.
+- Sidebar doctor chỉ hiển thị permission cha (`isParent == true`); không fallback sang permission con nếu backend chưa trả permission cha.
+- Khi login doctor chỉ trả permission dạng code thô như `READ_PATIENT_LIST`, shell phải tự map code sang route key và nhãn hiển thị thân thiện; không render trực tiếp code lên sidebar và không chỉ dựa vào `presentation` có thể bị thiếu trong response login.
+- Sau khi RBAC ổn định, bỏ hẳn fallback key cũ trong doctor shell và các điểm vào page; chỉ dùng `presentation` làm route key chính thức.
 
 **Notifications / Upload**
 | Endpoint | Method | Ghi chú |
@@ -202,6 +213,42 @@ Danh sách bệnh nhân trong Doctor role phải lấy dữ liệu thật từ b
 ---
 
 ## 5. UI Patterns
+
+### 5.0 Màu giao diện chuẩn
+Palette chuẩn của dự án:
+
+- Primary: `#0B4F43`
+- Primary Dark: `#00614F`
+- Primary Light: `#0E7C66`
+- Primary XLight: `#97F4D9`
+- Success: `#336E61`
+- Success Light: `#B1EFDE`
+- Warning: `#735C00`
+- Warning Light: `#CCA72F`
+- Error: `#BA1A1A`
+- Error Light: `#FFDAD6`
+- Info: `#6B7280`
+- Info Light: `#E3E2DF`
+- Text Primary: `#1B1C1A`
+- Text Secondary: `#6E7A75`
+- Text Disabled: `#BDC9C4`
+- Border: `#E9E8E4`
+- Border Strong: `#BDC9C4`
+- Surface 1: `#FAF9F5`
+- Surface 2: `#EFEEEA`
+- Surface 3: `#1B1C1A`
+- White: `#FFFFFF`
+
+Quy ước dùng:
+
+- `Primary` cho nút hành động chính, sidebar active, focus ring.
+- `Primary Dark` cho hover/emphasis.
+- `Primary Light` cho nút phụ, underline tab, progress fill.
+- `Primary XLight` cho highlight chọn, badge/tag fill, selected row.
+- `Surface 1` làm nền trang sáng; `Surface 2` cho card; `Surface 3` cho sidebar/top bar tối.
+- `Text Primary` và `Text Secondary` là màu chữ mặc định thay cho các xám cũ rải rác.
+- `Border` và `Border Strong` là màu viền chuẩn cho input/table/card.
+- Khi thêm màn mới hoặc sửa shell chung, ưu tiên lấy màu từ `lib/core/constants/app_colors.dart`; tránh hardcode mã màu lặp lại nếu cùng ý nghĩa thiết kế.
 
 ### 5.1 Layout Admin Homepage (SPA pattern)
 Admin homepage không chuyển trang — dùng `_selectedNavIndex` để switch nội dung:

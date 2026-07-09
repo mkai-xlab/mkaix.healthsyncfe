@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 
+import 'package:fe/core/constants/app_colors.dart';
 import 'package:fe/core/routes/app_router.dart';
 import 'package:fe/data/datasources/auth_remote_datasource.dart';
 import 'package:fe/data/repositories/auth_repository_impl.dart';
@@ -92,7 +93,22 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter.router,
-      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      theme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          secondary: AppColors.primaryLight,
+          surface: AppColors.surface1,
+          error: AppColors.error,
+        ),
+        scaffoldBackgroundColor: AppColors.surface1,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.surface3,
+          foregroundColor: AppColors.white,
+          elevation: 0,
+        ),
+      ),
     );
   }
 }

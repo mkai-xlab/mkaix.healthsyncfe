@@ -374,6 +374,9 @@ class DicomUploadPage extends StatelessWidget {
   Widget _patientResultPanel(BuildContext context, DicomUploadViewModel vm) {
     final patients = vm.successfulPatients;
     final newExaminations = _newExaminationsFromResponse(patients);
+    final canGoToExaminations = context
+        .read<AuthViewModel>()
+        .hasPermissionPresentation('examination_list_page');
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -435,7 +438,10 @@ class DicomUploadPage extends StatelessWidget {
             width: double.infinity,
             height: 44,
             child: ElevatedButton.icon(
-              onPressed: patients.isEmpty || onGoToExaminations == null
+              onPressed:
+                  patients.isEmpty ||
+                      onGoToExaminations == null ||
+                      !canGoToExaminations
                   ? null
                   : () => onGoToExaminations?.call(newExaminations),
               icon: const Icon(Icons.assignment_outlined, size: 18),

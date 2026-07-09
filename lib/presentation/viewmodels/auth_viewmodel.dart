@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/permission_utils.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/interface_repositories/auth_repository.dart';
 import '../../domain/usecases/login_usecase.dart';
@@ -52,6 +53,18 @@ class AuthViewModel extends ChangeNotifier {
   bool get isChangeLoading => _isChangeLoading;
   String? get changeError => _changeError;
   bool get changeSuccess => _changeSuccess;
+
+  bool hasPermissionKey(String key) {
+    final user = _currentUser;
+    if (user == null) return false;
+    return user.permissionItems.any((permission) {
+      return permissionMatchesKey(permission, key);
+    });
+  }
+
+  bool hasPermissionPresentation(String presentation) {
+    return hasPermissionKey(presentation);
+  }
 
   /// Đăng nhập — trả về true nếu thành công, false nếu lỗi thường,
   /// và set isFirstTimeLogin = true nếu cần đổi mật khẩu lần đầu

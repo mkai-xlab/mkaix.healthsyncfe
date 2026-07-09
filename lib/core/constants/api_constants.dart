@@ -26,6 +26,9 @@ class ApiConstants {
   static const String permissionsTreeEndpoint = '$baseUrl/permissions/tree';
   static const String rolePermissionsEndpoint = '$baseUrl/permissions/role';
   static const String rolesEndpoint = '$baseUrl/roles';
+  static const String featuresEndpoint = '$baseUrl/features';
+  static String featureByIdEndpoint(String id) => '$featuresEndpoint/$id';
+  static String permissionByIdEndpoint(String id) => '$permissionsEndpoint/$id';
 
   // DICOM endpoints
   static const String dicomUploadEndpoint = '$baseUrl/dicom/upload';

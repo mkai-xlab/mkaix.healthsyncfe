@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../viewmodels/permission_viewmodel.dart';
 import '../../../data/models/permission_model.dart';
 import '../../../data/models/role_model.dart';
@@ -19,8 +20,8 @@ class _PermissionPageState extends State<PermissionPage> {
   int _selectedRoleIndex = 0;
   bool _didApplyInitialRole = false;
 
-  static const Color _primaryGreen = Color(0xFF2D7E6E);
-  static const Color _darkGreen = Color(0xFF1B5A4E);
+  static const Color _primaryGreen = AppColors.primary;
+  static const Color _darkGreen = AppColors.surface3;
 
   @override
   void initState() {

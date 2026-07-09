@@ -57,10 +57,15 @@ class UserModel extends UserEntity {
                       permission['id'] ??
                       '')
                   .toString();
+          final code = (permission['code'] ?? '').toString();
+          final presentation = permission['presentation']?.toString();
           final parentId =
               permission['parent_id'] ??
               permission['parentId'] ??
               permission['requiresPermissionId'];
+          final priority = permission['priority'] is int
+              ? permission['priority'] as int
+              : int.tryParse(permission['priority']?.toString() ?? '') ?? 0;
 
           if (name.isNotEmpty) {
             parsedPermissions.add(name);
@@ -68,8 +73,11 @@ class UserModel extends UserEntity {
               UserPermissionEntity(
                 id: id.isNotEmpty ? id : name,
                 name: name,
+                code: code,
+                presentation: presentation,
                 description: permission['description']?.toString(),
                 parentId: parentId?.toString(),
+                priority: priority,
               ),
             );
           }

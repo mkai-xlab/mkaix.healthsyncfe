@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:fe/core/services/toast_service.dart';
+import '../../../core/constants/app_colors.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/domain/entities/doctor_account_entity.dart';
@@ -57,7 +58,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
   Widget _buildSidebar(BuildContext context) {
     return Container(
       width: 250,
-      color: const Color(0xFF1B5A4E),
+      color: AppColors.primary,
       child: Column(
         children: [
           // Header
@@ -81,7 +82,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => const Icon(
                           Icons.local_hospital,
-                          color: Color(0xFF2D7E6E),
+                          color: AppColors.primary,
                           size: 22,
                         ),
                       ),
@@ -100,7 +101,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => const Icon(
                           Icons.healing,
-                          color: Color(0xFF2D7E6E),
+                          color: AppColors.primary,
                           size: 22,
                         ),
                       ),
@@ -217,11 +218,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
       child: Container(
-        color: const Color(0xFF1B5A4E),
+        color: AppColors.primary,
         child: Column(
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF2D7E6E)),
+              decoration: const BoxDecoration(color: AppColors.primary),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -21,8 +22,8 @@ class PatientDetailPage extends StatefulWidget {
 }
 
 class _PatientDetailPageState extends State<PatientDetailPage> {
-  static const Color _primaryGreen = Color(0xFF2D7E6E);
-  static const Color _pageBg = Color(0xFFF0F4F3);
+  static const Color _primaryGreen = AppColors.primary;
+  static const Color _pageBg = AppColors.surface1;
 
   bool _didLoad = false;
 
@@ -523,7 +524,7 @@ class _ExaminationDialog extends StatefulWidget {
 }
 
 class _ExaminationDialogState extends State<_ExaminationDialog> {
-  static const Color _primaryGreen = Color(0xFF2D7E6E);
+  static const Color _primaryGreen = AppColors.primary;
   int _primaryIndex = 0;
   int? _secondaryIndex;
   int _primaryImageIndex = 0;

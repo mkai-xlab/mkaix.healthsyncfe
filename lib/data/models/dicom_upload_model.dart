@@ -296,6 +296,7 @@ class DicomExaminationSummaryModel {
 }
 
 class DicomExaminationImageSummaryModel {
+  final int dicomInstanceId;
   final int examinationId;
   final String encounterCode;
   final String status;
@@ -303,6 +304,7 @@ class DicomExaminationImageSummaryModel {
   final String imageUrl;
 
   const DicomExaminationImageSummaryModel({
+    this.dicomInstanceId = 0,
     this.examinationId = 0,
     this.encounterCode = '',
     this.status = '',
@@ -314,6 +316,16 @@ class DicomExaminationImageSummaryModel {
     Map<String, dynamic> json,
   ) {
     return DicomExaminationImageSummaryModel(
+      dicomInstanceId: json['dicomInstanceId'] is int
+          ? json['dicomInstanceId'] as int
+          : int.tryParse(
+                  _valueAt(json, [
+                        'dicomInstanceId',
+                        'dicom_instance_id',
+                      ])?.toString() ??
+                      '',
+                ) ??
+                0,
       examinationId: json['examinationId'] is int
           ? json['examinationId'] as int
           : int.tryParse(

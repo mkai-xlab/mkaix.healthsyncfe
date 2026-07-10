@@ -2,6 +2,7 @@ import '../../domain/entities/examination_entity.dart';
 
 class ExaminationImageModel extends ExaminationImageEntity {
   const ExaminationImageModel({
+    super.dicomInstanceId,
     required super.examinationId,
     required super.encounterCode,
     required super.status,
@@ -11,6 +12,9 @@ class ExaminationImageModel extends ExaminationImageEntity {
 
   factory ExaminationImageModel.fromJson(Map<String, dynamic> json) {
     return ExaminationImageModel(
+      dicomInstanceId: json['dicomInstanceId'] is int
+          ? json['dicomInstanceId'] as int
+          : int.tryParse(json['dicomInstanceId']?.toString() ?? '') ?? 0,
       examinationId: json['examinationId'] is int
           ? json['examinationId'] as int
           : int.tryParse(json['examinationId']?.toString() ?? '') ?? 0,

@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 
 class ExaminationImageEntity {
+  final int dicomInstanceId;
   final int examinationId;
   final String encounterCode;
   final String status;
@@ -8,6 +9,7 @@ class ExaminationImageEntity {
   final String imageUrl;
 
   const ExaminationImageEntity({
+    this.dicomInstanceId = 0,
     required this.examinationId,
     required this.encounterCode,
     required this.status,

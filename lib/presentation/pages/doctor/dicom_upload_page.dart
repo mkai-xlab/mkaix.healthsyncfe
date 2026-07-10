@@ -43,7 +43,7 @@ class DicomUploadPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Tải nhiều file DICOM từ thiết bị để bắt đầu quy trình chẩn đoán.',
+                    'Tải nhiều file DICOM hoặc một file ZIP để bắt đầu quy trình chẩn đoán.',
                     style: TextStyle(fontSize: 14, color: Color(0xFF4A4A4A)),
                   ),
                   const SizedBox(height: 18),
@@ -213,7 +213,7 @@ class DicomUploadPage extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         const Text(
-          'Tải lên các tệp DICOM',
+          'Tải lên DICOM hoặc ZIP',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -222,7 +222,7 @@ class DicomUploadPage extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Kéo thả nhiều file vào đây hoặc chọn từ máy tính. Chỉ hỗ trợ .DCM/.dcm.',
+          'Kéo thả nhiều file .dcm hoặc một file .zip. Không upload lẫn ZIP và DICOM trong cùng một lượt.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 13,
@@ -332,8 +332,10 @@ class DicomUploadPage extends StatelessWidget {
             color: const Color(0xFFEAE8E5),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: const Icon(
-            Icons.insert_drive_file_outlined,
+          child: Icon(
+            file.name.toLowerCase().endsWith('.zip')
+                ? Icons.folder_zip_outlined
+                : Icons.insert_drive_file_outlined,
             color: _primaryGreen,
             size: 20,
           ),
@@ -373,6 +375,7 @@ class DicomUploadPage extends StatelessWidget {
 
   Widget _patientResultPanel(BuildContext context, DicomUploadViewModel vm) {
     final patients = vm.successfulPatients;
+    final errors = vm.batchErrors;
     final newExaminations = _newExaminationsFromResponse(patients);
     final canGoToExaminations = context
         .read<AuthViewModel>()
@@ -410,7 +413,7 @@ class DicomUploadPage extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${patients.length} bệnh nhân • ${newExaminations.length} ca khám',
+            '${patients.length} bệnh nhân • ${newExaminations.length} ca khám • ${errors.length} file lỗi',
             style: const TextStyle(fontSize: 12, color: Color(0xFF66736F)),
           ),
           const SizedBox(height: 12),
@@ -433,6 +436,10 @@ class DicomUploadPage extends StatelessWidget {
                         _patientResultTile(patients[index]),
                   ),
           ),
+          if (errors.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _errorSummary(errors),
+          ],
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
@@ -557,6 +564,64 @@ class DicomUploadPage extends StatelessWidget {
               color: _primaryGreen,
             ),
           ),
+          if (vm.uploadStatusMessage != null) ...[
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                vm.uploadStatusMessage!,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF66736F)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _errorSummary(List<DicomBatchErrorModel> errors) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFF2C48C)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${errors.length} file cần kiểm tra',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF7A4A00),
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...errors
+              .take(3)
+              .map(
+                (error) => Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Text(
+                    '${error.filename}: ${error.errorReason}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7A4A00),
+                    ),
+                  ),
+                ),
+              ),
+          if (errors.length > 3)
+            Text(
+              'Còn ${errors.length - 3} file lỗi khác',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF7A4A00)),
+            ),
         ],
       ),
     );

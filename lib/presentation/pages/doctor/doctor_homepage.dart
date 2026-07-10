@@ -4,12 +4,13 @@ import 'package:fe/core/services/toast_service.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/dicom_upload_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
-import 'dicom_upload_page.dart';
 import 'examination_list_page.dart';
+import 'file_upload_page.dart';
 import 'patient_detail_page.dart';
 import 'patient_list_page.dart';
 
@@ -25,12 +26,14 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     'patient_list_page',
     'examination_list_page',
     'dicom_upload_page',
+    'file_upload_page',
   };
 
   int _selectedNavIndex = 0;
   final _searchController = TextEditingController();
   bool _showUploadExaminationList = false;
-  List<ExaminationEntity> _newUploadExaminations = const [];
+  bool _isUploadMiniProgressCollapsed = false;
+  final List<ExaminationEntity> _newUploadExaminations = const [];
   PatientEntity? _selectedPatientDetail;
 
   static const Color _primaryGreen = AppColors.primary;
@@ -57,7 +60,14 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                 Builder(
                   builder: (scaffoldContext) => _buildTopBar(scaffoldContext),
                 ),
-                Expanded(child: _buildMainContent(context)),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Positioned.fill(child: _buildMainContent(context)),
+                      _buildUploadMiniProgress(),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -110,6 +120,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       return Icons.people_outline;
     }
     if (normalized == 'dicom_upload_page' ||
+        normalized == 'file_upload_page' ||
         normalized.contains('xray') ||
         normalized.contains('x_quang') ||
         normalized.contains('diagnosis')) {
@@ -130,24 +141,26 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   // ─────────────────────────────────────────────
   Widget _buildSidebar(BuildContext context) {
     final navItems = _visibleNavItems(context);
-    return Container(
-      width: 250,
+    return Material(
       color: _darkGreen,
-      child: Column(
-        children: [
-          _buildSidebarHeader(),
-          const Divider(color: Colors.white24, height: 1),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              children: navItems.isEmpty
-                  ? [_buildEmptyPermissionNote()]
-                  : navItems.map((item) => _buildNavItem(item)).toList(),
+      child: SizedBox(
+        width: 250,
+        child: Column(
+          children: [
+            _buildSidebarHeader(),
+            const Divider(color: Colors.white24, height: 1),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                children: navItems.isEmpty
+                    ? [_buildEmptyPermissionNote()]
+                    : navItems.map((item) => _buildNavItem(item)).toList(),
+              ),
             ),
-          ),
-          const Divider(color: Colors.white24, height: 1),
-          _buildLogoutTile(context),
-        ],
+            const Divider(color: Colors.white24, height: 1),
+            _buildLogoutTile(context),
+          ],
+        ),
       ),
     );
   }
@@ -278,7 +291,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   Widget _buildDrawer(BuildContext context) {
     final navItems = _visibleNavItems(context);
     return Drawer(
-      child: Container(
+      child: Material(
         color: _darkGreen,
         child: Column(
           children: [
@@ -382,15 +395,16 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             setState(() => _selectedPatientDetail = patient),
       );
     }
-    if (selectedPermission == 'dicom_upload_page') {
-      if (!_hasPermission(context, 'dicom_upload_page')) {
+    if (selectedPermission == 'dicom_upload_page' ||
+        selectedPermission == 'file_upload_page') {
+      if (!_hasUploadPermission(context)) {
         return _forbiddenPage(
           title: 'Không có quyền upload DICOM',
           subtitle: 'Tài khoản này chưa được cấp quyền hỗ trợ chẩn đoán.',
           icon: Icons.lock_outline,
         );
       }
-      return DicomUploadPage(onGoToExaminations: _openNewUploadExaminations);
+      return const FileUploadPage();
     }
 
     return _buildFeaturePlaceholderPage(
@@ -400,17 +414,196 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     );
   }
 
-  void _openNewUploadExaminations(List<ExaminationEntity> examinations) {
+  Widget _buildUploadMiniProgress() {
+    return Positioned(
+      right: 18,
+      bottom: 18,
+      child: Consumer<DicomUploadViewModel>(
+        builder: (context, vm, _) {
+          if (!vm.isProcessActive || _isUploadPageSelected(context)) {
+            return const SizedBox.shrink();
+          }
+          if (_isUploadMiniProgressCollapsed) {
+            return _buildCollapsedUploadMiniProgress(vm);
+          }
+          return Material(
+            color: Colors.transparent,
+            child: Container(
+              width: 300,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: const Color(0xFFE2E8F0)),
+                boxShadow: const [
+                  BoxShadow(
+                    color: Color(0x22000000),
+                    blurRadius: 18,
+                    offset: Offset(0, 8),
+                  ),
+                ],
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: _openUploadTab,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.cloud_sync_outlined,
+                          color: _primaryGreen,
+                          size: 18,
+                        ),
+                        const SizedBox(width: 8),
+                        const Expanded(
+                          child: Text(
+                            'Xử lý DICOM',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF1A2B3C),
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          tooltip: 'Thu gọn',
+                          visualDensity: VisualDensity.compact,
+                          iconSize: 18,
+                          onPressed: () => setState(
+                            () => _isUploadMiniProgressCollapsed = true,
+                          ),
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: Color(0xFF718096),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${(vm.progress * 100).round()}% · ${_formatUploadDuration(vm.uploadElapsed)}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: _primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    LinearProgressIndicator(
+                      value: vm.progress.clamp(0, 1),
+                      minHeight: 6,
+                      borderRadius: BorderRadius.circular(99),
+                      backgroundColor: const Color(0xFFE2E8F0),
+                      color: _primaryGreen,
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      vm.uploadStatusMessage ?? 'Đang xử lý...',
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Color(0xFF718096),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCollapsedUploadMiniProgress(DicomUploadViewModel vm) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap: _openUploadTab,
+        child: Container(
+          width: 176,
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x22000000),
+                blurRadius: 18,
+                offset: Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              const Padding(
+                padding: EdgeInsets.all(4),
+                child: Icon(
+                  Icons.cloud_sync_outlined,
+                  color: _primaryGreen,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Text(
+                  '${(vm.progress * 100).round()}% · ${_formatUploadDuration(vm.uploadElapsed)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    color: _primaryGreen,
+                  ),
+                ),
+              ),
+              IconButton(
+                tooltip: 'Mở rộng',
+                visualDensity: VisualDensity.compact,
+                iconSize: 18,
+                onPressed: () =>
+                    setState(() => _isUploadMiniProgressCollapsed = false),
+                icon: const Icon(
+                  Icons.keyboard_arrow_up_rounded,
+                  color: Color(0xFF718096),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isUploadPageSelected(BuildContext context) {
+    if (_showUploadExaminationList || _selectedPatientDetail != null) {
+      return false;
+    }
     final navItems = _visibleNavItems(context);
-    final examIndex = navItems.indexWhere((item) {
-      return item.routeKey == 'examination_list_page';
+    if (_selectedNavIndex < 0 || _selectedNavIndex >= navItems.length) {
+      return false;
+    }
+    final routeKey = navItems[_selectedNavIndex].routeKey;
+    return routeKey == 'dicom_upload_page' || routeKey == 'file_upload_page';
+  }
+
+  void _openUploadTab() {
+    final navItems = _visibleNavItems(context);
+    final uploadIndex = navItems.indexWhere((item) {
+      return item.routeKey == 'dicom_upload_page' ||
+          item.routeKey == 'file_upload_page';
     });
+    if (uploadIndex < 0) return;
     setState(() {
-      _newUploadExaminations = List.unmodifiable(examinations);
-      _showUploadExaminationList = true;
-      if (examIndex >= 0) {
-        _selectedNavIndex = examIndex;
-      }
+      _selectedNavIndex = uploadIndex;
+      _showUploadExaminationList = false;
+      _selectedPatientDetail = null;
     });
   }
 
@@ -1298,8 +1491,25 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   }
 
   */
+  String _formatUploadDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    if (hours > 0) {
+      return '$hours:$minutes:$seconds';
+    }
+    return '$minutes:$seconds';
+  }
+
   bool _hasPermission(BuildContext context, String key) {
     return context.read<AuthViewModel>().hasPermissionPresentation(key);
+  }
+
+  bool _hasUploadPermission(BuildContext context) {
+    final auth = context.read<AuthViewModel>();
+    return auth.hasPermissionPresentation('dicom_upload_page') ||
+        auth.hasPermissionPresentation('file_upload_page') ||
+        auth.hasPermissionPresentation('upload_dicom_image');
   }
 
   /*

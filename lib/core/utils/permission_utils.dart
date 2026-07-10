@@ -16,6 +16,7 @@ const Map<String, String> _permissionRouteKeyFallbackByCode = {
   'view_patient_detail': 'patient_detail_page',
   'create_patient_exam': 'examination_list_page',
   'upload_dicom_image': 'dicom_upload_page',
+  'file_upload_page': 'file_upload_page',
 };
 
 const Map<String, String> _permissionLabelFallbackByCode = {
@@ -28,6 +29,7 @@ const Map<String, String> _permissionLabelFallbackByCode = {
   'patient_detail_page': 'Chi tiết bệnh nhân',
   'examination_list_page': 'Danh sách ca khám',
   'dicom_upload_page': 'Tải ảnh DICOM',
+  'file_upload_page': 'Tải ảnh DICOM',
 };
 
 bool _looksLikePermissionCode(String value) {
@@ -58,7 +60,11 @@ String permissionKeyFor(UserPermissionEntity permission) {
   final mappedNameKey = _permissionRouteKeyFallbackByCode[nameKey];
   if (mappedNameKey != null) return mappedNameKey;
 
-  return _firstNonEmptyNormalized([permission.name, permission.id, permission.code]);
+  return _firstNonEmptyNormalized([
+    permission.name,
+    permission.id,
+    permission.code,
+  ]);
 }
 
 String permissionLabelFor(UserPermissionEntity permission) {
@@ -96,13 +102,17 @@ bool permissionMatchesKey(UserPermissionEntity permission, String key) {
   };
 
   final mappedPresentation =
-      _permissionRouteKeyFallbackByCode[normalizePermissionKey(permission.code)];
+      _permissionRouteKeyFallbackByCode[normalizePermissionKey(
+        permission.code,
+      )];
   if (mappedPresentation != null) {
     candidates.add(mappedPresentation);
   }
 
   final mappedFromName =
-      _permissionRouteKeyFallbackByCode[normalizePermissionKey(permission.name)];
+      _permissionRouteKeyFallbackByCode[normalizePermissionKey(
+        permission.name,
+      )];
   if (mappedFromName != null) {
     candidates.add(mappedFromName);
   }

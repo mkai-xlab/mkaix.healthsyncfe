@@ -30,7 +30,22 @@ class ApiConstants {
   static String featureByIdEndpoint(String id) => '$featuresEndpoint/$id';
   static String permissionByIdEndpoint(String id) => '$permissionsEndpoint/$id';
 
+  // AI endpoints
+  static const String aiPredictBatchEndpoint = '$baseUrl/ai/predict-batch';
+
   // DICOM endpoints
   static const String dicomUploadEndpoint = '$baseUrl/dicom/upload';
   static const String dicomUploadBatchEndpoint = '$baseUrl/dicom/upload/batch';
+  static const String dicomUploadZipBatchEndpoint =
+      '$baseUrl/dicom/upload/zip-batch';
+
+  static String get webSocketUrl {
+    final uri = Uri.parse(baseUrl);
+    return uri
+        .replace(
+          scheme: uri.scheme == 'https' ? 'wss' : 'ws',
+          path: '${uri.path}/ws',
+        )
+        .toString();
+  }
 }

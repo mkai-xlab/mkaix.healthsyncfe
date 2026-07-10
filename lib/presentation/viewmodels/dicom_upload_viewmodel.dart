@@ -374,7 +374,7 @@ class DicomUploadViewModel extends ChangeNotifier {
             : 'Có ${_batchErrors.length} file lỗi, cần xác nhận ${_successfulPatients.length} bệnh nhân hợp lệ.';
       } else {
         _stage = DicomUploadStage.failed;
-        _progress = 1;
+        _progress = 0;
         _errorMessage = _batchErrors.isEmpty
             ? 'Backend đã xử lý xong nhưng không tìm thấy bệnh nhân hoặc ảnh DICOM hợp lệ.'
             : 'Phát hiện ${_batchErrors.length} file lỗi, không có bệnh nhân hợp lệ để xác nhận.';
@@ -383,6 +383,7 @@ class DicomUploadViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _stage = DicomUploadStage.failed;
+      _progress = 0;
     } finally {
       _stopUploadTimer();
       _isUploading = false;

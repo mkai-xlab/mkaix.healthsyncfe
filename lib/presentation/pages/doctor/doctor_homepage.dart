@@ -404,7 +404,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           icon: Icons.lock_outline,
         );
       }
-      return const FileUploadPage();
+      return FileUploadPage(onGoToExaminationList: _openExaminationListTab);
     }
 
     return _buildFeaturePlaceholderPage(
@@ -412,6 +412,19 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       subtitle: 'Tính năng này đang được cập nhật.',
       icon: selectedItem?.icon ?? Icons.construction_outlined,
     );
+  }
+
+  void _openExaminationListTab() {
+    final navItems = _visibleNavItems(context);
+    final examIndex = navItems.indexWhere((item) {
+      return item.routeKey == 'examination_list_page';
+    });
+    if (examIndex < 0) return;
+    setState(() {
+      _selectedNavIndex = examIndex;
+      _showUploadExaminationList = false;
+      _selectedPatientDetail = null;
+    });
   }
 
   Widget _buildUploadMiniProgress() {

@@ -9,7 +9,9 @@ import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/dicom_upload_viewmodel.dart';
 
 class FileUploadPage extends StatelessWidget {
-  const FileUploadPage({super.key});
+  final VoidCallback? onGoToExaminationList;
+
+  const FileUploadPage({super.key, this.onGoToExaminationList});
 
   static const _primary = AppColors.primary;
   static const _border = AppColors.border;
@@ -26,10 +28,6 @@ class FileUploadPage extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 18),
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final isNarrow = constraints.maxWidth < 1020;
-              final left = _uploadWorkflow(context, vm, token);
-              final right = _verificationPanel(vm);
-
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -37,24 +35,7 @@ class FileUploadPage extends StatelessWidget {
                   const SizedBox(height: 16),
                   _stageStrip(vm),
                   const SizedBox(height: 16),
-                  Expanded(
-                    child: isNarrow
-                        ? ListView(
-                            children: [
-                              SizedBox(height: 520, child: left),
-                              const SizedBox(height: 16),
-                              SizedBox(height: 520, child: right),
-                            ],
-                          )
-                        : Row(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Expanded(flex: 5, child: left),
-                              const SizedBox(width: 16),
-                              Expanded(flex: 6, child: right),
-                            ],
-                          ),
-                  ),
+                  Expanded(child: _currentStep(context, vm, token)),
                 ],
               );
             },
@@ -87,72 +68,317 @@ class FileUploadPage extends StatelessWidget {
 
   Widget _stageStrip(DicomUploadViewModel vm) {
     final stages = [
-      _StageView('Upload', Icons.cloud_upload_outlined, 0.10),
-      _StageView('Xử lý', Icons.sync_outlined, 0.45),
-      _StageView('Xác nhận', Icons.fact_check_outlined, 0.85),
-      _StageView('Xong', Icons.check_circle_outline, 1),
+      const _StageView('Upload'),
+      const _StageView('Xử lý'),
+      const _StageView('Xác nhận'),
     ];
+    final activeIndex = _activeStepIndex(vm);
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(18, 14, 18, 12),
       decoration: _panelDecoration(),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: List.generate(stages.length * 2 - 1, (visualIndex) {
+          if (visualIndex.isOdd) {
+            final connectorIndex = visualIndex ~/ 2;
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(top: 13),
+                child: _stepConnector(connectorIndex < activeIndex),
+              ),
+            );
+          }
+          final stepIndex = visualIndex ~/ 2;
+          return _stepItem(stages[stepIndex], stepIndex, activeIndex);
+        }),
+      ),
+    );
+  }
+
+  int _activeStepIndex(DicomUploadViewModel vm) {
+    switch (vm.stage) {
+      case DicomUploadStage.uploading:
+      case DicomUploadStage.processing:
+        return 1;
+      case DicomUploadStage.waitingVerification:
+        return 2;
+      case DicomUploadStage.completed:
+        return 3;
+      case DicomUploadStage.idle:
+      case DicomUploadStage.failed:
+        return 0;
+    }
+  }
+
+  Widget _currentStep(
+    BuildContext context,
+    DicomUploadViewModel vm,
+    String token,
+  ) {
+    switch (vm.stage) {
+      case DicomUploadStage.uploading:
+      case DicomUploadStage.processing:
+        return _processingStep(vm);
+      case DicomUploadStage.waitingVerification:
+        return _verificationPanel(vm);
+      case DicomUploadStage.idle:
+      case DicomUploadStage.failed:
+        return _uploadWorkflow(context, vm, token);
+      case DicomUploadStage.completed:
+        return _completedStep(vm);
+    }
+  }
+
+  Widget _stepItem(_StageView stage, int index, int activeIndex) {
+    return SizedBox(
+      width: 86,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: LinearProgressIndicator(
-              value: vm.progress.clamp(0, 1),
-              minHeight: 8,
-              borderRadius: BorderRadius.circular(99),
-              backgroundColor: AppColors.surface2,
-              color: _primary,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            '${(vm.progress * 100).round()}%',
-            style: const TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w800,
-              color: _primary,
-            ),
-          ),
-          const SizedBox(width: 18),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: stages
-                .map(
-                  (stage) =>
-                      _stagePill(stage, vm.progress + 0.001 >= stage.threshold),
-                )
-                .toList(),
-          ),
+          _stepNode(index, activeIndex),
+          const SizedBox(height: 8),
+          _stepLabel(stage, index, activeIndex),
         ],
       ),
     );
   }
 
-  Widget _stagePill(_StageView stage, bool active) {
+  Widget _stepNode(int index, int activeIndex) {
+    final isDone = index < activeIndex;
+    final isCurrent = index == activeIndex;
+    final isUpcoming = index > activeIndex;
+    final color = isDone
+        ? AppColors.success
+        : isCurrent
+        ? AppColors.info
+        : AppColors.borderStrong;
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      width: 26,
+      height: 26,
       decoration: BoxDecoration(
-        color: active ? AppColors.primaryXLight : AppColors.surface2,
-        borderRadius: BorderRadius.circular(8),
+        color: isDone ? color : Colors.white,
+        shape: BoxShape.circle,
+        border: Border.all(color: color, width: isCurrent ? 5 : 4),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(stage.icon, size: 14, color: active ? _primary : AppColors.info),
-          const SizedBox(width: 5),
-          Text(
-            stage.label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: active ? _primary : AppColors.info,
-            ),
+      child: Center(
+        child: isDone
+            ? const Icon(Icons.check, size: 15, color: Colors.white)
+            : isUpcoming
+            ? Container(
+                width: 8,
+                height: 8,
+                decoration: const BoxDecoration(
+                  color: AppColors.borderStrong,
+                  shape: BoxShape.circle,
+                ),
+              )
+            : const SizedBox.shrink(),
+      ),
+    );
+  }
+
+  Widget _stepConnector(bool active) {
+    return Container(
+      height: 2,
+      color: active ? AppColors.info : AppColors.border,
+    );
+  }
+
+  Widget _stepLabel(_StageView stage, int index, int activeIndex) {
+    final isDone = index < activeIndex;
+    final isCurrent = index == activeIndex;
+    final color = isDone
+        ? AppColors.success
+        : isCurrent
+        ? AppColors.info
+        : AppColors.textSecondary;
+    return Text(
+      stage.label,
+      textAlign: TextAlign.center,
+      style: TextStyle(
+        fontSize: 12,
+        fontWeight: isCurrent || isDone ? FontWeight.w800 : FontWeight.w500,
+        color: color,
+      ),
+    );
+  }
+
+  Widget _processingStep(DicomUploadViewModel vm) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: _panelDecoration(),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.primaryXLight,
+                ),
+                child: const Icon(
+                  Icons.cloud_sync_outlined,
+                  color: _primary,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                _stageLabel(vm.stage),
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                vm.uploadStatusMessage ?? 'Hệ thống đang xử lý file DICOM...',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 22),
+              LinearProgressIndicator(
+                value: vm.progress.clamp(0, 1),
+                minHeight: 9,
+                borderRadius: BorderRadius.circular(99),
+                backgroundColor: const Color(0xFFE2E8F0),
+                color: _primary,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    '${(vm.progress * 100).round()}%',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: _primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Thời gian: ${_formatDuration(vm.uploadElapsed)}',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _completedStep(DicomUploadViewModel vm) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: _panelDecoration(),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 64,
+                height: 64,
+                decoration: const BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.successLight,
+                ),
+                child: const Icon(
+                  Icons.check_circle_outline,
+                  color: AppColors.success,
+                  size: 34,
+                ),
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Đã xác nhận bệnh nhân',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Đã xác nhận ${vm.verifiedPatientCount} bệnh nhân. Bạn có thể xem danh sách ca khám hoặc tiếp tục upload lượt mới.',
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.45,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+              const SizedBox(height: 22),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 12,
+                runSpacing: 10,
+                children: [
+                  SizedBox(
+                    height: 44,
+                    child: OutlinedButton.icon(
+                      onPressed: vm.clear,
+                      icon: const Icon(Icons.upload_file_outlined, size: 18),
+                      label: const Text('Tiếp tục upload'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: _primary,
+                        side: const BorderSide(color: _primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 44,
+                    child: ElevatedButton.icon(
+                      onPressed: onGoToExaminationList == null
+                          ? null
+                          : () {
+                              vm.clear();
+                              onGoToExaminationList?.call();
+                            },
+                      icon: const Icon(Icons.assignment_outlined, size: 18),
+                      label: const Text('Đi tới danh sách ca khám'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primary,
+                        foregroundColor: Colors.white,
+                        disabledBackgroundColor: AppColors.borderStrong,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -661,6 +887,9 @@ class FileUploadPage extends StatelessWidget {
   }
 
   bool _shouldShowUploadAgain(DicomUploadViewModel vm) {
+    if (vm.stage == DicomUploadStage.waitingVerification) {
+      return vm.successfulPatients.isNotEmpty && vm.verifiedPatientCount == 0;
+    }
     return vm.successfulPatients.isEmpty &&
         !vm.isProcessActive &&
         vm.stage != DicomUploadStage.idle;
@@ -851,8 +1080,6 @@ class FileUploadPage extends StatelessWidget {
 
 class _StageView {
   final String label;
-  final IconData icon;
-  final double threshold;
 
-  const _StageView(this.label, this.icon, this.threshold);
+  const _StageView(this.label);
 }

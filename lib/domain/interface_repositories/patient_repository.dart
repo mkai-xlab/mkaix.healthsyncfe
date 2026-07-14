@@ -7,6 +7,6 @@ abstract class PatientRepository {
     String? patientCode,
     String? gender,
     int page = 0,
-    int size = 15,
+    int size = 10,
   });
 }

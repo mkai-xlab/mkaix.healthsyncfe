@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
+import '../../widgets/pagination_bar.dart';
 import 'patient_detail_page.dart';
 
 class PatientListPage extends StatefulWidget {
@@ -235,58 +236,28 @@ class _PatientListPageState extends State<PatientListPage> {
         ),
         const Divider(height: 1, color: Color(0xFFEDF2F7)),
         Expanded(
-          child: NotificationListener<ScrollNotification>(
-            onNotification: (scroll) {
-              if (scroll.metrics.pixels >=
-                  scroll.metrics.maxScrollExtent - 200) {
-                vm.fetchNextPage(_token);
-              }
-              return false;
-            },
-            child: RefreshIndicator(
-              color: _primaryGreen,
-              onRefresh: () => vm.fetchFirstPage(token: _token),
-              child: ListView.separated(
-                itemCount: vm.patients.length + (vm.isLastPage ? 0 : 1),
-                separatorBuilder: (context, index) =>
-                    const Divider(height: 1, color: Color(0xFFEDF2F7)),
-                itemBuilder: (context, i) {
-                  if (i >= vm.patients.length) {
-                    return const Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          color: _primaryGreen,
-                          strokeWidth: 2,
-                        ),
-                      ),
-                    );
-                  }
-                  return _buildPatientRow(context, vm.patients[i]);
-                },
-              ),
+          child: RefreshIndicator(
+            color: _primaryGreen,
+            onRefresh: () => vm.fetchFirstPage(token: _token),
+            child: ListView.separated(
+              itemCount: vm.patients.length,
+              separatorBuilder: (context, index) =>
+                  const Divider(height: 1, color: Color(0xFFEDF2F7)),
+              itemBuilder: (context, i) {
+                return _buildPatientRow(context, vm.patients[i]);
+              },
             ),
           ),
         ),
-        Container(
-          color: Colors.white,
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-          child: Row(
-            children: [
-              Text(
-                'Hiển thị ${vm.patients.length} / ${vm.totalElements} bệnh nhân',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
-              ),
-              const Spacer(),
-              if (!vm.isLastPage)
-                TextButton.icon(
-                  onPressed: () => vm.fetchNextPage(_token),
-                  icon: const Icon(Icons.expand_more, size: 16),
-                  label: const Text('Tải thêm'),
-                  style: TextButton.styleFrom(foregroundColor: _primaryGreen),
-                ),
-            ],
-          ),
+        PaginationBar(
+          currentPage: vm.currentPage,
+          totalPages: vm.totalPages,
+          totalElements: vm.totalElements,
+          pageSize: vm.pageSize,
+          isLoading: vm.isLoading,
+          itemLabel: 'bệnh nhân',
+          onPageChanged: (page) => vm.goToPage(_token, page),
+          onPageSizeChanged: (size) => vm.changePageSize(_token, size),
         ),
       ],
     );

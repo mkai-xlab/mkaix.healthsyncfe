@@ -10,6 +10,7 @@ import 'package:fe/data/datasources/permission_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 import 'package:fe/presentation/pages/admin/permission_page.dart';
 import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart';
+import 'package:fe/presentation/widgets/pagination_bar.dart';
 import 'package:http/http.dart' as http;
 
 class AdminHomepage extends StatefulWidget {
@@ -558,7 +559,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildUserStatCards(AdminAccountViewModel viewModel) {
-    final total = viewModel.accounts.length;
+    final total = viewModel.totalElements;
     final doctors = viewModel.accounts.where((a) => a.role == 'DOCTOR').length;
     final ktv = viewModel.accounts.where((a) => a.role == 'KTV').length;
     final locked = viewModel.accounts
@@ -1017,70 +1018,16 @@ class _AdminHomepageState extends State<AdminHomepage> {
     BuildContext context,
     AdminAccountViewModel viewModel,
   ) {
-    return Row(
-      children: [
-        Text(
-          'Hiển thị ${viewModel.accounts.length} người dùng',
-          style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
-        ),
-        const Spacer(),
-        if (!viewModel.isLastPage)
-          Row(
-            children: [
-              _buildPageBtn(Icons.chevron_left, null),
-              const SizedBox(width: 4),
-              _buildPageNumBtn('1', isActive: true),
-              const SizedBox(width: 4),
-              _buildPageNumBtn('2'),
-              const SizedBox(width: 4),
-              _buildPageBtn(Icons.chevron_right, () {
-                final token =
-                    context.read<AuthViewModel>().currentUser?.token ?? '';
-                viewModel.fetchNextPage(token);
-              }),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _buildPageBtn(IconData icon, VoidCallback? onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Icon(icon, size: 18, color: const Color(0xFF4A5568)),
-      ),
-    );
-  }
-
-  Widget _buildPageNumBtn(String num, {bool isActive = false}) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF2D7E6E) : Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: isActive ? const Color(0xFF2D7E6E) : const Color(0xFFE2E8F0),
-        ),
-      ),
-      child: Center(
-        child: Text(
-          num,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: isActive ? Colors.white : const Color(0xFF4A5568),
-          ),
-        ),
-      ),
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    return PaginationBar(
+      currentPage: viewModel.currentPage,
+      totalPages: viewModel.totalPages,
+      totalElements: viewModel.totalElements,
+      pageSize: viewModel.pageSize,
+      isLoading: viewModel.isLoading,
+      itemLabel: 'người dùng',
+      onPageChanged: (page) => viewModel.goToPage(token, page),
+      onPageSizeChanged: (size) => viewModel.changePageSize(token, size),
     );
   }
 

@@ -18,6 +18,17 @@ class AdminAccountViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
 
   int _currentPage = 0;
+  int get currentPage => _currentPage;
+
+  int _pageSize = 10;
+  int get pageSize => _pageSize;
+
+  int _totalElements = 0;
+  int get totalElements => _totalElements;
+
+  int _totalPages = 1;
+  int get totalPages => _totalPages;
+
   bool _isLastPage = false;
   bool get isLastPage => _isLastPage;
 
@@ -42,6 +53,26 @@ class AdminAccountViewModel extends ChangeNotifier {
 
     _currentPage++;
     await _loadMoreData(token);
+  }
+
+  Future<void> goToPage(String token, int page) async {
+    if (_isLoading) return;
+    final safePage = page
+        .clamp(0, (_totalPages <= 0 ? 1 : _totalPages) - 1)
+        .toInt();
+    if (safePage == _currentPage && _accounts.isNotEmpty) return;
+    _currentPage = safePage;
+    _accounts.clear();
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    await _loadMoreData(token);
+  }
+
+  Future<void> changePageSize(String token, int size) async {
+    if (_pageSize == size) return;
+    _pageSize = size;
+    await fetchFirstPage(token);
   }
 
   void searchByNameDebounced(String name, String token) {
@@ -139,12 +170,16 @@ class AdminAccountViewModel extends ChangeNotifier {
     try {
       final result = await dataSource.getDoctorAccounts(
         page: _currentPage,
-        size: 15,
+        size: _pageSize,
         token: token,
         name: _currentSearchName.isEmpty ? null : _currentSearchName,
       );
 
-      _accounts.addAll(result.content);
+      _accounts
+        ..clear()
+        ..addAll(result.content);
+      _totalElements = result.totalElements;
+      _totalPages = result.totalPages;
       _isLastPage = result.isLast;
       _errorMessage = null;
     } catch (e) {

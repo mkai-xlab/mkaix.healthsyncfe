@@ -68,6 +68,9 @@ class ExaminationEntity {
   String get statusGroup {
     final normalized = status.toUpperCase();
     if (normalized == 'PENDING_REVIEW') return 'PENDING';
+    if (normalized == 'NEED_VERIFY') return 'NEED_VERIFY';
+    if (normalized == 'NEED_REVERIFY') return 'NEED_REVERIFY';
+    if (normalized == 'AI_COMPLETED') return 'AI_COMPLETED';
     if (normalized == 'AWAITING_REVIEW') return 'AWAITING_REVIEW';
     if (normalized == 'ANALYZING') return 'ANALYZING';
     if (normalized == 'COMPLETED') return 'COMPLETED';
@@ -114,6 +117,12 @@ class ExaminationEntity {
         return 'Đang phân tích';
       case 'AWAITING_REVIEW':
         return 'Chờ nhận xét';
+      case 'NEED_VERIFY':
+        return 'Cần xác nhận';
+      case 'NEED_REVERIFY':
+        return 'Cần xác nhận lại';
+      case 'AI_COMPLETED':
+        return 'AI hoàn tất';
       case 'COMPLETED':
         return 'Hoàn thành';
       default:

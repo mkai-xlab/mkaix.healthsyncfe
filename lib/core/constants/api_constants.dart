@@ -38,6 +38,8 @@ class ApiConstants {
   static const String dicomUploadBatchEndpoint = '$baseUrl/dicom/upload/batch';
   static const String dicomUploadZipBatchEndpoint =
       '$baseUrl/dicom/upload/zip-batch';
+  static String dicomInstanceImageEndpoint(int id) =>
+      '$baseUrl/dicom/instances/$id/image';
 
   static String get webSocketUrl {
     final uri = Uri.parse(baseUrl);

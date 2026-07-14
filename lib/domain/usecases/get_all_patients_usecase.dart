@@ -11,7 +11,7 @@ class GetAllPatientsUseCase {
     String? patientCode,
     String? gender,
     int page = 0,
-    int size = 15,
+    int size = 10,
   }) {
     return repository.getAllPatients(
       token: token,

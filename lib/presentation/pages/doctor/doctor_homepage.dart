@@ -77,8 +77,14 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     );
   }
 
-  List<_DoctorNavItemData> _visibleNavItems(BuildContext context) {
-    final user = context.watch<AuthViewModel>().currentUser;
+  List<_DoctorNavItemData> _visibleNavItems(
+    BuildContext context, {
+    bool listen = true,
+  }) {
+    final auth = listen
+        ? context.watch<AuthViewModel>()
+        : context.read<AuthViewModel>();
+    final user = auth.currentUser;
     final permissionItems =
         List<UserPermissionEntity>.from(user?.permissionItems ?? const [])
           ..sort((a, b) {
@@ -415,7 +421,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   }
 
   void _openExaminationListTab() {
-    final navItems = _visibleNavItems(context);
+    final navItems = _visibleNavItems(context, listen: false);
     final examIndex = navItems.indexWhere((item) {
       return item.routeKey == 'examination_list_page';
     });
@@ -441,88 +447,92 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           }
           return Material(
             color: Colors.transparent,
-            child: Container(
-              width: 300,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x22000000),
-                    blurRadius: 18,
-                    offset: Offset(0, 8),
-                  ),
-                ],
-              ),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _openUploadTabFromMiniProgress,
               child: InkWell(
                 borderRadius: BorderRadius.circular(8),
-                onTap: _openUploadTab,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.cloud_sync_outlined,
-                          color: _primaryGreen,
-                          size: 18,
-                        ),
-                        const SizedBox(width: 8),
-                        const Expanded(
-                          child: Text(
-                            'Xử lý DICOM',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: Color(0xFF1A2B3C),
+                onTap: _openUploadTabFromMiniProgress,
+                child: Container(
+                  width: 300,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x22000000),
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.cloud_sync_outlined,
+                            color: _primaryGreen,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Xử lý DICOM',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1A2B3C),
+                              ),
                             ),
                           ),
-                        ),
-                        IconButton(
-                          tooltip: 'Thu gọn',
-                          visualDensity: VisualDensity.compact,
-                          iconSize: 18,
-                          onPressed: () => setState(
-                            () => _isUploadMiniProgressCollapsed = true,
+                          IconButton(
+                            tooltip: 'Thu gọn',
+                            visualDensity: VisualDensity.compact,
+                            iconSize: 18,
+                            onPressed: () => setState(
+                              () => _isUploadMiniProgressCollapsed = true,
+                            ),
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: Color(0xFF718096),
+                            ),
                           ),
-                          icon: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: Color(0xFF718096),
-                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${(vm.progress * 100).round()}% · ${_formatUploadDuration(vm.uploadElapsed)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: _primaryGreen,
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${(vm.progress * 100).round()}% · ${_formatUploadDuration(vm.uploadElapsed)}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: vm.progress.clamp(0, 1),
+                        minHeight: 6,
+                        borderRadius: BorderRadius.circular(99),
+                        backgroundColor: const Color(0xFFE2E8F0),
                         color: _primaryGreen,
                       ),
-                    ),
-                    const SizedBox(height: 8),
-                    LinearProgressIndicator(
-                      value: vm.progress.clamp(0, 1),
-                      minHeight: 6,
-                      borderRadius: BorderRadius.circular(99),
-                      backgroundColor: const Color(0xFFE2E8F0),
-                      color: _primaryGreen,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      vm.uploadStatusMessage ?? 'Đang xử lý...',
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF718096),
+                      const SizedBox(height: 8),
+                      Text(
+                        vm.uploadStatusMessage ?? 'Đang xử lý...',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF718096),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -535,59 +545,62 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   Widget _buildCollapsedUploadMiniProgress(DicomUploadViewModel vm) {
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: _openUploadTab,
-        child: Container(
-          width: 176,
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x22000000),
-                blurRadius: 18,
-                offset: Offset(0, 8),
-              ),
-            ],
-          ),
-          child: Row(
-            children: [
-              const Padding(
-                padding: EdgeInsets.all(4),
-                child: Icon(
-                  Icons.cloud_sync_outlined,
-                  color: _primaryGreen,
-                  size: 18,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _openUploadTabFromMiniProgress,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: _openUploadTabFromMiniProgress,
+          child: Container(
+            width: 176,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x22000000),
+                  blurRadius: 18,
+                  offset: Offset(0, 8),
                 ),
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  '${(vm.progress * 100).round()}% · ${_formatUploadDuration(vm.uploadElapsed)}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w800,
+              ],
+            ),
+            child: Row(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.cloud_sync_outlined,
                     color: _primaryGreen,
+                    size: 18,
                   ),
                 ),
-              ),
-              IconButton(
-                tooltip: 'Mở rộng',
-                visualDensity: VisualDensity.compact,
-                iconSize: 18,
-                onPressed: () =>
-                    setState(() => _isUploadMiniProgressCollapsed = false),
-                icon: const Icon(
-                  Icons.keyboard_arrow_up_rounded,
-                  color: Color(0xFF718096),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${(vm.progress * 100).round()}% · ${_formatUploadDuration(vm.uploadElapsed)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: _primaryGreen,
+                    ),
+                  ),
                 ),
-              ),
-            ],
+                IconButton(
+                  tooltip: 'Mở trang upload',
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 18,
+                  onPressed: _openUploadTabFromMiniProgress,
+                  icon: const Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    color: Color(0xFF718096),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -606,8 +619,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     return routeKey == 'dicom_upload_page' || routeKey == 'file_upload_page';
   }
 
-  void _openUploadTab() {
-    final navItems = _visibleNavItems(context);
+  void _openUploadTabFromMiniProgress() {
+    final navItems = _visibleNavItems(context, listen: false);
     final uploadIndex = navItems.indexWhere((item) {
       return item.routeKey == 'dicom_upload_page' ||
           item.routeKey == 'file_upload_page';
@@ -617,6 +630,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _selectedNavIndex = uploadIndex;
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
+      _isUploadMiniProgressCollapsed = false;
     });
   }
 

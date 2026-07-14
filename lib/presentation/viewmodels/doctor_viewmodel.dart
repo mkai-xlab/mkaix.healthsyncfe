@@ -28,6 +28,9 @@ class DoctorViewModel extends ChangeNotifier {
   int _currentPage = 0;
   int get currentPage => _currentPage;
 
+  int _pageSize = 10;
+  int get pageSize => _pageSize;
+
   // Filter state
   String _filterFullName = '';
   String _filterPatientCode = '';
@@ -66,6 +69,26 @@ class DoctorViewModel extends ChangeNotifier {
     await _load(token);
   }
 
+  Future<void> goToPage(String token, int page) async {
+    if (_isLoading) return;
+    final safePage = page
+        .clamp(0, (_totalPages <= 0 ? 1 : _totalPages) - 1)
+        .toInt();
+    if (safePage == _currentPage && _patients.isNotEmpty) return;
+    _currentPage = safePage;
+    _patients.clear();
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    await _load(token);
+  }
+
+  Future<void> changePageSize(String token, int size) async {
+    if (_pageSize == size) return;
+    _pageSize = size;
+    await fetchFirstPage(token: token);
+  }
+
   /// Tìm kiếm debounce 500ms theo tên
   void searchByNameDebounced(String name, String token) {
     _debounce?.cancel();
@@ -82,16 +105,17 @@ class DoctorViewModel extends ChangeNotifier {
         patientCode: _filterPatientCode.isEmpty ? null : _filterPatientCode,
         gender: _filterGender.isEmpty ? null : _filterGender,
         page: _currentPage,
-        size: 15,
+        size: _pageSize,
       );
       if (_currentPage == 0) {
         _patients = result.content;
       } else {
-        _patients.addAll(result.content);
+        _patients = result.content;
       }
       _totalElements = result.totalElements;
       _totalPages = result.totalPages;
       _isLastPage = result.isLast;
+      _currentPage = result.pageNumber;
       _errorMessage = null;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');

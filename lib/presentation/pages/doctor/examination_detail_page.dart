@@ -434,7 +434,12 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               ),
             ),
             const SizedBox(height: 16),
-            _infoRow('ID ca khám', examination.examinationId.toString()),
+            _infoRow(
+              'ID ca khám',
+              examination.examinationId > 0
+                  ? examination.examinationId.toString()
+                  : '---',
+            ),
             _infoRow('Trạng thái', examination.statusDisplay),
             _infoRow(
               'Vùng chụp',
@@ -546,6 +551,11 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
         return const Color(0xFF3182CE);
       case 'AWAITING_REVIEW':
         return const Color(0xFF805AD5);
+      case 'NEED_VERIFY':
+      case 'NEED_REVERIFY':
+        return const Color(0xFFD97706);
+      case 'AI_COMPLETED':
+        return const Color(0xFF2563EB);
       case 'COMPLETED':
         return _primaryGreen;
       default:

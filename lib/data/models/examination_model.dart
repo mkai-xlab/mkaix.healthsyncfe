@@ -1,3 +1,4 @@
+import '../../core/constants/api_constants.dart';
 import '../../domain/entities/examination_entity.dart';
 
 class ExaminationImageModel extends ExaminationImageEntity {
@@ -11,19 +12,31 @@ class ExaminationImageModel extends ExaminationImageEntity {
   });
 
   factory ExaminationImageModel.fromJson(Map<String, dynamic> json) {
+    final dicomInstanceId = json['dicomInstanceId'] is int
+        ? json['dicomInstanceId'] as int
+        : int.tryParse(json['dicomInstanceId']?.toString() ?? '') ?? 0;
+    final imageUrl = json['imageUrl']?.toString() ?? '';
+
     return ExaminationImageModel(
-      dicomInstanceId: json['dicomInstanceId'] is int
-          ? json['dicomInstanceId'] as int
-          : int.tryParse(json['dicomInstanceId']?.toString() ?? '') ?? 0,
+      dicomInstanceId: dicomInstanceId,
       examinationId: json['examinationId'] is int
           ? json['examinationId'] as int
-          : int.tryParse(json['examinationId']?.toString() ?? '') ?? 0,
+          : json['id'] is int
+          ? json['id'] as int
+          : int.tryParse(
+                  (json['examinationId'] ?? json['id'])?.toString() ?? '',
+                ) ??
+                0,
       encounterCode: json['encounterCode']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
       visitTime: json['visitTime'] != null
           ? DateTime.tryParse(json['visitTime'].toString())
           : null,
-      imageUrl: json['imageUrl']?.toString() ?? '',
+      imageUrl: imageUrl.isNotEmpty
+          ? imageUrl
+          : dicomInstanceId > 0
+          ? ApiConstants.dicomInstanceImageEndpoint(dicomInstanceId)
+          : '',
     );
   }
 }
@@ -78,7 +91,12 @@ class ExaminationModel extends ExaminationEntity {
           : null,
       examinationId: json['examinationId'] is int
           ? json['examinationId'] as int
-          : int.tryParse(json['examinationId']?.toString() ?? '') ?? 0,
+          : json['id'] is int
+          ? json['id'] as int
+          : int.tryParse(
+                  (json['examinationId'] ?? json['id'])?.toString() ?? '',
+                ) ??
+                0,
       encounterCode: json['encounterCode']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
       studyDate: json['studyDate'] != null

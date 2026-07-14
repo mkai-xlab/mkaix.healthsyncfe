@@ -1,10 +1,23 @@
 import '../entities/examination_entity.dart';
+import '../entities/examination_page_entity.dart';
 import '../interface_repositories/examination_repository.dart';
 
 class GetPatientExaminationsUseCase {
   final ExaminationRepository repository;
 
   GetPatientExaminationsUseCase(this.repository);
+
+  Future<List<ExaminationEntity>> executeAll({required String token}) {
+    return repository.getExaminations(token: token);
+  }
+
+  Future<ExaminationPageEntity> executeAllPage({
+    required String token,
+    int page = 0,
+    int size = 10,
+  }) {
+    return repository.getExaminationsPage(token: token, page: page, size: size);
+  }
 
   Future<List<ExaminationEntity>> executeDoctor({
     required int doctorId,

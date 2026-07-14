@@ -11,7 +11,7 @@ abstract class PatientRemoteDataSource {
     String? patientCode,
     String? gender,
     int page = 0,
-    int size = 15,
+    int size = 10,
   });
 }
 
@@ -26,7 +26,7 @@ class PatientRemoteDataSourceImpl implements PatientRemoteDataSource {
     String? patientCode,
     String? gender,
     int page = 0,
-    int size = 15,
+    int size = 10,
   }) async {
     final Map<String, String> queryParams = {
       'page': page.toString(),
@@ -54,7 +54,7 @@ class PatientRemoteDataSourceImpl implements PatientRemoteDataSource {
     if (response.statusCode == 200) {
       final String decodedBody = utf8.decode(response.bodyBytes);
       final dynamic responseData = jsonDecode(decodedBody);
-      return _parsePage(responseData);
+      return _parsePage(responseData, fallbackPage: page, fallbackSize: size);
     }
 
     throw Exception(
@@ -62,7 +62,11 @@ class PatientRemoteDataSourceImpl implements PatientRemoteDataSource {
     );
   }
 
-  PatientPageEntity _parsePage(dynamic responseData) {
+  PatientPageEntity _parsePage(
+    dynamic responseData, {
+    required int fallbackPage,
+    required int fallbackSize,
+  }) {
     Map<String, dynamic> pageData;
     if (responseData is Map) {
       pageData = Map<String, dynamic>.from(responseData);
@@ -72,8 +76,8 @@ class PatientRemoteDataSourceImpl implements PatientRemoteDataSource {
         totalElements: 0,
         totalPages: 1,
         isLast: true,
-        pageNumber: 0,
-        pageSize: 15,
+        pageNumber: fallbackPage,
+        pageSize: fallbackSize,
       );
     } else if (responseData is List && responseData.isNotEmpty) {
       if (responseData[0] is Map &&
@@ -88,7 +92,7 @@ class PatientRemoteDataSourceImpl implements PatientRemoteDataSource {
           totalElements: patients.length,
           totalPages: 1,
           isLast: true,
-          pageNumber: 0,
+          pageNumber: fallbackPage,
           pageSize: patients.length,
         );
       }
@@ -105,8 +109,13 @@ class PatientRemoteDataSourceImpl implements PatientRemoteDataSource {
       totalPages: pageData['totalPages'] as int? ?? 1,
       isLast: pageData['isLast'] as bool? ?? pageData['last'] as bool? ?? true,
       pageNumber:
-          pageData['pageNumber'] as int? ?? pageData['number'] as int? ?? 0,
-      pageSize: pageData['pageSize'] as int? ?? pageData['size'] as int? ?? 15,
+          pageData['pageNumber'] as int? ??
+          pageData['number'] as int? ??
+          fallbackPage,
+      pageSize:
+          pageData['pageSize'] as int? ??
+          pageData['size'] as int? ??
+          fallbackSize,
     );
   }
 }

@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+
+enum _ImageMode { original, gradcam }
 
 class ExaminationDetailPage extends StatefulWidget {
   final ExaminationEntity examination;
@@ -24,25 +27,60 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   static const Color _pageBg = AppColors.surface1;
 
   int _selectedImageIndex = 0;
+  _ImageMode _imageMode = _ImageMode.original;
 
   ExaminationEntity get examination => widget.examination;
 
-  List<String> get _imageUrls {
-    final urls = examination.images
-        .map((image) => image.imageUrl)
-        .where((url) => url.isNotEmpty)
-        .toList();
-    if (urls.isNotEmpty) return urls;
-    if (examination.thumbnailUrl.isNotEmpty) return [examination.thumbnailUrl];
-    return const [];
+  ExaminationImageEntity? get _selectedImage {
+    if (examination.images.isEmpty) return null;
+    final safeIndex = _selectedImageIndex.clamp(
+      0,
+      examination.images.length - 1,
+    );
+    return examination.images[safeIndex.toInt()];
+  }
+
+  AiPredictionResultEntity? get _selectedAiResult {
+    final image = _selectedImage;
+    if (image == null || image.aiResults.isEmpty) return null;
+    return image.aiResults.first;
+  }
+
+  List<AiPredictionResultEntity> get _allAiResults {
+    return examination.images.expand((image) => image.aiResults).toList();
   }
 
   String get _selectedImageUrl {
-    final urls = _imageUrls;
-    if (urls.isEmpty) return '';
-    final safeIndex = _selectedImageIndex.clamp(0, urls.length - 1).toInt();
-    return urls[safeIndex];
+    final image = _selectedImage;
+    if (image != null && image.imageUrl.isNotEmpty) {
+      return _absoluteUrl(image.imageUrl);
+    }
+    if (examination.thumbnailUrl.isNotEmpty) {
+      return _absoluteUrl(examination.thumbnailUrl);
+    }
+    return '';
   }
+
+  String get _selectedGradcamUrl {
+    final result = _selectedAiResult;
+    if (result == null) return '';
+    if (result.gradcamImageUrl.isNotEmpty) {
+      return _absoluteUrl(result.gradcamImageUrl);
+    }
+    if (result.aiResultId > 0) {
+      return ApiConstants.aiHeatmapEndpoint(result.aiResultId);
+    }
+    return '';
+  }
+
+  String get _viewerUrl {
+    if (_imageMode == _ImageMode.gradcam && _selectedGradcamUrl.isNotEmpty) {
+      return _selectedGradcamUrl;
+    }
+    return _selectedImageUrl;
+  }
+
+  bool get _canShowGradcam => _selectedGradcamUrl.isNotEmpty;
 
   @override
   Widget build(BuildContext context) {
@@ -55,28 +93,30 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
           Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
-                final isNarrow = constraints.maxWidth < 980;
-                if (isNarrow) {
-                  return SingleChildScrollView(
-                    padding: const EdgeInsets.all(18),
-                    child: Column(
-                      children: [
-                        _imageViewer(token, height: 480),
-                        const SizedBox(height: 16),
-                        _examInfoPanel(),
-                      ],
-                    ),
-                  );
-                }
-
-                return Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                final isNarrow = constraints.maxWidth < 1040;
+                final horizontalPadding = isNarrow ? 16.0 : 24.0;
+                return SingleChildScrollView(
+                  padding: EdgeInsets.all(horizontalPadding),
+                  child: Column(
                     children: [
-                      Expanded(flex: 7, child: _imageViewer(token)),
-                      const SizedBox(width: 18),
-                      SizedBox(width: 320, child: _examInfoPanel()),
+                      if (isNarrow) ...[
+                        _imageViewer(token, height: 460),
+                        const SizedBox(height: 16),
+                        _aiPanel(),
+                      ] else
+                        SizedBox(
+                          height: 620,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(flex: 7, child: _imageViewer(token)),
+                              const SizedBox(width: 18),
+                              SizedBox(width: 360, child: _aiPanel()),
+                            ],
+                          ),
+                        ),
+                      const SizedBox(height: 18),
+                      _examInfoPanel(),
                     ],
                   ),
                 );
@@ -184,40 +224,27 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       child: Column(
         children: [
           Container(
-            height: 38,
+            height: 42,
             color: const Color(0xFF17211F),
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
               children: [
-                const Text(
-                  'Ảnh chụp',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                if (_imageUrls.isNotEmpty) ...[
-                  const SizedBox(width: 10),
+                _viewerModeButton('Ảnh gốc', _ImageMode.original),
+                const SizedBox(width: 8),
+                _viewerModeButton('Grad-CAM', _ImageMode.gradcam),
+                const Spacer(),
+                if (examination.images.isNotEmpty)
                   Text(
-                    '${_selectedImageIndex + 1}/${_imageUrls.length}',
+                    '${_selectedImageIndex + 1}/${examination.images.length}',
                     style: const TextStyle(
                       color: Colors.white70,
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
-                ],
-                const Spacer(),
+                const SizedBox(width: 10),
                 IconButton(
-                  onPressed: null,
-                  icon: const Icon(Icons.zoom_in, color: Colors.white70),
-                  tooltip: 'Phóng to',
-                  iconSize: 18,
-                  padding: EdgeInsets.zero,
-                ),
-                IconButton(
-                  onPressed: _selectedImageUrl.isEmpty
+                  onPressed: _viewerUrl.isEmpty
                       ? null
                       : () => _showFullscreenImage(context, token),
                   icon: const Icon(Icons.fullscreen, color: Colors.white70),
@@ -232,34 +259,63 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
             child: Container(
               color: Colors.black,
               width: double.infinity,
-              child: _selectedImageUrl.isEmpty
-                  ? const Center(
-                      child: Icon(
-                        Icons.image_not_supported_outlined,
-                        color: Colors.white54,
-                        size: 54,
-                      ),
-                    )
+              child: _viewerUrl.isEmpty
+                  ? _emptyImageState()
                   : Image.network(
-                      _selectedImageUrl,
+                      _viewerUrl,
                       headers: token.isEmpty
                           ? null
                           : {'Authorization': 'Bearer $token'},
                       fit: BoxFit.contain,
                       errorBuilder: (context, error, stackTrace) {
-                        return const Center(
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            color: Colors.white54,
-                            size: 54,
-                          ),
-                        );
+                        return _emptyImageState();
                       },
                     ),
             ),
           ),
-          if (_imageUrls.length > 1) _thumbnailStrip(token),
+          if (examination.images.length > 1) _thumbnailStrip(token),
         ],
+      ),
+    );
+  }
+
+  Widget _viewerModeButton(String label, _ImageMode mode) {
+    final isSelected = _imageMode == mode;
+    final isEnabled = mode == _ImageMode.original || _canShowGradcam;
+    return Tooltip(
+      message: isEnabled ? label : 'Chưa có Grad-CAM',
+      child: InkWell(
+        onTap: isEnabled ? () => setState(() => _imageMode = mode) : null,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          height: 26,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: isSelected ? _primaryGreen : Colors.transparent,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: isEnabled
+                  ? Colors.white
+                  : Colors.white.withValues(alpha: 0.38),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _emptyImageState() {
+    return const Center(
+      child: Icon(
+        Icons.image_not_supported_outlined,
+        color: Colors.white54,
+        size: 54,
       ),
     );
   }
@@ -271,13 +327,19 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
-        itemCount: _imageUrls.length,
+        itemCount: examination.images.length,
         separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
-          final imageUrl = _imageUrls[index];
+          final image = examination.images[index];
+          final imageUrl = _absoluteUrl(image.imageUrl);
           final isSelected = index == _selectedImageIndex;
           return InkWell(
-            onTap: () => setState(() => _selectedImageIndex = index),
+            onTap: () {
+              setState(() {
+                _selectedImageIndex = index;
+                if (!_canShowGradcam) _imageMode = _ImageMode.original;
+              });
+            },
             borderRadius: BorderRadius.circular(8),
             child: Container(
               width: 72,
@@ -355,7 +417,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                   maxScale: 5,
                   child: Center(
                     child: Image.network(
-                      _selectedImageUrl,
+                      _viewerUrl,
                       headers: token.isEmpty
                           ? null
                           : {'Authorization': 'Bearer $token'},
@@ -383,29 +445,30 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                   ),
                 ),
               ),
-              if (_imageUrls.length > 1)
-                Positioned(
-                  left: 24,
-                  bottom: 24,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 8,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      'Ảnh ${_selectedImageIndex + 1}/${_imageUrls.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w700,
-                      ),
+              Positioned(
+                left: 24,
+                bottom: 24,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 8,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Text(
+                    _imageMode == _ImageMode.gradcam
+                        ? 'Grad-CAM'
+                        : 'Ảnh ${_selectedImageIndex + 1}/${examination.images.length}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
+              ),
             ],
           ),
         );
@@ -413,7 +476,8 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     );
   }
 
-  Widget _examInfoPanel() {
+  Widget _aiPanel() {
+    final result = _selectedAiResult;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -421,101 +485,423 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Thông tin ca khám',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Color(0xFF1A2B3C),
+      child: result == null ? _aiProcessingState() : _aiResultState(result),
+    );
+  }
+
+  Widget _aiProcessingState() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _panelTitle(Icons.analytics_outlined, 'Kết quả phân tích'),
+        const SizedBox(height: 22),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: const Column(
+            children: [
+              SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                  strokeWidth: 3,
+                  color: _primaryGreen,
+                ),
+              ),
+              SizedBox(height: 14),
+              Text(
+                'Đang xử lý kết quả AI',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+              SizedBox(height: 6),
+              Text(
+                'Kết quả phân tích sẽ hiển thị khi backend trả aiResults.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1.4,
+                  color: AppColors.textSecondary,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _aiResultState(AiPredictionResultEntity result) {
+    final riskColor = _riskColor(result.predictedGrade);
+    return SingleChildScrollView(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _panelTitle(Icons.analytics_outlined, 'Kết quả phân tích'),
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: riskColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: riskColor.withValues(alpha: 0.18)),
+            ),
+            child: Column(
+              children: [
+                const Text(
+                  'KELLGREN-LAWRENCE',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0,
+                    color: AppColors.error,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  result.predictedGradeDisplay.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w900,
+                    color: riskColor,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  _gradeDescription(result.predictedGrade),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: riskColor,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          _metricBar(
+            label: 'Độ tin cậy',
+            value: result.confidence,
+            color: _primaryGreen,
+          ),
+          if (result.details.isNotEmpty) ...[
+            const SizedBox(height: 14),
+            ...result.details.entries.map(
+              (entry) => Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: _metricBar(
+                  label: _detailLabel(entry.key),
+                  value: entry.value,
+                  color: _detailColor(entry.value),
+                ),
               ),
             ),
+          ],
+          const SizedBox(height: 10),
+          _aiInfoBox(
+            icon: Icons.warning_amber_rounded,
+            title: 'Nhận định AI',
+            body: result.description.isEmpty
+                ? 'Chưa có mô tả chi tiết từ AI.'
+                : result.description,
+            color: riskColor,
+          ),
+          const SizedBox(height: 12),
+          _aiInfoBox(
+            icon: Icons.local_fire_department_outlined,
+            title: 'Grad-CAM',
+            body: _canShowGradcam
+                ? 'Có thể bật Grad-CAM trực tiếp trên vùng xem ảnh.'
+                : 'Chưa có ảnh Grad-CAM cho ảnh đang chọn.',
+            color: _primaryGreen,
+          ),
+          if (_allAiResults.length > 1) ...[
             const SizedBox(height: 16),
-            _infoRow(
-              'ID ca khám',
-              examination.examinationId > 0
-                  ? examination.examinationId.toString()
-                  : '---',
-            ),
-            _infoRow('Trạng thái', examination.statusDisplay),
-            _infoRow(
-              'Vùng chụp',
-              examination.bodyPart.isEmpty ? '---' : examination.bodyPart,
-            ),
-            _infoRow('Ngày chụp', examination.studyDateDisplay),
-            _infoRow(
-              'Giờ chụp',
-              examination.studyTime.isEmpty ? '---' : examination.studyTime,
-            ),
-            _infoRow('Thời gian khám', examination.visitTimeDisplay),
-            _infoRow(
-              'Bác sĩ chỉ định',
-              examination.referringPhysician.isEmpty
-                  ? '---'
-                  : examination.referringPhysician,
-            ),
-            _infoRow(
-              'Bác sĩ phụ trách',
-              examination.doctorName.isEmpty ? '---' : examination.doctorName,
-            ),
-            _infoRow(
-              'Mức ưu tiên',
-              examination.priority.isEmpty ? '---' : examination.priority,
-            ),
-            _infoRow(
-              'Lý do khám',
-              examination.chiefComplaint.isEmpty
-                  ? '---'
-                  : examination.chiefComplaint,
-            ),
-            _infoRow(
-              'Ghi chú lâm sàng',
-              examination.clinicalNotes.isEmpty
-                  ? '---'
-                  : examination.clinicalNotes,
-            ),
-            _infoRow(
-              'Chẩn đoán cuối',
-              examination.finalDiagnosis.isEmpty
-                  ? '---'
-                  : examination.finalDiagnosis,
-            ),
-            _infoRow(
-              'Mô tả',
-              examination.description.isEmpty ? '---' : examination.description,
-            ),
-            _infoRow('Số ảnh', examination.images.length.toString()),
-            _infoRow(
-              'Encounter code',
-              examination.encounterCode.isEmpty
-                  ? '---'
-                  : examination.encounterCode,
+            Text(
+              'Ảnh có kết quả AI: ${_allAiResults.length}',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.textSecondary,
+              ),
             ),
           ],
-        ),
+        ],
       ),
     );
   }
 
-  Widget _infoRow(String label, String value) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
+  Widget _panelTitle(IconData icon, String title) {
+    return Row(
+      children: [
+        Icon(icon, color: _primaryGreen, size: 19),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+              color: _primaryGreen,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _metricBar({
+    required String label,
+    required double value,
+    required Color color,
+  }) {
+    final normalized = value > 1 ? value / 100 : value;
+    final clamped = normalized.clamp(0.0, 1.0);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
+            ),
+            Text(
+              '${(clamped * 100).toStringAsFixed(1)}%',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: LinearProgressIndicator(
+            value: clamped,
+            minHeight: 6,
+            color: color,
+            backgroundColor: const Color(0xFFE5E7EB),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _aiInfoBox({
+    required IconData icon,
+    required String title,
+    required String body,
+    required Color color,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: color.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: color, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  body,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _examInfoPanel() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _panelTitle(Icons.assignment_outlined, 'Thông tin chi tiết ca khám'),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final columnWidth = constraints.maxWidth < 760
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 32) / 3;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 14,
+                children: [
+                  _infoTile(
+                    'ID ca khám',
+                    examination.examinationId > 0
+                        ? examination.examinationId.toString()
+                        : '---',
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Trạng thái',
+                    examination.statusDisplay,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Vùng chụp',
+                    examination.bodyPart.isEmpty ? '---' : examination.bodyPart,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Ngày chụp',
+                    examination.studyDateDisplay,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Giờ chụp',
+                    examination.studyTime.isEmpty
+                        ? '---'
+                        : examination.studyTime,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Thời gian khám',
+                    examination.visitTimeDisplay,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Bác sĩ chỉ định',
+                    examination.referringPhysician.isEmpty
+                        ? '---'
+                        : examination.referringPhysician,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Bác sĩ phụ trách',
+                    examination.doctorName.isEmpty
+                        ? '---'
+                        : examination.doctorName,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Mức ưu tiên',
+                    examination.priority.isEmpty ? '---' : examination.priority,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Lý do khám',
+                    examination.chiefComplaint.isEmpty
+                        ? '---'
+                        : examination.chiefComplaint,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Ghi chú lâm sàng',
+                    examination.clinicalNotes.isEmpty
+                        ? '---'
+                        : examination.clinicalNotes,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Chẩn đoán cuối',
+                    examination.finalDiagnosis.isEmpty
+                        ? '---'
+                        : examination.finalDiagnosis,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Mô tả',
+                    examination.description.isEmpty
+                        ? '---'
+                        : examination.description,
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Số ảnh',
+                    examination.images.length.toString(),
+                    width: columnWidth,
+                  ),
+                  _infoTile(
+                    'Encounter code',
+                    examination.encounterCode.isEmpty
+                        ? '---'
+                        : examination.encounterCode,
+                    width: columnWidth,
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _infoTile(String label, String value, {required double width}) {
+    return SizedBox(
+      width: width,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF8A9A96)),
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF8A9A96),
+            ),
           ),
           const SizedBox(height: 5),
           Text(
             value,
             style: const TextStyle(
               fontSize: 13,
-              fontWeight: FontWeight.w600,
+              height: 1.35,
+              fontWeight: FontWeight.w700,
               color: Color(0xFF1A2B3C),
             ),
           ),
@@ -561,5 +947,58 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       default:
         return const Color(0xFF718096);
     }
+  }
+
+  Color _riskColor(int grade) {
+    if (grade >= 4) return AppColors.error;
+    if (grade >= 2) return const Color(0xFFD97706);
+    return _primaryGreen;
+  }
+
+  Color _detailColor(double value) {
+    final normalized = value > 1 ? value / 100 : value;
+    if (normalized >= 0.75) return AppColors.error;
+    if (normalized >= 0.45) return const Color(0xFFD97706);
+    return _primaryGreen;
+  }
+
+  String _gradeDescription(int grade) {
+    switch (grade) {
+      case 1:
+        return 'Nghi ngờ thoái hóa nhẹ';
+      case 2:
+        return 'Thoái hóa nhẹ';
+      case 3:
+        return 'Thoái hóa trung bình';
+      case 4:
+        return 'Giai đoạn cuối (Nghiêm trọng)';
+      default:
+        return grade > 0 ? 'Grade $grade' : 'Chưa xác định';
+    }
+  }
+
+  String _detailLabel(String key) {
+    final spaced = key.replaceAll('_', ' ').replaceAllMapped(
+      RegExp(r'([a-z])([A-Z])'),
+      (match) {
+        return '${match.group(1)} ${match.group(2)}';
+      },
+    );
+    if (spaced.isEmpty) return 'Chỉ số AI';
+    return spaced[0].toUpperCase() + spaced.substring(1);
+  }
+
+  String _absoluteUrl(String url) {
+    if (url.isEmpty) return '';
+    final uri = Uri.tryParse(url);
+    if (uri != null && uri.hasScheme) return url;
+    final base = Uri.parse(ApiConstants.baseUrl);
+    if (url.startsWith('/api/v1/')) {
+      return base.replace(path: url).toString();
+    }
+    if (url.startsWith('/')) {
+      return base.replace(path: url).toString();
+    }
+    return base.replace(path: '${base.path}/$url').toString();
   }
 }

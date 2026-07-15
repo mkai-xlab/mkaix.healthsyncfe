@@ -1,12 +1,45 @@
 import 'package:intl/intl.dart';
 
+class AiPredictionResultEntity {
+  final int dicomInstanceId;
+  final int aiAnalysisId;
+  final int aiResultId;
+  final int predictedGrade;
+  final double confidence;
+  final String description;
+  final Map<String, double> details;
+  final String gradcamImageUrl;
+
+  const AiPredictionResultEntity({
+    this.dicomInstanceId = 0,
+    this.aiAnalysisId = 0,
+    this.aiResultId = 0,
+    this.predictedGrade = 0,
+    this.confidence = 0,
+    this.description = '',
+    this.details = const {},
+    this.gradcamImageUrl = '',
+  });
+
+  String get predictedGradeDisplay =>
+      predictedGrade > 0 ? 'Grade $predictedGrade' : '---';
+
+  String get confidenceDisplay {
+    if (confidence <= 0) return '---';
+    final normalized = confidence > 1 ? confidence : confidence * 100;
+    return '${normalized.toStringAsFixed(1)}%';
+  }
+}
+
 class ExaminationImageEntity {
   final int dicomInstanceId;
   final int examinationId;
   final String encounterCode;
   final String status;
   final DateTime? visitTime;
+  final String bodyPart;
   final String imageUrl;
+  final List<AiPredictionResultEntity> aiResults;
 
   const ExaminationImageEntity({
     this.dicomInstanceId = 0,
@@ -14,7 +47,9 @@ class ExaminationImageEntity {
     required this.encounterCode,
     required this.status,
     this.visitTime,
+    this.bodyPart = '',
     required this.imageUrl,
+    this.aiResults = const [],
   });
 }
 
@@ -39,6 +74,9 @@ class ExaminationEntity {
   final String finalDiagnosis;
   final String description;
   final String doctorName;
+  final int doctorId;
+  final bool isViewed;
+  final int maxPredictedGrade;
   final List<ExaminationImageEntity> images;
 
   const ExaminationEntity({
@@ -62,6 +100,9 @@ class ExaminationEntity {
     this.finalDiagnosis = '',
     this.description = '',
     this.doctorName = '',
+    this.doctorId = 0,
+    this.isViewed = false,
+    this.maxPredictedGrade = 0,
     required this.images,
   });
 

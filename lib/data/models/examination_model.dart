@@ -1,6 +1,46 @@
 import '../../core/constants/api_constants.dart';
 import '../../domain/entities/examination_entity.dart';
 
+class AiPredictionResultModel extends AiPredictionResultEntity {
+  const AiPredictionResultModel({
+    super.dicomInstanceId,
+    super.aiAnalysisId,
+    super.aiResultId,
+    super.predictedGrade,
+    super.confidence,
+    super.description,
+    super.details,
+    super.gradcamImageUrl,
+  });
+
+  factory AiPredictionResultModel.fromJson(Map<String, dynamic> json) {
+    final detailsJson = json['details'];
+    final details = <String, double>{};
+    if (detailsJson is Map) {
+      detailsJson.forEach((key, value) {
+        final parsed = value is num
+            ? value.toDouble()
+            : double.tryParse(value?.toString() ?? '');
+        if (parsed != null) details[key.toString()] = parsed;
+      });
+    }
+
+    return AiPredictionResultModel(
+      dicomInstanceId: _intAt(json, ['dicomInstanceId', 'dicom_instance_id']),
+      aiAnalysisId: _intAt(json, ['aiAnalysisId', 'ai_analysis_id']),
+      aiResultId: _intAt(json, ['aiResultId', 'ai_result_id', 'id']),
+      predictedGrade: _intAt(json, ['predictedGrade', 'predicted_grade']),
+      confidence: _doubleAt(json, ['confidence']),
+      description: json['description']?.toString() ?? '',
+      details: details,
+      gradcamImageUrl:
+          json['gradcamImageUrl']?.toString() ??
+          json['gradcam_image_url']?.toString() ??
+          '',
+    );
+  }
+}
+
 class ExaminationImageModel extends ExaminationImageEntity {
   const ExaminationImageModel({
     super.dicomInstanceId,
@@ -8,35 +48,43 @@ class ExaminationImageModel extends ExaminationImageEntity {
     required super.encounterCode,
     required super.status,
     super.visitTime,
+    super.bodyPart,
     required super.imageUrl,
+    super.aiResults,
   });
 
   factory ExaminationImageModel.fromJson(Map<String, dynamic> json) {
-    final dicomInstanceId = json['dicomInstanceId'] is int
-        ? json['dicomInstanceId'] as int
-        : int.tryParse(json['dicomInstanceId']?.toString() ?? '') ?? 0;
+    final dicomInstanceId = _intAt(json, [
+      'dicomInstanceId',
+      'dicom_instance_id',
+    ]);
     final imageUrl = json['imageUrl']?.toString() ?? '';
+    final aiResults = json['aiResults'] is List
+        ? (json['aiResults'] as List)
+              .whereType<Map>()
+              .map(
+                (item) => AiPredictionResultModel.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .toList()
+        : <AiPredictionResultEntity>[];
 
     return ExaminationImageModel(
       dicomInstanceId: dicomInstanceId,
-      examinationId: json['examinationId'] is int
-          ? json['examinationId'] as int
-          : json['id'] is int
-          ? json['id'] as int
-          : int.tryParse(
-                  (json['examinationId'] ?? json['id'])?.toString() ?? '',
-                ) ??
-                0,
+      examinationId: _intAt(json, ['examinationId', 'examination_id', 'id']),
       encounterCode: json['encounterCode']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
       visitTime: json['visitTime'] != null
           ? DateTime.tryParse(json['visitTime'].toString())
           : null,
+      bodyPart: json['bodyPart']?.toString() ?? '',
       imageUrl: imageUrl.isNotEmpty
           ? imageUrl
           : dicomInstanceId > 0
           ? ApiConstants.dicomInstanceImageEndpoint(dicomInstanceId)
           : '',
+      aiResults: aiResults,
     );
   }
 }
@@ -63,6 +111,9 @@ class ExaminationModel extends ExaminationEntity {
     super.finalDiagnosis,
     super.description,
     super.doctorName,
+    super.doctorId,
+    super.isViewed,
+    super.maxPredictedGrade,
     required super.images,
   });
 
@@ -89,14 +140,7 @@ class ExaminationModel extends ExaminationEntity {
       patientDateOfBirth: resolvedPatientJson?['dateOfBirth'] != null
           ? DateTime.tryParse(resolvedPatientJson!['dateOfBirth'].toString())
           : null,
-      examinationId: json['examinationId'] is int
-          ? json['examinationId'] as int
-          : json['id'] is int
-          ? json['id'] as int
-          : int.tryParse(
-                  (json['examinationId'] ?? json['id'])?.toString() ?? '',
-                ) ??
-                0,
+      examinationId: _intAt(json, ['examinationId', 'examination_id', 'id']),
       encounterCode: json['encounterCode']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
       studyDate: json['studyDate'] != null
@@ -118,6 +162,16 @@ class ExaminationModel extends ExaminationEntity {
           doctorJson?['fullName']?.toString() ??
           doctorJson?['username']?.toString() ??
           '',
+      doctorId: _intAt(json, ['doctorId', 'doctor_id']),
+      isViewed:
+          json['isViewed'] == true ||
+          json['isViewed'] == 1 ||
+          json['is_viewed'] == true ||
+          json['is_viewed'] == 1,
+      maxPredictedGrade: _intAt(json, [
+        'maxPredictedGrade',
+        'max_predicted_grade',
+      ]),
       images: (json['images'] as List? ?? const [])
           .whereType<Map>()
           .map(
@@ -127,4 +181,24 @@ class ExaminationModel extends ExaminationEntity {
           .toList(),
     );
   }
+}
+
+int _intAt(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is int) return value;
+    final parsed = int.tryParse(value?.toString() ?? '');
+    if (parsed != null) return parsed;
+  }
+  return 0;
+}
+
+double _doubleAt(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    final value = json[key];
+    if (value is num) return value.toDouble();
+    final parsed = double.tryParse(value?.toString() ?? '');
+    if (parsed != null) return parsed;
+  }
+  return 0;
 }

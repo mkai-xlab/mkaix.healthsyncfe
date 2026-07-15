@@ -205,6 +205,24 @@ void initState() {
 - `CreateDoctorRequest` mới đơn giản hơn: required `fullName`, `email`, `phone`. Không còn các field cũ như `doctorCode`, `hospitalName`, `licenseNumber`, `specialization` trong schema mới.
 - Permission schema đổi trọng tâm sang `code`, `priority`, `presentation`; `CreatePermissionRequest` required `code`, `featureId`, không required `name`.
 
+### 4.1.3 OpenAPI doc 15/07/2026 (base giữ nguyên: `http://54.254.113.71:8000/api/v1`)
+
+> Nguồn: file OpenAPI user gửi ngày 15/07/2026. Nếu mâu thuẫn với ghi chú 08/07 hoặc websocket guide, ưu tiên kiểm chứng backend/runtime trước khi sửa luồng đang chạy vì OpenAPI vẫn chưa mô tả đầy đủ WebSocket STOMP.
+
+**Điểm mới/khác đáng chú ý**
+- Thêm `POST /dicom/verify` với payload `DicomVerifyRequest {uploadSessionId, acceptedPatientCodes[]}` và response object. Đây là bước xác nhận upload/session riêng, tách khỏi AI prediction.
+- DICOM upload batch/zip trong OpenAPI 15/07 đang khai báo response là `object additionalProperties<string>` cho cả `POST /dicom/upload/batch` và `POST /dicom/upload/zip-batch`, không còn mô tả rõ `errors[]`/`successfulPatients[]` trong schema OpenAPI. Tuy nhiên luồng FE hiện vẫn phải hỗ trợ runtime cũ: HTTP trả kết quả trực tiếp hoặc ACK/pending rồi chờ WebSocket `DICOM_BATCH_RESULT`.
+- Thêm endpoint ảnh DICOM raw: `GET /dicom/instances/{id}/raw` trả binary, bên cạnh `GET /dicom/instances/{id}/image`.
+- Thêm `GET /ai/heatmap/{aiResultId}` trả binary heatmap; AI result trong `ExaminationImageDto` là `aiResults[]`, không phải field đơn `aiResult`.
+- Thêm `PUT /examinations/{id}/view` để mark ca khám đã xem.
+- `ExaminationDto` trong doc 15/07 có `doctorId` thay vì object `doctor`; có thêm `isViewed` và `maxPredictedGrade`. FE parse model nên chịu được thiếu object doctor và dùng `doctorId` khi có.
+- `ExaminationImageDto` có `dicomInstanceId`, `imageUrl`, `aiResults[]`, `status`, `visitTime`, `bodyPart`; khi gọi AI batch vẫn gửi list `dicomInstanceIds`.
+- Thêm nhóm hồ sơ bác sĩ: `GET /doctors/profile`, `PUT /doctors/profile`; thêm `PUT /doctors/{id}` để sửa bác sĩ.
+- `CreateDoctorRequest` vẫn required `fullName`, `email`, `phone`, nhưng schema có thêm optional `avatarUrl`, `yearsOfExperience`, `degree`, `biography`.
+- `EditDoctorRequest` gồm `fullName`, `email`, `phone`, `avatarUrl`, `yearsOfExperience`, `degree`, `biography`; không thấy lại các field cũ như `doctorCode`, `hospitalName`, `licenseNumber`, `specialization`.
+- `DoctorResponse.role` là string trong doc 15/07; `UserResponse.role` vẫn là object `Role`.
+- Vẫn không có `GET /users`; chỉ còn `POST /users`, nên danh sách tài khoản admin/doctor không nên phụ thuộc vào `GET /users` nếu chưa kiểm chứng backend live.
+
 ### 4.2 Patient list không dùng mock fallback
 Danh sách bệnh nhân trong Doctor role phải lấy dữ liệu thật từ backend `/patients`. Không fallback sang `MockPatients.samples`; nếu API trả rỗng thì hiển thị rỗng, nếu API lỗi thì báo lỗi để tránh nhầm dữ liệu tạm là dữ liệu thật.
 

@@ -32,6 +32,8 @@ class ApiConstants {
 
   // AI endpoints
   static const String aiPredictBatchEndpoint = '$baseUrl/ai/predict-batch';
+  static String aiHeatmapEndpoint(int aiResultId) =>
+      '$baseUrl/ai/heatmap/$aiResultId';
 
   // DICOM endpoints
   static const String dicomUploadEndpoint = '$baseUrl/dicom/upload';
@@ -40,6 +42,8 @@ class ApiConstants {
       '$baseUrl/dicom/upload/zip-batch';
   static String dicomInstanceImageEndpoint(int id) =>
       '$baseUrl/dicom/instances/$id/image';
+  static String dicomInstanceRawEndpoint(int id) =>
+      '$baseUrl/dicom/instances/$id/raw';
 
   static String get webSocketUrl {
     final uri = Uri.parse(baseUrl);

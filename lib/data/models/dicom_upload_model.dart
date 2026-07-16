@@ -36,12 +36,14 @@ class DicomTagModel {
 }
 
 class BatchDicomUploadModel {
+  final String uploadSessionId;
   final List<DicomTagModel> tags;
   final List<DicomBatchErrorModel> errors;
   final List<DicomSuccessfulPatientModel> successfulPatients;
   final Map<String, dynamic> raw;
 
   const BatchDicomUploadModel({
+    required this.uploadSessionId,
     required this.tags,
     required this.errors,
     required this.successfulPatients,
@@ -50,6 +52,9 @@ class BatchDicomUploadModel {
 
   factory BatchDicomUploadModel.fromJson(Map<String, dynamic> json) {
     final tags = <DicomTagModel>[];
+    final uploadSessionId =
+        _valueAt(json, ['uploadSessionId', 'upload_session_id'])?.toString() ??
+        '';
     final errors = (_listAt(json, ['errors']) ?? const [])
         .whereType<Map>()
         .map(
@@ -64,6 +69,7 @@ class BatchDicomUploadModel {
             .map(
               (item) => DicomSuccessfulPatientModel.fromJson(
                 Map<String, dynamic>.from(item),
+                uploadSessionId: uploadSessionId,
               ),
             )
             .toList();
@@ -89,6 +95,7 @@ class BatchDicomUploadModel {
 
     collectTags(json);
     return BatchDicomUploadModel(
+      uploadSessionId: uploadSessionId,
       tags: tags,
       errors: errors,
       successfulPatients: successfulPatients,
@@ -133,20 +140,31 @@ class DicomBatchErrorModel {
 }
 
 class DicomSuccessfulPatientModel {
+  final String uploadSessionId;
   final DicomPatientSummaryModel patient;
   final List<DicomExaminationSummaryModel> recentExaminations;
 
   const DicomSuccessfulPatientModel({
+    this.uploadSessionId = '',
     required this.patient,
     required this.recentExaminations,
   });
 
-  factory DicomSuccessfulPatientModel.fromJson(Map<String, dynamic> json) {
+  factory DicomSuccessfulPatientModel.fromJson(
+    Map<String, dynamic> json, {
+    String uploadSessionId = '',
+  }) {
     final patientJson = json['patient'];
     final examinations =
         _listAt(json, ['recentExaminations', 'recent_examinations']) ??
         const [];
     return DicomSuccessfulPatientModel(
+      uploadSessionId:
+          _valueAt(json, [
+            'uploadSessionId',
+            'upload_session_id',
+          ])?.toString() ??
+          uploadSessionId,
       patient: patientJson is Map
           ? DicomPatientSummaryModel.fromJson(
               Map<String, dynamic>.from(patientJson),

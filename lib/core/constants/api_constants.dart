@@ -36,10 +36,13 @@ class ApiConstants {
       '$baseUrl/ai/heatmap/$aiResultId';
 
   // DICOM endpoints
+  static const String notificationsUnreadEndpoint =
+      '$baseUrl/notifications/unread';
   static const String dicomUploadEndpoint = '$baseUrl/dicom/upload';
   static const String dicomUploadBatchEndpoint = '$baseUrl/dicom/upload/batch';
   static const String dicomUploadZipBatchEndpoint =
       '$baseUrl/dicom/upload/zip-batch';
+  static const String dicomVerifyEndpoint = '$baseUrl/dicom/verify';
   static String dicomInstanceImageEndpoint(int id) =>
       '$baseUrl/dicom/instances/$id/image';
   static String dicomInstanceRawEndpoint(int id) =>

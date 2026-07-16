@@ -121,7 +121,7 @@ class FileUploadPage extends StatelessWidget {
       case DicomUploadStage.processing:
         return _processingStep(vm);
       case DicomUploadStage.waitingVerification:
-        return _verificationPanel(vm);
+        return _verificationPanel(vm, token);
       case DicomUploadStage.idle:
       case DicomUploadStage.failed:
         return _uploadWorkflow(context, vm, token);
@@ -280,9 +280,46 @@ class FileUploadPage extends StatelessWidget {
                   ),
                 ],
               ),
+              if (vm.showLongProcessingHint) ...[
+                const SizedBox(height: 18),
+                _longProcessingHint(vm),
+              ],
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _longProcessingHint(DicomUploadViewModel vm) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.warningLight.withValues(alpha: 0.24),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.warningLight),
+      ),
+      child: Column(
+        children: [
+          const Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.info_outline, size: 18, color: AppColors.warning),
+              SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Backend đã tiếp nhận file nhưng chưa trả DICOM_BATCH_RESULT. Hệ thống vẫn tiếp tục chờ WebSocket.',
+                  style: TextStyle(
+                    fontSize: 12,
+                    height: 1.35,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }
@@ -437,7 +474,7 @@ class FileUploadPage extends StatelessWidget {
                     ),
                     const SizedBox(height: 7),
                     const Text(
-                      'Nhiều file .dcm hoặc một file .zip. Không upload lẫn hai loại trong cùng lượt.',
+                      'Nhiều file .dcm hoặc nhiều file .zip. Không upload lẫn hai loại trong cùng lượt.',
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 12,
@@ -648,9 +685,9 @@ class FileUploadPage extends StatelessWidget {
     );
   }
 
-  Widget _verificationPanel(DicomUploadViewModel vm) {
+  Widget _verificationPanel(DicomUploadViewModel vm, String token) {
     final patients = vm.successfulPatients;
-    final ids = vm.dicomInstanceIdsForVerification;
+    final acceptedPatientCodes = vm.acceptedPatientCodesForVerification;
     final verifiedDone = vm.stage == DicomUploadStage.completed;
 
     return Container(
@@ -678,12 +715,26 @@ class FileUploadPage extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           Text(
-            '${vm.verifiedPatientCount}/${patients.length} bệnh nhân đã chọn • ${ids.length} ảnh DICOM • ${vm.batchErrors.length} file lỗi',
+            '${vm.verifiedPatientCount}/${patients.length} bệnh nhân đã chọn • ${acceptedPatientCodes.length} mã bệnh nhân • ${vm.batchErrors.length} file lỗi',
             style: const TextStyle(
               fontSize: 12,
               color: AppColors.textSecondary,
             ),
           ),
+          if (vm.uploadSessionIds.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text(
+              vm.uploadSessionIds.length == 1
+                  ? 'Phiên upload: ${vm.uploadSessionIds.first}'
+                  : '${vm.uploadSessionIds.length} phiên upload: ${vm.uploadSessionIds.join(', ')}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 11,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           if (patients.isNotEmpty && !verifiedDone) ...[
             Material(
@@ -757,8 +808,8 @@ class FileUploadPage extends StatelessWidget {
               height: 46,
               child: ElevatedButton.icon(
                 onPressed: _verificationActionEnabled(vm)
-                    ? () {
-                        vm.verifyPatients();
+                    ? () async {
+                        await vm.verifyPatients(token);
                         if (vm.errorMessage != null) {
                           AppToast.showError(vm.errorMessage!);
                         } else {
@@ -775,6 +826,8 @@ class FileUploadPage extends StatelessWidget {
                 label: Text(
                   verifiedDone
                       ? 'Đã xác nhận ${vm.verifiedPatientCount} bệnh nhân'
+                      : vm.isUploading
+                      ? 'Đang xác nhận...'
                       : 'Xác nhận ${vm.verifiedPatientCount} bệnh nhân',
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),

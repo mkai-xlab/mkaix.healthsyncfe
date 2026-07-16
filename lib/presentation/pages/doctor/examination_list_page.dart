@@ -58,13 +58,16 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     if (_didLoad) return;
     _didLoad = true;
 
-    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
-    final vm = context.read<ExaminationViewModel>();
-    if (widget.patient == null) {
-      vm.loadExaminations(token: token);
-    } else {
-      vm.loadPatientExaminations(patientId: _patientDetailId, token: token);
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+      final vm = context.read<ExaminationViewModel>();
+      if (widget.patient == null) {
+        vm.loadExaminations(token: token);
+      } else {
+        vm.loadPatientExaminations(patientId: _patientDetailId, token: token);
+      }
+    });
   }
 
   @override

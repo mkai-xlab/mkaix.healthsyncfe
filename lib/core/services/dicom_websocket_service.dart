@@ -138,6 +138,8 @@ class DicomWebSocketService {
     final body = frame.body;
     if (body == null || body.trim().isEmpty) return;
 
+    debugPrint('[DICOM WebSocket raw frame] $body', wrapWidth: 1024);
+
     try {
       final decoded = jsonDecode(body);
       if (decoded is! Map) return;
@@ -158,9 +160,16 @@ class DicomWebSocketService {
         DicomUploadNotification(type: type, title: title, message: message),
       );
 
-      if (type == 'DICOM_BATCH_RESULT' || directBatchPayload != null) {
+      final isUploadCompleteNotification = title.startsWith(
+        'DICOM Upload Complete',
+      );
+      if (type == 'DICOM_BATCH_RESULT' ||
+          directBatchPayload != null ||
+          isUploadCompleteNotification) {
         final resultPayload =
-            directBatchPayload ?? _decodeNestedMessage(payload['message']);
+            directBatchPayload ??
+            _decodeBatchPayload(payload['data']) ??
+            _decodeBatchPayload(payload['message']);
         if (resultPayload != null) {
           final result = BatchDicomUploadModel.fromJson(resultPayload);
           debugPrint(
@@ -172,9 +181,17 @@ class DicomWebSocketService {
             _pendingBatchResult = result;
           }
           _batchResultController.add(result);
+        } else if (type == 'DICOM_BATCH_RESULT' ||
+            isUploadCompleteNotification) {
+          debugPrint(
+            '[DICOM WebSocket parse] batch notification has no parsable '
+            'payload. title=$title, type=$type',
+          );
         }
       }
-    } catch (_) {
+    } catch (e, stackTrace) {
+      debugPrint('[DICOM WebSocket parse] failed: $e');
+      debugPrint('$stackTrace');
       _notificationController.add(
         DicomUploadNotification(
           type: 'SYSTEM',
@@ -185,11 +202,14 @@ class DicomWebSocketService {
     }
   }
 
-  Map<String, dynamic>? _decodeNestedMessage(Object? value) {
+  Map<String, dynamic>? _decodeBatchPayload(Object? value) {
     if (value is Map) return Map<String, dynamic>.from(value);
     if (value is String && value.trim().isNotEmpty) {
       final decoded = jsonDecode(value);
-      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+      if (decoded is Map) {
+        final map = Map<String, dynamic>.from(decoded);
+        return _looksLikeBatchResult(map) ? map : null;
+      }
     }
     return null;
   }
@@ -197,6 +217,8 @@ class DicomWebSocketService {
   bool _looksLikeBatchResult(Map<String, dynamic> payload) {
     return payload.containsKey('successfulPatients') ||
         payload.containsKey('successful_patients') ||
+        payload.containsKey('uploadSessionId') ||
+        payload.containsKey('upload_session_id') ||
         payload.containsKey('errors');
   }
 }

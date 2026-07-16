@@ -43,7 +43,7 @@ class DicomUploadPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Tải nhiều file DICOM hoặc một file ZIP để bắt đầu quy trình chẩn đoán.',
+                    'Tải nhiều file DICOM hoặc nhiều file ZIP để bắt đầu quy trình chẩn đoán.',
                     style: TextStyle(fontSize: 14, color: Color(0xFF4A4A4A)),
                   ),
                   const SizedBox(height: 18),
@@ -222,7 +222,7 @@ class DicomUploadPage extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Kéo thả nhiều file .dcm hoặc một file .zip. Không upload lẫn ZIP và DICOM trong cùng một lượt.',
+          'Kéo thả nhiều file .dcm hoặc nhiều file .zip. Không upload lẫn ZIP và DICOM trong cùng một lượt.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 13,

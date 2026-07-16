@@ -39,11 +39,14 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
     if (_didLoad) return;
     _didLoad = true;
 
-    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
-    context.read<ExaminationViewModel>().loadPatientExaminations(
-      patientId: _patientDetailId,
-      token: token,
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+      context.read<ExaminationViewModel>().loadPatientExaminations(
+        patientId: _patientDetailId,
+        token: token,
+      );
+    });
   }
 
   @override

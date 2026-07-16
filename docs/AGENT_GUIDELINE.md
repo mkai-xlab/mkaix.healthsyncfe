@@ -247,14 +247,15 @@ Tất cả trang của Doctor role dùng cùng một style top bar:
 - Avatar (radius 15) + tên bác sĩ + chức danh "Chẩn đoán hình ảnh"
 - Icon notification size 20
 - Permission doctor `READ_PATIENT_LIST` là màn xem danh sách bệnh nhân.
-- Khi bấm một bệnh nhân trong danh sách, đi tới `ExaminationListPage` để xem danh sách ca khám trước; không vào thẳng `PatientDetailPage` mock.
+- Khi bấm một bệnh nhân trong danh sách, mở `PatientDetailPage(embedded: true)` ngay trong doctor shell để giữ sidebar/topbar. Màn chi tiết bệnh nhân không dùng mock: phần trên hiển thị thông tin bệnh nhân, phần dưới là các thẻ lần khám thật lấy từ `/patients/{patientId}/details`, sắp xếp giảm dần theo thời gian khám. Bấm thẻ lần khám mở popup chi tiết có ảnh X-quang, thông tin ca khám, và panel cuộn bên phải để đổi sang các ca khám khác.
 - Permission doctor `CREATE_PATIENT_EXAM` là entry "Danh sách ca khám": mở trực tiếp `ExaminationListPage` tổng hợp tất cả ca khám, không qua bước chọn bệnh nhân. Nguồn dữ liệu tạm thời vẫn phải gom từ `/patients/{patientId}/details`.
 - `ExaminationListPage` hiện chỉ hiển thị các trường tối thiểu: ID ca khám, tên bệnh nhân, ngày tháng năm sinh, giới tính, ngày chụp; chưa hiển thị ảnh/thumbnail trong list.
 - Bấm một ca khám trong `ExaminationListPage` mở `ExaminationDetailPage` ngay trong content doctor shell để giữ nguyên sidebar/topbar. Detail gồm thanh thông tin bệnh nhân/ca khám phía trên, vùng ảnh lớn ở giữa/trái, và panel thông tin ca khám bên phải.
 - Một examination có thể có nhiều ảnh; `ExaminationDetailPage` hiển thị ảnh đang chọn ở viewer lớn, có thanh thumbnail nhỏ để đổi ảnh, và nút toàn màn hình mở ảnh hiện tại trong viewer có thể zoom/pan.
 - Permission doctor `UPLOAD_DICOM_IMAGE` là màn upload DICOM. Màn này cho chọn/kéo-thả nhiều file `.DCM/.dcm`, nút xanh ở cuối card upload batch lên `/dicom/upload/batch`.
-- Màn upload DICOM ưu tiên layout gọn trong một viewport desktop: bên trái là danh sách file chờ gửi, sau khi upload batch thành công tự clear file chờ; bên phải là danh sách file đã upload trong session hiện tại.
-- Thông báo kết quả upload DICOM dùng toast/SnackBar nổi; không render khối notification thành công/lỗi chen trong card upload. Lịch sử chi tiết vẫn hiển thị ở panel "File đã upload phiên này".
+- Màn upload DICOM ưu tiên layout gọn trong một viewport desktop: bên trái là danh sách file chờ gửi, có nút xóa từng file; sau khi upload batch thành công tự clear file chờ. Bên phải hiển thị danh sách bệnh nhân trong `successfulPatients[]` của response, không hiển thị lịch sử file đã upload.
+- Thông báo kết quả upload DICOM dùng toast/SnackBar nổi; không render khối notification thành công/lỗi chen trong card upload. Chi tiết sau upload ưu tiên hiển thị bệnh nhân và ca khám từ response batch.
+- Sau upload batch, panel response có nút "Đi tới ca khám" để mở `ExaminationListPage` trong doctor shell và truyền các `recentExaminations[]` vừa trả về. `ExaminationListPage` luôn có chip đầu tiên và mặc định là "Ca khám mới"; chip đó hiển thị dữ liệu từ response upload, còn các chip trạng thái còn lại vẫn đọc dữ liệu ca khám theo luồng patient detail/tổng hợp hiện có.
 
 ---
 

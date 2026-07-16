@@ -3,11 +3,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../data/datasources/dicom_remote_datasource.dart';
+import '../../../data/models/dicom_upload_model.dart';
+import '../../../domain/entities/examination_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/dicom_upload_viewmodel.dart';
 
 class DicomUploadPage extends StatelessWidget {
-  const DicomUploadPage({super.key});
+  final ValueChanged<List<ExaminationEntity>>? onGoToExaminations;
+
+  const DicomUploadPage({super.key, this.onGoToExaminations});
 
   static const Color _primaryGreen = Color(0xFF006B5A);
   static const Color _softMint = Color(0xFFAEEFDA);
@@ -50,7 +54,10 @@ class DicomUploadPage extends StatelessWidget {
                           child: _uploadCard(context, vm, token),
                         ),
                         const SizedBox(height: 16),
-                        SizedBox(height: 420, child: _sessionList(vm)),
+                        SizedBox(
+                          height: 420,
+                          child: _patientResultPanel(context, vm),
+                        ),
                       ],
                     )
                   else
@@ -63,7 +70,10 @@ class DicomUploadPage extends StatelessWidget {
                             child: _uploadCard(context, vm, token),
                           ),
                           const SizedBox(width: 18),
-                          Expanded(flex: 4, child: _sessionList(vm)),
+                          Expanded(
+                            flex: 4,
+                            child: _patientResultPanel(context, vm),
+                          ),
                         ],
                       ),
                     ),
@@ -295,15 +305,6 @@ class DicomUploadPage extends StatelessWidget {
                         ),
                       ),
                     ),
-                    TextButton.icon(
-                      onPressed: vm.isUploading ? null : vm.clear,
-                      icon: const Icon(Icons.delete_outline, size: 16),
-                      label: const Text('Xóa'),
-                      style: TextButton.styleFrom(
-                        foregroundColor: const Color(0xFF66736F),
-                        visualDensity: VisualDensity.compact,
-                      ),
-                    ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -315,7 +316,7 @@ class DicomUploadPage extends StatelessWidget {
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 8),
                     itemBuilder: (context, index) =>
-                        _pendingFileTile(files[index]),
+                        _pendingFileTile(files[index], vm, index),
                   ),
                 ),
               ],
@@ -323,7 +324,11 @@ class DicomUploadPage extends StatelessWidget {
     );
   }
 
-  Widget _pendingFileTile(DicomUploadFile file) {
+  Widget _pendingFileTile(
+    DicomUploadFile file,
+    DicomUploadViewModel vm,
+    int index,
+  ) {
     return Row(
       children: [
         Container(
@@ -356,11 +361,25 @@ class DicomUploadPage extends StatelessWidget {
           _formatBytes(file.bytes.length),
           style: const TextStyle(fontSize: 12, color: Color(0xFF66736F)),
         ),
+        const SizedBox(width: 4),
+        IconButton(
+          onPressed: vm.isUploading
+              ? null
+              : () => vm.removeSelectedFileAt(index),
+          tooltip: 'Xóa tệp',
+          icon: const Icon(Icons.close, size: 18),
+          color: const Color(0xFF8A2D2D),
+          visualDensity: VisualDensity.compact,
+          constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+          padding: EdgeInsets.zero,
+        ),
       ],
     );
   }
 
-  Widget _sessionList(DicomUploadViewModel vm) {
+  Widget _patientResultPanel(BuildContext context, DicomUploadViewModel vm) {
+    final patients = vm.successfulPatients;
+    final newExaminations = _newExaminationsFromResponse(patients);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -382,7 +401,7 @@ class DicomUploadPage extends StatelessWidget {
             children: [
               const Expanded(
                 child: Text(
-                  'File đã upload phiên này',
+                  'Bệnh nhân từ response',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
@@ -390,46 +409,69 @@ class DicomUploadPage extends StatelessWidget {
                   ),
                 ),
               ),
-              if (vm.uploadedFiles.isNotEmpty)
-                IconButton(
-                  onPressed: vm.clearUploadedFiles,
-                  tooltip: 'Xóa lịch sử phiên',
-                  icon: const Icon(Icons.delete_sweep_outlined, size: 20),
-                  color: const Color(0xFF66736F),
-                ),
             ],
           ),
           const SizedBox(height: 4),
           Text(
-            '${vm.uploadedFiles.length} file',
+            '${patients.length} bệnh nhân • ${newExaminations.length} ca khám',
             style: const TextStyle(fontSize: 12, color: Color(0xFF66736F)),
           ),
           const SizedBox(height: 12),
           const Divider(height: 1, color: Color(0xFFE1ECE8)),
           const SizedBox(height: 12),
           Expanded(
-            child: vm.uploadedFiles.isEmpty
+            child: patients.isEmpty
                 ? const Center(
                     child: Text(
-                      'Chưa upload file nào trong phiên này',
+                      'Chưa có bệnh nhân nào từ response upload',
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 13, color: Color(0xFF7A8581)),
                     ),
                   )
                 : ListView.separated(
-                    itemCount: vm.uploadedFiles.length,
+                    itemCount: patients.length,
                     separatorBuilder: (context, index) =>
                         const SizedBox(height: 10),
                     itemBuilder: (context, index) =>
-                        _uploadedFileTile(vm.uploadedFiles[index]),
+                        _patientResultTile(patients[index]),
                   ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            height: 44,
+            child: ElevatedButton.icon(
+              onPressed: patients.isEmpty || onGoToExaminations == null
+                  ? null
+                  : () => onGoToExaminations?.call(newExaminations),
+              icon: const Icon(Icons.assignment_outlined, size: 18),
+              label: const Text(
+                'Đi tới ca khám',
+                style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: _primaryGreen,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: const Color(0xFFB8CDC6),
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _uploadedFileTile(DicomUploadedFileSessionItem item) {
+  Widget _patientResultTile(DicomSuccessfulPatientModel item) {
+    final patient = item.patient;
+    final title = patient.fullName.isNotEmpty
+        ? patient.fullName
+        : patient.patientCode.isNotEmpty
+        ? patient.patientCode
+        : patient.patientId;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -438,7 +480,6 @@ class DicomUploadPage extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE1ECE8)),
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 40,
@@ -448,7 +489,7 @@ class DicomUploadPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: const Icon(
-              Icons.check_circle_outline,
+              Icons.person_outline,
               color: _primaryGreen,
               size: 22,
             ),
@@ -459,7 +500,7 @@ class DicomUploadPage extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  item.fileName,
+                  title.isEmpty ? 'Bệnh nhân chưa có tên' : title,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 13,
@@ -469,45 +510,15 @@ class DicomUploadPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 5),
                 Text(
-                  '${_formatBytes(item.fileSize)} • batch ${item.batchFileCount} file • ${item.successfulPatientCount} BN • ${item.errorCount} lỗi • ${_formatDuration(item.duration)}',
+                  '${patient.patientCode.isEmpty ? patient.patientId : patient.patientCode} • ${item.recentExaminations.length} ca khám',
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF66736F),
                   ),
                 ),
-                if (item.successfulPatients.isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Text(
-                    item.successfulPatients.first.patient.fullName.isNotEmpty
-                        ? item.successfulPatients.first.patient.fullName
-                        : item.successfulPatients.first.patient.patientCode,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF006B5A),
-                    ),
-                  ),
-                ] else if (item.errors.isNotEmpty) ...[
-                  const SizedBox(height: 5),
-                  Text(
-                    item.errors.first.errorReason.isNotEmpty
-                        ? item.errors.first.errorReason
-                        : item.errors.first.filename,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFFD14343),
-                    ),
-                  ),
-                ],
               ],
             ),
-          ),
-          const SizedBox(width: 8),
-          Text(
-            _formatClock(item.uploadedAt),
-            style: const TextStyle(fontSize: 11, color: Color(0xFF7A8581)),
           ),
         ],
       ),
@@ -643,7 +654,49 @@ class DicomUploadPage extends StatelessWidget {
     return '$minutes phút ${remainingSeconds.toString().padLeft(2, '0')} giây';
   }
 
-  String _formatClock(DateTime time) {
-    return '${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}';
+  List<ExaminationEntity> _newExaminationsFromResponse(
+    List<DicomSuccessfulPatientModel> patients,
+  ) {
+    final examinations = <ExaminationEntity>[];
+    for (final item in patients) {
+      final patient = item.patient;
+      final patientCode = patient.patientCode.isNotEmpty
+          ? patient.patientCode
+          : patient.patientId;
+      for (final exam in item.recentExaminations) {
+        examinations.add(
+          ExaminationEntity(
+            patientDbId: patient.id,
+            patientCode: patientCode,
+            patientName: patient.fullName,
+            patientGender: patient.gender,
+            examinationId: exam.examinationId,
+            encounterCode: exam.encounterCode,
+            status: exam.status,
+            studyDate: exam.studyDate,
+            visitTime: exam.visitTime,
+            thumbnailUrl: exam.thumbnailUrl,
+            bodyPart: exam.bodyPart,
+            referringPhysician: exam.referringPhysician,
+            images: exam.images
+                .map(
+                  (image) => ExaminationImageEntity(
+                    examinationId: image.examinationId == 0
+                        ? exam.examinationId
+                        : image.examinationId,
+                    encounterCode: image.encounterCode.isEmpty
+                        ? exam.encounterCode
+                        : image.encounterCode,
+                    status: image.status.isEmpty ? exam.status : image.status,
+                    visitTime: image.visitTime ?? exam.visitTime,
+                    imageUrl: image.imageUrl,
+                  ),
+                )
+                .toList(),
+          ),
+        );
+      }
+    }
+    return examinations;
   }
 }

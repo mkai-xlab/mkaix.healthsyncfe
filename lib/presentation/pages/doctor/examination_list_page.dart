@@ -10,8 +10,14 @@ import 'examination_detail_page.dart';
 class ExaminationListPage extends StatefulWidget {
   final PatientEntity? patient;
   final bool embedded;
+  final List<ExaminationEntity> newExaminations;
 
-  const ExaminationListPage({super.key, this.patient, this.embedded = false});
+  const ExaminationListPage({
+    super.key,
+    this.patient,
+    this.embedded = false,
+    this.newExaminations = const [],
+  });
 
   @override
   State<ExaminationListPage> createState() => _ExaminationListPageState();
@@ -20,9 +26,11 @@ class ExaminationListPage extends StatefulWidget {
 class _ExaminationListPageState extends State<ExaminationListPage> {
   static const Color _primaryGreen = Color(0xFF2D7E6E);
   static const Color _pageBg = Color(0xFFF0F4F3);
+  static const String _newExaminationFilter = '__NEW_EXAMINATIONS__';
 
   bool _didLoad = false;
   ExaminationEntity? _selectedExamination;
+  late String _selectedStatus;
 
   String get _patientDetailId {
     final patient = widget.patient;
@@ -39,6 +47,20 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     _StatusFilter('AWAITING_REVIEW', 'Chờ nhận xét'),
     _StatusFilter('COMPLETED', 'Hoàn thành'),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedStatus = _newExaminationFilter;
+  }
+
+  @override
+  void didUpdateWidget(covariant ExaminationListPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.newExaminations != widget.newExaminations) {
+      _selectedStatus = _newExaminationFilter;
+    }
+  }
 
   @override
   void didChangeDependencies() {
@@ -132,6 +154,10 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
   }
 
   Widget _buildHeader(ExaminationViewModel vm) {
+    final visibleExaminations = _visibleExaminations(vm);
+    final totalCount = _selectedStatus == _newExaminationFilter
+        ? widget.newExaminations.length
+        : vm.examinations.length;
     return Container(
       width: double.infinity,
       color: Colors.white,
@@ -152,7 +178,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
                 ),
               ),
               Text(
-                '${vm.filteredExaminations.length} / ${vm.examinations.length} ca',
+                '${visibleExaminations.length} / $totalCount ca',
                 style: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
               ),
             ],
@@ -168,14 +194,20 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
-              children: _statusFilters
-                  .map(
-                    (filter) => Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: _statusChip(filter, vm),
-                    ),
-                  )
-                  .toList(),
+              children: [
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: _statusChip(
+                    const _StatusFilter(_newExaminationFilter, 'Ca khám mới'),
+                  ),
+                ),
+                ..._statusFilters.map(
+                  (filter) => Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: _statusChip(filter),
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -183,10 +215,10 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     );
   }
 
-  Widget _statusChip(_StatusFilter filter, ExaminationViewModel vm) {
-    final isSelected = vm.selectedStatus == filter.status;
+  Widget _statusChip(_StatusFilter filter) {
+    final isSelected = _selectedStatus == filter.status;
     return InkWell(
-      onTap: () => vm.selectStatus(filter.status),
+      onTap: () => setState(() => _selectedStatus = filter.status),
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -210,19 +242,27 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
   }
 
   Widget _buildBody(BuildContext context, ExaminationViewModel vm) {
-    if (vm.isLoading && vm.examinations.isEmpty) {
+    final examinations = _visibleExaminations(vm);
+    final isShowingNewExaminations = _selectedStatus == _newExaminationFilter;
+
+    if (!isShowingNewExaminations && vm.isLoading && vm.examinations.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: _primaryGreen),
       );
     }
 
-    if (vm.errorMessage != null && vm.examinations.isEmpty) {
+    if (!isShowingNewExaminations &&
+        vm.errorMessage != null &&
+        vm.examinations.isEmpty) {
       return _errorState(context, vm);
     }
 
-    final examinations = vm.filteredExaminations;
     if (examinations.isEmpty) {
-      return _emptyState();
+      return _emptyState(
+        isShowingNewExaminations
+            ? 'Chưa có ca khám mới từ response upload'
+            : 'Chưa có ca khám phù hợp',
+      );
     }
 
     return RefreshIndicator(
@@ -383,16 +423,20 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     );
   }
 
-  Widget _emptyState() {
-    return const Center(
+  Widget _emptyState(String message) {
+    return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.assignment_outlined, color: Color(0xFFADB5BD), size: 56),
-          SizedBox(height: 14),
+          const Icon(
+            Icons.assignment_outlined,
+            color: Color(0xFFADB5BD),
+            size: 56,
+          ),
+          const SizedBox(height: 14),
           Text(
-            'Chưa có ca khám phù hợp',
-            style: TextStyle(
+            message,
+            style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Color(0xFF718096),
@@ -416,6 +460,16 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       default:
         return const Color(0xFF718096);
     }
+  }
+
+  List<ExaminationEntity> _visibleExaminations(ExaminationViewModel vm) {
+    if (_selectedStatus == _newExaminationFilter) {
+      return List.unmodifiable(widget.newExaminations);
+    }
+    if (_selectedStatus.isEmpty) return List.unmodifiable(vm.examinations);
+    return vm.examinations
+        .where((examination) => examination.statusGroup == _selectedStatus)
+        .toList();
   }
 }
 

@@ -50,21 +50,23 @@ class BatchDicomUploadModel {
 
   factory BatchDicomUploadModel.fromJson(Map<String, dynamic> json) {
     final tags = <DicomTagModel>[];
-    final errors = (json['errors'] as List? ?? const [])
+    final errors = (_listAt(json, ['errors']) ?? const [])
         .whereType<Map>()
         .map(
           (item) =>
               DicomBatchErrorModel.fromJson(Map<String, dynamic>.from(item)),
         )
         .toList();
-    final successfulPatients = (json['successfulPatients'] as List? ?? const [])
-        .whereType<Map>()
-        .map(
-          (item) => DicomSuccessfulPatientModel.fromJson(
-            Map<String, dynamic>.from(item),
-          ),
-        )
-        .toList();
+    final successfulPatients =
+        (_listAt(json, ['successfulPatients', 'successful_patients']) ??
+                const [])
+            .whereType<Map>()
+            .map(
+              (item) => DicomSuccessfulPatientModel.fromJson(
+                Map<String, dynamic>.from(item),
+              ),
+            )
+            .toList();
 
     void collectTags(dynamic value) {
       if (value is List) {
@@ -124,7 +126,8 @@ class DicomBatchErrorModel {
   factory DicomBatchErrorModel.fromJson(Map<String, dynamic> json) {
     return DicomBatchErrorModel(
       filename: json['filename']?.toString() ?? '',
-      errorReason: json['errorReason']?.toString() ?? '',
+      errorReason:
+          _valueAt(json, ['errorReason', 'error_reason'])?.toString() ?? '',
     );
   }
 }
@@ -140,13 +143,16 @@ class DicomSuccessfulPatientModel {
 
   factory DicomSuccessfulPatientModel.fromJson(Map<String, dynamic> json) {
     final patientJson = json['patient'];
+    final examinations =
+        _listAt(json, ['recentExaminations', 'recent_examinations']) ??
+        const [];
     return DicomSuccessfulPatientModel(
       patient: patientJson is Map
           ? DicomPatientSummaryModel.fromJson(
               Map<String, dynamic>.from(patientJson),
             )
           : const DicomPatientSummaryModel(),
-      recentExaminations: (json['recentExaminations'] as List? ?? const [])
+      recentExaminations: examinations
           .whereType<Map>()
           .map(
             (item) => DicomExaminationSummaryModel.fromJson(
@@ -181,7 +187,7 @@ class DicomPatientSummaryModel {
       patientCode: json['patientCode']?.toString() ?? '',
       fullName: json['fullName']?.toString() ?? '',
       gender: json['gender']?.toString() ?? '',
-      patientId: json['patient_id']?.toString() ?? '',
+      patientId: _valueAt(json, ['patient_id', 'patientId'])?.toString() ?? '',
     );
   }
 }
@@ -190,30 +196,138 @@ class DicomExaminationSummaryModel {
   final int examinationId;
   final String encounterCode;
   final String status;
+  final DateTime? studyDate;
+  final DateTime? visitTime;
   final String bodyPart;
   final String thumbnailUrl;
+  final String referringPhysician;
+  final List<DicomExaminationImageSummaryModel> images;
   final int imageCount;
 
   const DicomExaminationSummaryModel({
     this.examinationId = 0,
     this.encounterCode = '',
     this.status = '',
+    this.studyDate,
+    this.visitTime,
     this.bodyPart = '',
     this.thumbnailUrl = '',
+    this.referringPhysician = '',
+    this.images = const [],
     this.imageCount = 0,
   });
 
   factory DicomExaminationSummaryModel.fromJson(Map<String, dynamic> json) {
     final images = json['images'];
+    final parsedImages = images is List
+        ? images
+              .whereType<Map>()
+              .map(
+                (item) => DicomExaminationImageSummaryModel.fromJson(
+                  Map<String, dynamic>.from(item),
+                ),
+              )
+              .toList()
+        : <DicomExaminationImageSummaryModel>[];
     return DicomExaminationSummaryModel(
       examinationId: json['examinationId'] is int
           ? json['examinationId'] as int
-          : int.tryParse(json['examinationId']?.toString() ?? '') ?? 0,
-      encounterCode: json['encounterCode']?.toString() ?? '',
+          : int.tryParse(
+                  _valueAt(json, [
+                        'examinationId',
+                        'examination_id',
+                      ])?.toString() ??
+                      '',
+                ) ??
+                0,
+      encounterCode:
+          _valueAt(json, ['encounterCode', 'encounter_code'])?.toString() ?? '',
       status: json['status']?.toString() ?? '',
-      bodyPart: json['bodyPart']?.toString() ?? '',
-      thumbnailUrl: json['thumbnailUrl']?.toString() ?? '',
-      imageCount: images is List ? images.length : 0,
+      studyDate: _valueAt(json, ['studyDate', 'study_date']) != null
+          ? DateTime.tryParse(
+              _valueAt(json, ['studyDate', 'study_date']).toString(),
+            )
+          : null,
+      visitTime: _valueAt(json, ['visitTime', 'visit_time']) != null
+          ? DateTime.tryParse(
+              _valueAt(json, ['visitTime', 'visit_time']).toString(),
+            )
+          : null,
+      bodyPart: _valueAt(json, ['bodyPart', 'body_part'])?.toString() ?? '',
+      thumbnailUrl:
+          _valueAt(json, ['thumbnailUrl', 'thumbnail_url'])?.toString() ?? '',
+      referringPhysician:
+          _valueAt(json, [
+            'referringPhysician',
+            'referring_physician',
+          ])?.toString() ??
+          '',
+      images: parsedImages,
+      imageCount: parsedImages.isNotEmpty
+          ? parsedImages.length
+          : images is List
+          ? images.length
+          : 0,
     );
   }
+}
+
+class DicomExaminationImageSummaryModel {
+  final int examinationId;
+  final String encounterCode;
+  final String status;
+  final DateTime? visitTime;
+  final String imageUrl;
+
+  const DicomExaminationImageSummaryModel({
+    this.examinationId = 0,
+    this.encounterCode = '',
+    this.status = '',
+    this.visitTime,
+    this.imageUrl = '',
+  });
+
+  factory DicomExaminationImageSummaryModel.fromJson(
+    Map<String, dynamic> json,
+  ) {
+    return DicomExaminationImageSummaryModel(
+      examinationId: json['examinationId'] is int
+          ? json['examinationId'] as int
+          : int.tryParse(
+                  _valueAt(json, [
+                        'examinationId',
+                        'examination_id',
+                      ])?.toString() ??
+                      '',
+                ) ??
+                0,
+      encounterCode:
+          _valueAt(json, ['encounterCode', 'encounter_code'])?.toString() ?? '',
+      status: json['status']?.toString() ?? '',
+      visitTime: _valueAt(json, ['visitTime', 'visit_time']) != null
+          ? DateTime.tryParse(
+              _valueAt(json, ['visitTime', 'visit_time']).toString(),
+            )
+          : null,
+      imageUrl:
+          json['imageUrl']?.toString() ??
+          json['image_url']?.toString() ??
+          json['url']?.toString() ??
+          json['thumbnailUrl']?.toString() ??
+          json['thumbnail_url']?.toString() ??
+          '',
+    );
+  }
+}
+
+Object? _valueAt(Map<String, dynamic> json, List<String> keys) {
+  for (final key in keys) {
+    if (json.containsKey(key)) return json[key];
+  }
+  return null;
+}
+
+List<dynamic>? _listAt(Map<String, dynamic> json, List<String> keys) {
+  final value = _valueAt(json, keys);
+  return value is List ? value : null;
 }

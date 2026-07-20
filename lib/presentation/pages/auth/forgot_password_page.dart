@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -14,8 +15,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _emailController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
 
-  static const Color _primaryGreen = Color(0xFF2D7E6E);
-  static const Color _darkGreen = Color(0xFF1A5C4E);
+  static const Color _primaryGreen = AppColors.primary;
+  static const Color _darkGreen = AppColors.surface3;
 
   @override
   void initState() {

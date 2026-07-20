@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
 class LoginPage extends StatefulWidget {
@@ -18,7 +19,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
-  static const Color _primaryGreen = Color(0xFF2D7E6E);
+  static const Color _primaryGreen = AppColors.primary;
   static const Color _darkGreen = Color(0xFF1A5C4E);
   static const Color _lightGreen = Color(0xFF3A9E8A);
 

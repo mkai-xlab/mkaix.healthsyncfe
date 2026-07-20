@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
+import '../../widgets/pagination_bar.dart';
 import 'examination_detail_page.dart';
 
 class ExaminationListPage extends StatefulWidget {
@@ -24,13 +26,23 @@ class ExaminationListPage extends StatefulWidget {
 }
 
 class _ExaminationListPageState extends State<ExaminationListPage> {
-  static const Color _primaryGreen = Color(0xFF2D7E6E);
-  static const Color _pageBg = Color(0xFFF0F4F3);
-  static const String _newExaminationFilter = '__NEW_EXAMINATIONS__';
+  static const Color _primaryGreen = AppColors.primary;
+  static const Color _pageBg = AppColors.surface1;
 
   bool _didLoad = false;
   ExaminationEntity? _selectedExamination;
-  late String _selectedStatus;
+  String _selectedStatus = '';
+
+  static const List<_StatusFilter> _statusFilters = [
+    _StatusFilter('', 'Tất cả'),
+    _StatusFilter('NEED_VERIFY', 'Cần xác nhận'),
+    _StatusFilter('NEED_REVERIFY', 'Cần xác nhận lại'),
+    _StatusFilter('AI_COMPLETED', 'AI hoàn tất'),
+    _StatusFilter('COMPLETED', 'Hoàn thành'),
+    _StatusFilter('PENDING', 'Đang chờ'),
+    _StatusFilter('ANALYZING', 'Đang phân tích'),
+    _StatusFilter('AWAITING_REVIEW', 'Chờ nhận xét'),
+  ];
 
   String get _patientDetailId {
     final patient = widget.patient;
@@ -40,41 +52,22 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
         : patient.id.toString();
   }
 
-  static const List<_StatusFilter> _statusFilters = [
-    _StatusFilter('', 'Tất cả'),
-    _StatusFilter('PENDING', 'Đang chờ'),
-    _StatusFilter('ANALYZING', 'Đang phân tích'),
-    _StatusFilter('AWAITING_REVIEW', 'Chờ nhận xét'),
-    _StatusFilter('COMPLETED', 'Hoàn thành'),
-  ];
-
-  @override
-  void initState() {
-    super.initState();
-    _selectedStatus = _newExaminationFilter;
-  }
-
-  @override
-  void didUpdateWidget(covariant ExaminationListPage oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.newExaminations != widget.newExaminations) {
-      _selectedStatus = _newExaminationFilter;
-    }
-  }
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (_didLoad) return;
     _didLoad = true;
 
-    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
-    final vm = context.read<ExaminationViewModel>();
-    if (widget.patient == null) {
-      vm.loadAllExaminations(token: token);
-    } else {
-      vm.loadPatientExaminations(patientId: _patientDetailId, token: token);
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+      final vm = context.read<ExaminationViewModel>();
+      if (widget.patient == null) {
+        vm.loadExaminations(token: token);
+      } else {
+        vm.loadPatientExaminations(patientId: _patientDetailId, token: token);
+      }
+    });
   }
 
   @override
@@ -155,9 +148,6 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
 
   Widget _buildHeader(ExaminationViewModel vm) {
     final visibleExaminations = _visibleExaminations(vm);
-    final totalCount = _selectedStatus == _newExaminationFilter
-        ? widget.newExaminations.length
-        : vm.examinations.length;
     return Container(
       width: double.infinity,
       color: Colors.white,
@@ -178,7 +168,11 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
                 ),
               ),
               Text(
-                '${visibleExaminations.length} / $totalCount ca',
+                widget.patient == null
+                    ? _selectedStatus.isEmpty
+                          ? '${vm.totalElements} ca'
+                          : '${visibleExaminations.length} ca trong trang'
+                    : '${visibleExaminations.length} ca',
                 style: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
               ),
             ],
@@ -191,49 +185,50 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
             ),
           ],
           const SizedBox(height: 14),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: _statusChip(
-                    const _StatusFilter(_newExaminationFilter, 'Ca khám mới'),
-                  ),
-                ),
-                ..._statusFilters.map(
-                  (filter) => Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: _statusChip(filter),
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _statusFilterRow(),
         ],
+      ),
+    );
+  }
+
+  Widget _statusFilterRow() {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _statusFilters
+            .map(
+              (filter) => Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: _statusChip(filter),
+              ),
+            )
+            .toList(),
       ),
     );
   }
 
   Widget _statusChip(_StatusFilter filter) {
     final isSelected = _selectedStatus == filter.status;
+    final color = filter.status.isEmpty
+        ? _primaryGreen
+        : _statusColor(filter.status);
     return InkWell(
       onTap: () => setState(() => _selectedStatus = filter.status),
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? _primaryGreen : Colors.white,
+          color: isSelected ? color : Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: isSelected ? _primaryGreen : const Color(0xFFE2E8F0),
+            color: isSelected ? color : const Color(0xFFE2E8F0),
           ),
         ),
         child: Text(
           filter.label,
           style: TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w700,
             color: isSelected ? Colors.white : const Color(0xFF4A5568),
           ),
         ),
@@ -243,46 +238,70 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
 
   Widget _buildBody(BuildContext context, ExaminationViewModel vm) {
     final examinations = _visibleExaminations(vm);
-    final isShowingNewExaminations = _selectedStatus == _newExaminationFilter;
 
-    if (!isShowingNewExaminations && vm.isLoading && vm.examinations.isEmpty) {
+    if (vm.isLoading && vm.examinations.isEmpty) {
       return const Center(
         child: CircularProgressIndicator(color: _primaryGreen),
       );
     }
 
-    if (!isShowingNewExaminations &&
-        vm.errorMessage != null &&
-        vm.examinations.isEmpty) {
+    if (vm.errorMessage != null && vm.examinations.isEmpty) {
       return _errorState(context, vm);
     }
 
     if (examinations.isEmpty) {
       return _emptyState(
-        isShowingNewExaminations
-            ? 'Chưa có ca khám mới từ response upload'
-            : 'Chưa có ca khám phù hợp',
+        _selectedStatus.isEmpty
+            ? 'Chưa có ca khám'
+            : 'Không có ca khám thuộc trạng thái này trong trang hiện tại',
       );
     }
 
-    return RefreshIndicator(
-      color: _primaryGreen,
-      onRefresh: () {
-        final token = context.read<AuthViewModel>().currentUser?.token ?? '';
-        if (widget.patient == null) {
-          return vm.loadAllExaminations(token: token);
-        }
-        return vm.loadPatientExaminations(
-          patientId: _patientDetailId,
-          token: token,
-        );
-      },
-      child: ListView.separated(
-        padding: const EdgeInsets.all(24),
-        itemCount: examinations.length,
-        separatorBuilder: (context, index) => const SizedBox(height: 12),
-        itemBuilder: (context, index) => _examinationCard(examinations[index]),
-      ),
+    return Column(
+      children: [
+        Expanded(
+          child: RefreshIndicator(
+            color: _primaryGreen,
+            onRefresh: () {
+              final currentUser = context.read<AuthViewModel>().currentUser;
+              final token = currentUser?.token ?? '';
+              if (widget.patient == null) {
+                return vm.loadExaminations(token: token);
+              }
+              return vm.loadPatientExaminations(
+                patientId: _patientDetailId,
+                token: token,
+              );
+            },
+            child: ListView.separated(
+              padding: const EdgeInsets.all(24),
+              itemCount: examinations.length,
+              separatorBuilder: (context, index) => const SizedBox(height: 12),
+              itemBuilder: (context, index) =>
+                  _examinationCard(examinations[index]),
+            ),
+          ),
+        ),
+        if (widget.patient == null)
+          PaginationBar(
+            currentPage: vm.currentPage,
+            totalPages: vm.totalPages,
+            totalElements: vm.totalElements,
+            pageSize: vm.pageSize,
+            isLoading: vm.isLoading,
+            itemLabel: 'ca khám',
+            onPageChanged: (page) {
+              final token =
+                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              vm.goToPage(token: token, page: page);
+            },
+            onPageSizeChanged: (size) {
+              final token =
+                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              vm.changePageSize(token: token, size: size);
+            },
+          ),
+      ],
     );
   }
 
@@ -399,10 +418,10 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
           const SizedBox(height: 16),
           ElevatedButton.icon(
             onPressed: () {
-              final token =
-                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              final currentUser = context.read<AuthViewModel>().currentUser;
+              final token = currentUser?.token ?? '';
               if (widget.patient == null) {
-                vm.loadAllExaminations(token: token);
+                vm.loadExaminations(token: token);
               } else {
                 vm.loadPatientExaminations(
                   patientId: _patientDetailId,
@@ -455,6 +474,11 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
         return const Color(0xFF3182CE);
       case 'AWAITING_REVIEW':
         return const Color(0xFF805AD5);
+      case 'NEED_VERIFY':
+      case 'NEED_REVERIFY':
+        return const Color(0xFFD97706);
+      case 'AI_COMPLETED':
+        return const Color(0xFF2563EB);
       case 'COMPLETED':
         return _primaryGreen;
       default:
@@ -463,11 +487,11 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
   }
 
   List<ExaminationEntity> _visibleExaminations(ExaminationViewModel vm) {
-    if (_selectedStatus == _newExaminationFilter) {
-      return List.unmodifiable(widget.newExaminations);
-    }
-    if (_selectedStatus.isEmpty) return List.unmodifiable(vm.examinations);
-    return vm.examinations
+    final source = widget.newExaminations.isNotEmpty && vm.examinations.isEmpty
+        ? widget.newExaminations
+        : vm.examinations;
+    if (_selectedStatus.isEmpty) return List.unmodifiable(source);
+    return source
         .where((examination) => examination.statusGroup == _selectedStatus)
         .toList();
   }

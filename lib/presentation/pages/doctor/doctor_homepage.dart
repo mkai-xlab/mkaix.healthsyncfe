@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:fe/core/services/toast_service.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/permission_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/dicom_upload_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
-import 'dicom_upload_page.dart';
 import 'examination_list_page.dart';
+import 'file_upload_page.dart';
 import 'patient_detail_page.dart';
+import 'patient_list_page.dart';
 
 class DoctorHomepage extends StatefulWidget {
   const DoctorHomepage({super.key});
@@ -19,14 +24,13 @@ class DoctorHomepage extends StatefulWidget {
 class _DoctorHomepageState extends State<DoctorHomepage> {
   int _selectedNavIndex = 0;
   final _searchController = TextEditingController();
-  String _filterGender = '';
-  bool _hasRequestedPatientList = false;
   bool _showUploadExaminationList = false;
-  List<ExaminationEntity> _newUploadExaminations = const [];
+  bool _isUploadMiniProgressCollapsed = false;
+  final List<ExaminationEntity> _newUploadExaminations = const [];
   PatientEntity? _selectedPatientDetail;
 
-  static const Color _primaryGreen = Color(0xFF2D7E6E);
-  static const Color _darkGreen = Color(0xFF1B5A4E);
+  static const Color _primaryGreen = AppColors.primary;
+  static const Color _darkGreen = AppColors.primary;
 
   @override
   void dispose() {
@@ -49,7 +53,14 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                 Builder(
                   builder: (scaffoldContext) => _buildTopBar(scaffoldContext),
                 ),
-                Expanded(child: _buildMainContent(context)),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Positioned.fill(child: _buildMainContent(context)),
+                      _buildUploadMiniProgress(),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),
@@ -59,114 +70,52 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     );
   }
 
-  List<_DoctorNavItemData> _visibleNavItems(BuildContext context) {
-    final user = context.watch<AuthViewModel>().currentUser;
-    final permissionItems = user?.permissionItems ?? const [];
-    final parentPermissions = permissionItems
-        .where((permission) => permission.isParent)
-        .toList();
+  List<_DoctorNavItemData> _visibleNavItems(
+    BuildContext context, {
+    bool listen = true,
+  }) {
+    final auth = listen
+        ? context.watch<AuthViewModel>()
+        : context.read<AuthViewModel>();
+    final user = auth.currentUser;
+    final permissionItems =
+        List<UserPermissionEntity>.from(user?.permissionItems ?? const [])
+          ..sort((a, b) {
+            final cmp = a.priority.compareTo(b.priority);
+            if (cmp != 0) return cmp;
+            return permissionKeyFor(a).compareTo(permissionKeyFor(b));
+          });
+    final navSource = permissionItems.where((permission) {
+      return permission.isParent && permissionKeyFor(permission).isNotEmpty;
+    }).toList();
+    final visibleSource = navSource;
 
-    final source = parentPermissions.isNotEmpty
-        ? parentPermissions
-        : permissionItems;
-    final navSource = List<UserPermissionEntity>.from(source);
-    _appendChildPermissionNavItem(
-      navSource,
-      permissionItems,
-      permissionKey: 'read_patient_list',
-      duplicateLabel: 'Quản lý bệnh nhân',
-    );
-    _appendChildPermissionNavItem(
-      navSource,
-      permissionItems,
-      permissionKey: 'create_patient_exam',
-      duplicateLabel: 'Danh sách ca khám',
-    );
-    _appendChildPermissionNavItem(
-      navSource,
-      permissionItems,
-      permissionKey: 'upload_dicom_image',
-      duplicateLabel: 'Hỗ trợ chẩn đoán',
-    );
-
-    return List.generate(navSource.length, (index) {
-      final permission = navSource[index];
+    return List.generate(visibleSource.length, (index) {
+      final permission = visibleSource[index];
+      final routeKey = permissionKeyFor(permission);
       return _DoctorNavItemData(
         index: index,
+        routeKey: routeKey,
         permissionName: permission.name,
-        label: _permissionTitle(permission),
-        icon: _permissionIcon(permission.name),
+        label: permissionLabelFor(permission),
+        icon: _permissionIcon(routeKey),
       );
     });
   }
 
-  void _appendChildPermissionNavItem(
-    List<UserPermissionEntity> navSource,
-    List<UserPermissionEntity> permissionItems, {
-    required String permissionKey,
-    required String duplicateLabel,
-  }) {
-    UserPermissionEntity? uploadDicomPermission;
-    for (final permission in permissionItems) {
-      if (_normalizePermissionKey(permission.name) == permissionKey) {
-        uploadDicomPermission = permission;
-        break;
-      }
-    }
-
-    if (uploadDicomPermission != null &&
-        !navSource.any(
-          (permission) =>
-              _normalizePermissionKey(permission.name) == permissionKey ||
-              _permissionTitle(permission) == duplicateLabel,
-        )) {
-      navSource.add(uploadDicomPermission);
-    }
-  }
-
-  String _normalizePermissionKey(String value) {
-    return value
-        .toLowerCase()
-        .replaceAll('đ', 'd')
-        .replaceAll(RegExp(r'[^a-z0-9]+'), '_')
-        .replaceAll(RegExp(r'_+'), '_')
-        .replaceAll(RegExp(r'^_|_$'), '');
-  }
-
-  String _permissionTitle(UserPermissionEntity permission) {
-    final normalized = _normalizePermissionKey(permission.name);
-    const labels = {
-      'patient': 'Quản lý bệnh nhân',
-      'patients': 'Quản lý bệnh nhân',
-      'benh_nhan': 'Quản lý bệnh nhân',
-      'read_patient_list': 'Quản lý bệnh nhân',
-      'create_patient_exam': 'Danh sách ca khám',
-      'dicom': 'Hỗ trợ chẩn đoán',
-      'dicom_image': 'Hỗ trợ chẩn đoán',
-      'upload_dicom_image': 'Hỗ trợ chẩn đoán',
-      'xray': 'Hỗ trợ chẩn đoán',
-      'x_quang': 'Hỗ trợ chẩn đoán',
-      'diagnosis': 'Hỗ trợ chẩn đoán',
-      'report': 'Báo cáo & hồ sơ',
-      'reports': 'Báo cáo & hồ sơ',
-      'notification': 'Thông báo',
-      'notifications': 'Thông báo',
-    };
-
-    if (labels.containsKey(normalized)) return labels[normalized]!;
-    return _capitalize(permission.name.replaceAll('_', ' '));
-  }
-
   IconData _permissionIcon(String permissionName) {
-    final normalized = _normalizePermissionKey(permissionName);
-    if (normalized == 'create_patient_exam') {
+    final normalized = normalizePermissionKey(permissionName);
+    if (normalized == 'examination_list_page') {
       return Icons.assignment_outlined;
     }
-    if (normalized.contains('patient') || normalized.contains('benh_nhan')) {
+    if (normalized.contains('patient') ||
+        normalized.contains('benh_nhan') ||
+        normalized == 'patient_list_page' ||
+        normalized == 'patient_detail_page') {
       return Icons.people_outline;
     }
-    if (normalized.contains('dicom') ||
-        normalized.contains('upload_dicom_image') ||
+    if (normalized == 'dicom_upload_page' ||
+        normalized == 'file_upload_page' ||
         normalized.contains('xray') ||
         normalized.contains('x_quang') ||
         normalized.contains('diagnosis')) {
@@ -182,34 +131,31 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     return Icons.lock_outline;
   }
 
-  String _capitalize(String value) {
-    if (value.isEmpty) return value;
-    return value[0].toUpperCase() + value.substring(1);
-  }
-
   // ─────────────────────────────────────────────
   // SIDEBAR
   // ─────────────────────────────────────────────
   Widget _buildSidebar(BuildContext context) {
     final navItems = _visibleNavItems(context);
-    return Container(
-      width: 250,
+    return Material(
       color: _darkGreen,
-      child: Column(
-        children: [
-          _buildSidebarHeader(),
-          const Divider(color: Colors.white24, height: 1),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              children: navItems.isEmpty
-                  ? [_buildEmptyPermissionNote()]
-                  : navItems.map((item) => _buildNavItem(item)).toList(),
+      child: SizedBox(
+        width: 250,
+        child: Column(
+          children: [
+            _buildSidebarHeader(),
+            const Divider(color: Colors.white24, height: 1),
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                children: navItems.isEmpty
+                    ? [_buildEmptyPermissionNote()]
+                    : navItems.map((item) => _buildNavItem(item)).toList(),
+              ),
             ),
-          ),
-          const Divider(color: Colors.white24, height: 1),
-          _buildLogoutTile(context),
-        ],
+            const Divider(color: Colors.white24, height: 1),
+            _buildLogoutTile(context),
+          ],
+        ),
       ),
     );
   }
@@ -340,7 +286,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   Widget _buildDrawer(BuildContext context) {
     final navItems = _visibleNavItems(context);
     return Drawer(
-      child: Container(
+      child: Material(
         color: _darkGreen,
         child: Column(
           children: [
@@ -392,6 +338,13 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   Widget _buildMainContent(BuildContext context) {
     final selectedPatientDetail = _selectedPatientDetail;
     if (selectedPatientDetail != null) {
+      if (!_hasPermission(context, 'patient_detail_page')) {
+        return _forbiddenPage(
+          title: 'Không có quyền xem chi tiết bệnh nhân',
+          subtitle: 'Tài khoản hiện tại chưa được cấp permission cho màn này.',
+          icon: Icons.lock_outline,
+        );
+      }
       return PatientDetailPage(patient: selectedPatientDetail, embedded: true);
     }
 
@@ -408,57 +361,265 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         ? navItems[_selectedNavIndex]
         : null;
 
-    final selectedLabel = selectedItem?.label ?? '';
-    final selectedPermission = _normalizePermissionKey(
-      selectedItem?.permissionName ?? '',
-    );
-    final hasUploadDicomPermission =
-        context.read<AuthViewModel>().currentUser?.permissions.any(
-          (name) => _normalizePermissionKey(name) == 'upload_dicom_image',
-        ) ??
-        false;
+    final selectedPermission = selectedItem?.routeKey ?? '';
 
-    if (selectedPermission == 'create_patient_exam' ||
-        selectedLabel == 'Danh sách ca khám') {
+    if (selectedPermission == 'examination_list_page') {
+      if (!_hasPermission(context, 'examination_list_page')) {
+        return _forbiddenPage(
+          title: 'Không có quyền xem ca khám',
+          subtitle: 'Màn danh sách ca khám chưa được cấp cho tài khoản này.',
+          icon: Icons.lock_outline,
+        );
+      }
       return ExaminationListPage(
         embedded: true,
         newExaminations: _newUploadExaminations,
       );
     }
-    if (selectedPermission == 'read_patient_list' ||
-        selectedLabel == 'Quản lý bệnh nhân') {
-      return _buildPatientListPage(context);
+    if (selectedPermission == 'patient_list_page') {
+      if (!_hasPermission(context, 'patient_list_page')) {
+        return _forbiddenPage(
+          title: 'Không có quyền xem bệnh nhân',
+          subtitle: 'Danh sách bệnh nhân không khả dụng với tài khoản này.',
+          icon: Icons.lock_outline,
+        );
+      }
+      return PatientListPage(
+        embedded: true,
+        onOpenPatientDetail: (patient) =>
+            setState(() => _selectedPatientDetail = patient),
+      );
     }
-    if (selectedLabel == 'Trang chủ') {
-      return _buildDashboard(context);
-    }
-    if (selectedPermission == 'upload_dicom_image' ||
-        (selectedLabel == 'Hỗ trợ chẩn đoán' && hasUploadDicomPermission)) {
-      return DicomUploadPage(onGoToExaminations: _openNewUploadExaminations);
+    if (selectedPermission == 'dicom_upload_page' ||
+        selectedPermission == 'file_upload_page') {
+      if (!_hasUploadPermission(context)) {
+        return _forbiddenPage(
+          title: 'Không có quyền upload DICOM',
+          subtitle: 'Tài khoản này chưa được cấp quyền hỗ trợ chẩn đoán.',
+          icon: Icons.lock_outline,
+        );
+      }
+      return FileUploadPage(onGoToExaminationList: _openExaminationListTab);
     }
 
     return _buildFeaturePlaceholderPage(
       title: selectedItem?.label ?? 'Đang cập nhật',
-      subtitle: selectedItem == null
-          ? 'Tài khoản hiện chưa có permission cha để hiển thị trong sidebar.'
-          : 'Tính năng này đang được cập nhật.',
+      subtitle: 'Tính năng này đang được cập nhật.',
       icon: selectedItem?.icon ?? Icons.construction_outlined,
     );
   }
 
-  void _openNewUploadExaminations(List<ExaminationEntity> examinations) {
-    final navItems = _visibleNavItems(context);
+  void _openExaminationListTab() {
+    final navItems = _visibleNavItems(context, listen: false);
     final examIndex = navItems.indexWhere((item) {
-      final permission = _normalizePermissionKey(item.permissionName);
-      return permission == 'create_patient_exam' ||
-          item.label == 'Danh sách ca khám';
+      return item.routeKey == 'examination_list_page';
     });
+    if (examIndex < 0) return;
     setState(() {
-      _newUploadExaminations = List.unmodifiable(examinations);
-      _showUploadExaminationList = true;
-      if (examIndex >= 0) {
-        _selectedNavIndex = examIndex;
-      }
+      _selectedNavIndex = examIndex;
+      _showUploadExaminationList = false;
+      _selectedPatientDetail = null;
+    });
+  }
+
+  Widget _buildUploadMiniProgress() {
+    return Positioned(
+      right: 18,
+      bottom: 18,
+      child: Consumer<DicomUploadViewModel>(
+        builder: (context, vm, _) {
+          if (!vm.isProcessActive || _isUploadPageSelected(context)) {
+            return const SizedBox.shrink();
+          }
+          if (_isUploadMiniProgressCollapsed) {
+            return _buildCollapsedUploadMiniProgress(vm);
+          }
+          return Material(
+            color: Colors.transparent,
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: _openUploadTabFromMiniProgress,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: _openUploadTabFromMiniProgress,
+                child: Container(
+                  width: 300,
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x22000000),
+                        blurRadius: 18,
+                        offset: Offset(0, 8),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.cloud_sync_outlined,
+                            color: _primaryGreen,
+                            size: 18,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text(
+                              'Xử lý DICOM',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1A2B3C),
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Thu gọn',
+                            visualDensity: VisualDensity.compact,
+                            iconSize: 18,
+                            onPressed: () => setState(
+                              () => _isUploadMiniProgressCollapsed = true,
+                            ),
+                            icon: const Icon(
+                              Icons.keyboard_arrow_down_rounded,
+                              color: Color(0xFF718096),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${(vm.progress * 100).round()}% · ${_formatUploadDuration(vm.uploadElapsed)}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          color: _primaryGreen,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      LinearProgressIndicator(
+                        value: vm.progress.clamp(0, 1),
+                        minHeight: 6,
+                        borderRadius: BorderRadius.circular(99),
+                        backgroundColor: const Color(0xFFE2E8F0),
+                        color: _primaryGreen,
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        vm.uploadStatusMessage ?? 'Đang xử lý...',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Color(0xFF718096),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildCollapsedUploadMiniProgress(DicomUploadViewModel vm) {
+    return Material(
+      color: Colors.transparent,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _openUploadTabFromMiniProgress,
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: _openUploadTabFromMiniProgress,
+          child: Container(
+            width: 176,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color(0x22000000),
+                  blurRadius: 18,
+                  offset: Offset(0, 8),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                const Padding(
+                  padding: EdgeInsets.all(4),
+                  child: Icon(
+                    Icons.cloud_sync_outlined,
+                    color: _primaryGreen,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    '${(vm.progress * 100).round()}% · ${_formatUploadDuration(vm.uploadElapsed)}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      color: _primaryGreen,
+                    ),
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Mở trang upload',
+                  visualDensity: VisualDensity.compact,
+                  iconSize: 18,
+                  onPressed: _openUploadTabFromMiniProgress,
+                  icon: const Icon(
+                    Icons.keyboard_arrow_up_rounded,
+                    color: Color(0xFF718096),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isUploadPageSelected(BuildContext context) {
+    if (_showUploadExaminationList || _selectedPatientDetail != null) {
+      return false;
+    }
+    final navItems = _visibleNavItems(context);
+    if (_selectedNavIndex < 0 || _selectedNavIndex >= navItems.length) {
+      return false;
+    }
+    final routeKey = navItems[_selectedNavIndex].routeKey;
+    return routeKey == 'dicom_upload_page' || routeKey == 'file_upload_page';
+  }
+
+  void _openUploadTabFromMiniProgress() {
+    final navItems = _visibleNavItems(context, listen: false);
+    final uploadIndex = navItems.indexWhere((item) {
+      return item.routeKey == 'dicom_upload_page' ||
+          item.routeKey == 'file_upload_page';
+    });
+    if (uploadIndex < 0) return;
+    setState(() {
+      _selectedNavIndex = uploadIndex;
+      _showUploadExaminationList = false;
+      _selectedPatientDetail = null;
+      _isUploadMiniProgressCollapsed = false;
     });
   }
 
@@ -632,6 +793,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     );
   }
 
+  /*
   // ─────────────────────────────────────────────
   // DASHBOARD
   // ─────────────────────────────────────────────
@@ -1081,8 +1243,15 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   }
 
   Widget _buildPatientRow(BuildContext context, PatientEntity p) {
+    final canOpenDetail = _hasPermission(context, 'patient_detail_page');
     return InkWell(
-      onTap: () => setState(() => _selectedPatientDetail = p),
+      onTap: () {
+        if (!canOpenDetail) {
+          _showPermissionDeniedToast('Không có quyền xem chi tiết bệnh nhân');
+          return;
+        }
+        setState(() => _selectedPatientDetail = p);
+      },
       hoverColor: const Color(0xFFF0F4F3),
       child: Container(
         color: Colors.white,
@@ -1160,7 +1329,15 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                 size: 18,
                 color: Color(0xFF718096),
               ),
-              onPressed: () => setState(() => _selectedPatientDetail = p),
+              onPressed: () {
+                if (!canOpenDetail) {
+                  _showPermissionDeniedToast(
+                    'Không có quyền xem chi tiết bệnh nhân',
+                  );
+                  return;
+                }
+                setState(() => _selectedPatientDetail = p);
+              },
             ),
           ],
         ),
@@ -1328,8 +1505,92 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       builder: (ctx) => const _CreatePatientDialog(),
     ).then((_) => vm.fetchFirstPage(token: _token));
   }
+
+  */
+  String _formatUploadDuration(Duration duration) {
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    if (hours > 0) {
+      return '$hours:$minutes:$seconds';
+    }
+    return '$minutes:$seconds';
+  }
+
+  bool _hasPermission(BuildContext context, String key) {
+    return context.read<AuthViewModel>().hasPermissionPresentation(key);
+  }
+
+  bool _hasUploadPermission(BuildContext context) {
+    final auth = context.read<AuthViewModel>();
+    return auth.hasPermissionPresentation('dicom_upload_page') ||
+        auth.hasPermissionPresentation('file_upload_page') ||
+        auth.hasPermissionPresentation('upload_dicom_image');
+  }
+
+  /*
+  void _showPermissionDeniedToast(String message) {
+    AppToast.showWarning(message);
+  }
+  */
+
+  Widget _forbiddenPage({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+  }) {
+    return Container(
+      color: const Color(0xFFF0F4F3),
+      child: Center(
+        child: Container(
+          width: 420,
+          padding: const EdgeInsets.all(28),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFE6F4F1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: _primaryGreen, size: 28),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF1A2B3C),
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13,
+                  height: 1.4,
+                  color: Color(0xFF718096),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
+/*
 // ─────────────────────────────────────────────
 // TABLE HEADER WIDGET
 // ─────────────────────────────────────────────
@@ -1350,15 +1611,18 @@ class _TableHeader extends StatelessWidget {
     );
   }
 }
+*/
 
 class _DoctorNavItemData {
   final int index;
+  final String routeKey;
   final String permissionName;
   final String label;
   final IconData icon;
 
   const _DoctorNavItemData({
     required this.index,
+    required this.routeKey,
     required this.permissionName,
     required this.label,
     required this.icon,
@@ -1699,12 +1963,7 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
     if (mounted) {
       setState(() => _isLoading = false);
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Chức năng tạo bệnh nhân đang hoàn thiện'),
-          backgroundColor: Color(0xFF2D7E6E),
-        ),
-      );
+      AppToast.showWarning('Chức năng tạo bệnh nhân đang hoàn thiện');
     }
   }
 }

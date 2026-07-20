@@ -146,13 +146,24 @@ void initState() {
 | Endpoint | Method | Ghi chú |
 |---|---|---|
 | `/permissions/tree` | GET | Trả `FeatureResponse[]`, mỗi feature có `permissions[]` |
-| `/permissions` | POST | Tạo permission `{name, description, featureId, requiresPermissionId}` |
-| `/permissions/{id}` | PUT | Cập nhật permission `{name, description, requiresPermissionId}` |
+| `/permissions` | POST | Tạo permission; schema mới ưu tiên `code`, `featureId`, `priority`, `presentation`, `requiresPermissionId` |
+| `/permissions/{id}` | PUT | Cập nhật permission với payload tương tự, dùng `id` trong path |
 | `/permissions/role/{roleName}` | GET | Trả danh sách permission id (`int64[]`) |
 | `/permissions/role/{roleName}` | PUT | Cập nhật quyền role bằng `{permissionIds: [...]}` |
 | `/features` | POST | Tạo feature `{name, description}` |
 | `/features/{id}` | PUT | Cập nhật feature `{name, description}` |
 | `/roles` | GET | Backend hiện chưa có/chưa ổn định endpoint này. Tạm thời popup tạo user dùng role cố định: `1 = Admin`, `2 = Doctor` theo yêu cầu 25/06/2026. |
+
+**Permission admin phase 1**
+- Màn admin quản lý permission/feature nên bám theo schema mới của backend: tab riêng cho `Features`, `Permissions`, `Roles`.
+- UI CRUD ưu tiên tạo/sửa trước; nếu docs chưa có DELETE thì không nên tự dựng nút xóa.
+- `FeatureResponse.permissions[]` là nguồn dữ liệu để hiển thị permission con theo feature; danh sách phẳng permission nên sort theo `priority` rồi theo tên/code để dễ đọc.
+- Khi render permission theo cây cha-con trong admin, luôn ưu tiên hiển thị permission cha trước, rồi đến các permission con ngay bên dưới cha trong cùng nhóm resource/feature để dễ đọc và dễ bật/tắt.
+- `presentation` là khóa liên kết sang màn frontend, còn `priority` là thứ tự hiển thị trên sidebar hoặc trong nhóm permission.
+- Doctor shell hiện đã tách `patient_list_page` thành page riêng: `PatientListPage` dùng trong shell, còn `PatientDetailPage` vẫn mở theo callback từ list để giữ sidebar/top bar.
+- Sidebar doctor chỉ hiển thị permission cha (`isParent == true`); không fallback sang permission con nếu backend chưa trả permission cha.
+- Khi login doctor chỉ trả permission dạng code thô như `READ_PATIENT_LIST`, shell phải tự map code sang route key và nhãn hiển thị thân thiện; không render trực tiếp code lên sidebar và không chỉ dựa vào `presentation` có thể bị thiếu trong response login.
+- Sau khi RBAC ổn định, bỏ hẳn fallback key cũ trong doctor shell và các điểm vào page; chỉ dùng `presentation` làm route key chính thức.
 
 **Notifications / Upload**
 | Endpoint | Method | Ghi chú |
@@ -168,7 +179,7 @@ void initState() {
 - Password mới trong login/reset/change-password: `minLength: 8`, `maxLength: 32`.
 - `ResetPasswordRequest` bắt buộc đủ `email`, `token`, `newPassword`; `token` đúng 6 ký tự.
 - `CreateUserRequest` bắt buộc `fullName`, `email`, `roleId`; `phone` chỉ gồm chữ số nếu có.
-- `CreateDoctorRequest` bắt buộc `doctorCode`, `email`, `fullName`, `hospitalName`, `licenseNumber`, `phone`, `specialization`.
+- `CreateDoctorRequest` theo OpenAPI 24/06 từng bắt buộc `doctorCode`, `email`, `fullName`, `hospitalName`, `licenseNumber`, `phone`, `specialization`; nhưng OpenAPI 08/07 đã thay schema mới, xem mục 4.1.2 trước khi sửa form tạo bác sĩ.
 - Gender dùng enum `MALE`, `FEMALE`, `OTHER`.
 - Doctor status dùng enum `ACTIVE`, `INACTIVE`.
 - Doctor position dùng enum `DEPARTMENT_HEAD`, `NORMAL`.
@@ -177,6 +188,45 @@ void initState() {
 **MockAPI:** `https://6a21b474b1d0aaf32b4fe12a.mockapi.io`
 - `/permission` — danh sách quyền
 - `/role` — danh sách vai trò, PUT `{permissions: [...]}` để cập nhật
+
+### 4.1.2 OpenAPI doc 08/07/2026 (base mới: `http://54.254.113.71:8000/api/v1`)
+
+> Nguồn: file OpenAPI user gửi ngày 08/07/2026 và Swagger UI `http://54.254.113.71:8000/api/v1/swagger-ui/index.html#/`. Link Swagger UI chỉ dùng để xem docs; app gọi API bằng base `http://54.254.113.71:8000/api/v1`. Nếu mâu thuẫn với ghi chú cũ, giữ cả hai nguồn và ưu tiên kiểm chứng backend trước khi sửa luồng đang chạy.
+
+- Base URL đổi từ `http://171.244.143.241:8000/api/v1` sang `http://54.254.113.71:8000/api/v1`.
+- Có nhóm endpoint ca khám chính thức: `GET /examinations`, `GET /examinations/{id}`, `GET /examinations/patient/{patientId}`, `GET /examinations/doctor/{doctorId}`. Các endpoint list trả `PageResponseExaminationDto`, dùng `pageable`; `patientId`/`doctorId` trong path là `int64`. Với Doctor role, danh sách ca khám tổng hợp chỉ được hiển thị ca khám của bác sĩ hiện tại nên dùng `GET /examinations/doctor/{doctorId}`, không tự gom toàn bộ bệnh nhân nữa.
+- `GET /patients/{patientId}/details` vẫn còn và `patientId` là string, trả `PatientDetailsResponse {patient, recentExaminations[]}`; có thể tiếp tục dùng cho màn chi tiết bệnh nhân khi cần gom patient + exam + images.
+- `ExaminationDto` mở rộng nhiều field: `studyTime`, `chiefComplaint`, `clinicalNotes`, `priority`, `finalDiagnosis`, `description`, `patient`, `doctor`, `images[]`.
+- DICOM có thêm `POST /dicom/upload/zip-batch` để upload một file zip batch và `GET /dicom/instances/{id}/image` trả binary image.
+- Upload DICOM mới nhận 2 chế độ tách biệt: nhiều file `.dcm` gọi `POST /dicom/upload/batch` với multipart field `files`; file `.zip` gọi `POST /dicom/upload/zip-batch` với multipart field `file`. Từ cập nhật 15/07/2026, FE cho chọn nhiều file `.zip` trong một lượt nhưng gửi tuần tự từng ZIP qua `/dicom/upload/zip-batch`, gom các `DICOM_BATCH_RESULT` lại để xác nhận; không upload lẫn `.zip` và `.dcm` trong cùng một lượt.
+- Luồng upload cần tương thích cả backend trả kết quả ngay qua HTTP và backend trả ACK/`202 Accepted`: nếu chưa có `{errors[], successfulPatients[]}` trong HTTP response thì frontend chờ WebSocket STOMP tại `/api/v1/ws`, subscribe `/user/queue/notifications`, nhận progress `SYSTEM` và kết quả cuối `DICOM_BATCH_RESULT`. Với `DICOM_BATCH_RESULT`, field `message` là JSON string lồng bên trong nên phải decode thêm một lần.
+- Thực tế runtime 15/07/2026 gần như luôn trả HTTP ACK dạng `{message, status: PROCESSING}` sau upload; FE phải coi WebSocket là bắt buộc cho luồng lấy danh sách bệnh nhân. Cần kết nối WebSocket thành công trước khi gửi file để tránh upload xong nhưng không nhận được `DICOM_BATCH_RESULT`.
+- Nếu STOMP chỉ nhận progress `SYSTEM` rồi không nhận frame cuối, FE vẫn phải poll `GET /notifications/unread` theo mốc `notification.id` trước lúc upload để bắt `DICOM_BATCH_RESULT` đã được lưu nhưng không push realtime.
+- Poll fallback chỉ được dùng khi lấy baseline `/notifications/unread` thành công; nếu baseline lỗi thì chờ WebSocket để tránh bắt nhầm `DICOM_BATCH_RESULT` cũ còn unread. FE cũng phải parse batch result từ cả `message` JSON string và `data` object, đồng thời coi `SYSTEM` có title `DICOM Upload Complete` + `Session:` là lỗi backend hoàn tất nhưng không trả danh sách bệnh nhân.
+- Runtime WebSocket 15/07/2026 có thể trả list bệnh nhân bằng notification `type: DICOM_BATCH_RESULT`, title `DICOM Upload Complete (Pending Verify)`, còn toàn bộ `BatchDicomUploadResponse` nằm trong field `message` dạng JSON string. Parser FE phải coi notification có title bắt đầu bằng `DICOM Upload Complete` và `message` decode ra `{uploadSessionId, errors, successfulPatients}` là batch result hợp lệ, kể cả khi cần poll lại từ `/notifications/unread`.
+- Không đặt timeout cho giai đoạn upload/đợi kết quả cuối WebSocket trong DICOM batch vì thực tế có thể upload hàng trăm file DCM/ZIP; chỉ nên báo lỗi khi API/WebSocket trả lỗi hoặc kết nối WebSocket ban đầu không thiết lập được.
+- Sau upload, backend có thể trả `successfulPatients[].recentExaminations[]` với `status: NEED_VERIFY` cho ca cần xác nhận lần đầu hoặc `NEED_REVERIFY` cho ca cần xác nhận lại. Khi bác sĩ xác nhận, FE gom toàn bộ `successfulPatients[].recentExaminations[].images[].dicomInstanceId` thành list int và gọi `POST /ai/predict-batch` với payload `{dicomInstanceIds: [...]}`. Response là `ExaminationDto[]` có `status: AI_COMPLETED` và `images[].aiResult`.
+- UI xác nhận sau upload phải là checklist bệnh nhân rõ ràng; mặc định chọn tất cả bệnh nhân backend xử lý thành công, bác sĩ có thể bỏ chọn. FE chỉ gửi `dicomInstanceId` thuộc các bệnh nhân đang được chọn/xác nhận.
+- `CreateDoctorRequest` mới đơn giản hơn: required `fullName`, `email`, `phone`. Không còn các field cũ như `doctorCode`, `hospitalName`, `licenseNumber`, `specialization` trong schema mới.
+- Permission schema đổi trọng tâm sang `code`, `priority`, `presentation`; `CreatePermissionRequest` required `code`, `featureId`, không required `name`.
+
+### 4.1.3 OpenAPI doc 15/07/2026 (base giữ nguyên: `http://54.254.113.71:8000/api/v1`)
+
+> Nguồn: file OpenAPI user gửi ngày 15/07/2026. Nếu mâu thuẫn với ghi chú 08/07 hoặc websocket guide, ưu tiên kiểm chứng backend/runtime trước khi sửa luồng đang chạy vì OpenAPI vẫn chưa mô tả đầy đủ WebSocket STOMP.
+
+**Điểm mới/khác đáng chú ý**
+- Thêm `POST /dicom/verify` với payload `DicomVerifyRequest {uploadSessionId, acceptedPatientCodes[]}` và response object. Đây là bước xác nhận upload/session riêng, tách khỏi AI prediction.
+- DICOM upload batch/zip trong OpenAPI 15/07 đang khai báo response là `object additionalProperties<string>` cho cả `POST /dicom/upload/batch` và `POST /dicom/upload/zip-batch`, không còn mô tả rõ `errors[]`/`successfulPatients[]` trong schema OpenAPI. Tuy nhiên luồng FE hiện vẫn phải hỗ trợ runtime cũ: HTTP trả kết quả trực tiếp hoặc ACK/pending rồi chờ WebSocket `DICOM_BATCH_RESULT`.
+- Thêm endpoint ảnh DICOM raw: `GET /dicom/instances/{id}/raw` trả binary, bên cạnh `GET /dicom/instances/{id}/image`.
+- Thêm `GET /ai/heatmap/{aiResultId}` trả binary heatmap; AI result trong `ExaminationImageDto` là `aiResults[]`, không phải field đơn `aiResult`.
+- Thêm `PUT /examinations/{id}/view` để mark ca khám đã xem.
+- `ExaminationDto` trong doc 15/07 có `doctorId` thay vì object `doctor`; có thêm `isViewed` và `maxPredictedGrade`. FE parse model nên chịu được thiếu object doctor và dùng `doctorId` khi có.
+- `ExaminationImageDto` có `dicomInstanceId`, `imageUrl`, `aiResults[]`, `status`, `visitTime`, `bodyPart`; khi gọi AI batch vẫn gửi list `dicomInstanceIds`.
+- Thêm nhóm hồ sơ bác sĩ: `GET /doctors/profile`, `PUT /doctors/profile`; thêm `PUT /doctors/{id}` để sửa bác sĩ.
+- `CreateDoctorRequest` vẫn required `fullName`, `email`, `phone`, nhưng schema có thêm optional `avatarUrl`, `yearsOfExperience`, `degree`, `biography`.
+- `EditDoctorRequest` gồm `fullName`, `email`, `phone`, `avatarUrl`, `yearsOfExperience`, `degree`, `biography`; không thấy lại các field cũ như `doctorCode`, `hospitalName`, `licenseNumber`, `specialization`.
+- `DoctorResponse.role` là string trong doc 15/07; `UserResponse.role` vẫn là object `Role`.
+- Vẫn không có `GET /users`; chỉ còn `POST /users`, nên danh sách tài khoản admin/doctor không nên phụ thuộc vào `GET /users` nếu chưa kiểm chứng backend live.
 
 ### 4.2 Patient list không dùng mock fallback
 Danh sách bệnh nhân trong Doctor role phải lấy dữ liệu thật từ backend `/patients`. Không fallback sang `MockPatients.samples`; nếu API trả rỗng thì hiển thị rỗng, nếu API lỗi thì báo lỗi để tránh nhầm dữ liệu tạm là dữ liệu thật.
@@ -190,6 +240,42 @@ Danh sách bệnh nhân trong Doctor role phải lấy dữ liệu thật từ b
 ---
 
 ## 5. UI Patterns
+
+### 5.0 Màu giao diện chuẩn
+Palette chuẩn của dự án:
+
+- Primary: `#0B4F43`
+- Primary Dark: `#00614F`
+- Primary Light: `#0E7C66`
+- Primary XLight: `#97F4D9`
+- Success: `#336E61`
+- Success Light: `#B1EFDE`
+- Warning: `#735C00`
+- Warning Light: `#CCA72F`
+- Error: `#BA1A1A`
+- Error Light: `#FFDAD6`
+- Info: `#6B7280`
+- Info Light: `#E3E2DF`
+- Text Primary: `#1B1C1A`
+- Text Secondary: `#6E7A75`
+- Text Disabled: `#BDC9C4`
+- Border: `#E9E8E4`
+- Border Strong: `#BDC9C4`
+- Surface 1: `#FAF9F5`
+- Surface 2: `#EFEEEA`
+- Surface 3: `#1B1C1A`
+- White: `#FFFFFF`
+
+Quy ước dùng:
+
+- `Primary` cho nút hành động chính, sidebar active, focus ring.
+- `Primary Dark` cho hover/emphasis.
+- `Primary Light` cho nút phụ, underline tab, progress fill.
+- `Primary XLight` cho highlight chọn, badge/tag fill, selected row.
+- `Surface 1` làm nền trang sáng; `Surface 2` cho card; `Surface 3` cho sidebar/top bar tối.
+- `Text Primary` và `Text Secondary` là màu chữ mặc định thay cho các xám cũ rải rác.
+- `Border` và `Border Strong` là màu viền chuẩn cho input/table/card.
+- Khi thêm màn mới hoặc sửa shell chung, ưu tiên lấy màu từ `lib/core/constants/app_colors.dart`; tránh hardcode mã màu lặp lại nếu cùng ý nghĩa thiết kế.
 
 ### 5.1 Layout Admin Homepage (SPA pattern)
 Admin homepage không chuyển trang — dùng `_selectedNavIndex` để switch nội dung:
@@ -247,14 +333,17 @@ Tất cả trang của Doctor role dùng cùng một style top bar:
 - Avatar (radius 15) + tên bác sĩ + chức danh "Chẩn đoán hình ảnh"
 - Icon notification size 20
 - Permission doctor `READ_PATIENT_LIST` là màn xem danh sách bệnh nhân.
-- Khi bấm một bệnh nhân trong danh sách, mở `PatientDetailPage(embedded: true)` ngay trong doctor shell để giữ sidebar/topbar. Màn chi tiết bệnh nhân không dùng mock: phần trên hiển thị thông tin bệnh nhân, phần dưới là các thẻ lần khám thật lấy từ `/patients/{patientId}/details`, sắp xếp giảm dần theo thời gian khám. Bấm thẻ lần khám mở popup chi tiết có ảnh X-quang, thông tin ca khám, và panel cuộn bên phải để đổi sang các ca khám khác.
+- Khi bấm một bệnh nhân trong danh sách, mở `PatientDetailPage(embedded: true)` ngay trong doctor shell để giữ sidebar/topbar. Màn chi tiết bệnh nhân không dùng mock: phần trên hiển thị thông tin bệnh nhân, phần dưới là các thẻ lần khám thật lấy từ `/patients/{patientId}/details`, sắp xếp giảm dần theo thời gian khám. Thẻ lần khám dùng ngày giờ khám làm tiêu đề chính, không lặp thêm mục meta "Thời gian khám". Bấm thẻ lần khám mở popup chi tiết có ảnh X-quang, thông tin ca khám, và panel cuộn bên phải chỉ hiển thị các ca khám khác. Khi chọn một ca khác làm ca khám phụ, popup chuyển sang so sánh hai ca song song: ca chính bên trái, ca phụ bên phải; nút X ở ca phụ tắt chế độ so sánh và quay lại panel chọn ca phụ. Popup so sánh không hiển thị chữ "ca khám chính/phụ", không hiển thị ID ca khám hoặc encounter code; tiêu đề ca khám trong danh sách dùng ngày giờ khám làm thông tin chính. Khi so sánh hai ca, hai cột chi tiết phải nằm trong cùng vùng cuộn để bác sĩ kéo scroll song song cả hai bên. Ca đang xem bên trái được nhấn bằng badge "Đang xem" và nền mint nhạt, không dùng viền nổi bật quanh nội dung.
 - Permission doctor `CREATE_PATIENT_EXAM` là entry "Danh sách ca khám": mở trực tiếp `ExaminationListPage` tổng hợp tất cả ca khám, không qua bước chọn bệnh nhân. Nguồn dữ liệu tạm thời vẫn phải gom từ `/patients/{patientId}/details`.
+- Cập nhật 11/07/2026: `ExaminationListPage` có chip phân loại theo status mới (`NEED_VERIFY`, `NEED_REVERIFY`, `AI_COMPLETED`, `COMPLETED`, `PENDING`, `ANALYZING`, `AWAITING_REVIEW`). Vì API `/examinations` chưa có query filter status trong OpenAPI, chip hiện lọc trên dữ liệu của trang hiện tại, còn phân trang vẫn gọi backend bằng `page`, `size`, `sort`.
+- Các danh sách dùng API pageable phải có phân trang thật với lựa chọn page size `5 / 10 / 20`; không dùng infinite "Tải thêm" cho các màn chính như bệnh nhân, tài khoản bác sĩ/admin, và ca khám. FE gửi query phẳng `page`, `size` (và `sort` khi cần) vì backend Spring bind được vào `Pageable`.
 - `ExaminationListPage` hiện chỉ hiển thị các trường tối thiểu: ID ca khám, tên bệnh nhân, ngày tháng năm sinh, giới tính, ngày chụp; chưa hiển thị ảnh/thumbnail trong list.
 - Bấm một ca khám trong `ExaminationListPage` mở `ExaminationDetailPage` ngay trong content doctor shell để giữ nguyên sidebar/topbar. Detail gồm thanh thông tin bệnh nhân/ca khám phía trên, vùng ảnh lớn ở giữa/trái, và panel thông tin ca khám bên phải.
 - Một examination có thể có nhiều ảnh; `ExaminationDetailPage` hiển thị ảnh đang chọn ở viewer lớn, có thanh thumbnail nhỏ để đổi ảnh, và nút toàn màn hình mở ảnh hiện tại trong viewer có thể zoom/pan.
-- Permission doctor `UPLOAD_DICOM_IMAGE` là màn upload DICOM. Màn này cho chọn/kéo-thả nhiều file `.DCM/.dcm`, nút xanh ở cuối card upload batch lên `/dicom/upload/batch`.
+- Permission doctor `UPLOAD_DICOM_IMAGE` là màn upload DICOM. Màn này cho chọn/kéo-thả nhiều file `.DCM/.dcm` hoặc nhiều file `.zip`; nhiều file DICOM upload lên `/dicom/upload/batch`, còn nhiều ZIP được gửi tuần tự từng file lên `/dicom/upload/zip-batch`.
+- Flow upload mới được dựng ở `FileUploadPage` (`lib/presentation/pages/doctor/file_upload_page.dart`) để giữ lại `DicomUploadPage` cũ làm phương án rollback. Doctor shell hiện route permission `dicom_upload_page` sang `FileUploadPage` và hiển thị mini progress bar toàn cục ở góc phải khi upload/processing/verify/AI đang chạy.
 - Màn upload DICOM ưu tiên layout gọn trong một viewport desktop: bên trái là danh sách file chờ gửi, có nút xóa từng file; sau khi upload batch thành công tự clear file chờ. Bên phải hiển thị danh sách bệnh nhân trong `successfulPatients[]` của response, không hiển thị lịch sử file đã upload.
-- Thông báo kết quả upload DICOM dùng toast/SnackBar nổi; không render khối notification thành công/lỗi chen trong card upload. Chi tiết sau upload ưu tiên hiển thị bệnh nhân và ca khám từ response batch.
+- Thông báo trong app dùng toast overlay chung (`AppToast`) ở góc dưới bên phải, dạng thanh nhỏ, tự ẩn sau 5 giây và có nút `X` để đóng sớm. Không dùng `SnackBar` riêng cho từng màn nữa.
 - Sau upload batch, panel response có nút "Đi tới ca khám" để mở `ExaminationListPage` trong doctor shell và truyền các `recentExaminations[]` vừa trả về. `ExaminationListPage` luôn có chip đầu tiên và mặc định là "Ca khám mới"; chip đó hiển thị dữ liệu từ response upload, còn các chip trạng thái còn lại vẫn đọc dữ liệu ca khám theo luồng patient detail/tổng hợp hiện có.
 
 ---
@@ -302,7 +391,7 @@ Tra cứu bằng `MockExams.forPatient(patientCode)`.
 | Quyết định | Lý do |
 |---|---|
 | Danh sách user dùng `GET /users` thay `GET /doctors` | API doc mới trả về `UserResponse` chung, không phải `DoctorResponse` riêng |
-| Tạo tài khoản bác sĩ trong admin dùng `POST /doctors` với `CreateDoctorRequest` | User xác nhận 26/06/2026 backend đang xử lý tạo bác sĩ qua endpoint này; không dùng `POST /users` cho luồng tạo bác sĩ |
+| Tạo tài khoản bác sĩ trong admin dùng `POST /doctors` với `CreateDoctorRequest` | Theo OpenAPI 08/07/2026, payload chỉ gửi `fullName`, `email`, `phone`; không gửi các field cũ `doctorCode`, `hospitalName`, `licenseNumber`, `specialization`. |
 | `DoctorAccountModel` parse được cả `DoctorResponse` lẫn `UserResponse` | Field `role` có thể là String hoặc Object `{id, name, permissions[]}` |
 | `PatientDetailPage` dùng `Navigator.push` không phải GoRouter | Trang con trong cùng Doctor role, không cần URL-based routing |
 | Patient list page tự tải trang đầu khi màn danh sách bệnh nhân được render lần đầu | Tránh trạng thái chip "Tất cả" hiển thị rỗng dù backend có bệnh nhân; chỉ gọi khi màn danh sách thật sự mở để không load sẵn không cần thiết |

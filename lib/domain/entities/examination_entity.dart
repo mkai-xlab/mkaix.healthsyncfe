@@ -1,18 +1,55 @@
 import 'package:intl/intl.dart';
 
+class AiPredictionResultEntity {
+  final int dicomInstanceId;
+  final int aiAnalysisId;
+  final int aiResultId;
+  final int predictedGrade;
+  final double confidence;
+  final String description;
+  final Map<String, double> details;
+  final String gradcamImageUrl;
+
+  const AiPredictionResultEntity({
+    this.dicomInstanceId = 0,
+    this.aiAnalysisId = 0,
+    this.aiResultId = 0,
+    this.predictedGrade = 0,
+    this.confidence = 0,
+    this.description = '',
+    this.details = const {},
+    this.gradcamImageUrl = '',
+  });
+
+  String get predictedGradeDisplay =>
+      predictedGrade > 0 ? 'Grade $predictedGrade' : '---';
+
+  String get confidenceDisplay {
+    if (confidence <= 0) return '---';
+    final normalized = confidence > 1 ? confidence : confidence * 100;
+    return '${normalized.toStringAsFixed(1)}%';
+  }
+}
+
 class ExaminationImageEntity {
+  final int dicomInstanceId;
   final int examinationId;
   final String encounterCode;
   final String status;
   final DateTime? visitTime;
+  final String bodyPart;
   final String imageUrl;
+  final List<AiPredictionResultEntity> aiResults;
 
   const ExaminationImageEntity({
+    this.dicomInstanceId = 0,
     required this.examinationId,
     required this.encounterCode,
     required this.status,
     this.visitTime,
+    this.bodyPart = '',
     required this.imageUrl,
+    this.aiResults = const [],
   });
 }
 
@@ -30,6 +67,16 @@ class ExaminationEntity {
   final String thumbnailUrl;
   final String bodyPart;
   final String referringPhysician;
+  final String studyTime;
+  final String chiefComplaint;
+  final String clinicalNotes;
+  final String priority;
+  final String finalDiagnosis;
+  final String description;
+  final String doctorName;
+  final int doctorId;
+  final bool isViewed;
+  final int maxPredictedGrade;
   final List<ExaminationImageEntity> images;
 
   const ExaminationEntity({
@@ -46,12 +93,25 @@ class ExaminationEntity {
     required this.thumbnailUrl,
     required this.bodyPart,
     required this.referringPhysician,
+    this.studyTime = '',
+    this.chiefComplaint = '',
+    this.clinicalNotes = '',
+    this.priority = '',
+    this.finalDiagnosis = '',
+    this.description = '',
+    this.doctorName = '',
+    this.doctorId = 0,
+    this.isViewed = false,
+    this.maxPredictedGrade = 0,
     required this.images,
   });
 
   String get statusGroup {
     final normalized = status.toUpperCase();
     if (normalized == 'PENDING_REVIEW') return 'PENDING';
+    if (normalized == 'NEED_VERIFY') return 'NEED_VERIFY';
+    if (normalized == 'NEED_REVERIFY') return 'NEED_REVERIFY';
+    if (normalized == 'AI_COMPLETED') return 'AI_COMPLETED';
     if (normalized == 'AWAITING_REVIEW') return 'AWAITING_REVIEW';
     if (normalized == 'ANALYZING') return 'ANALYZING';
     if (normalized == 'COMPLETED') return 'COMPLETED';
@@ -98,6 +158,12 @@ class ExaminationEntity {
         return 'Đang phân tích';
       case 'AWAITING_REVIEW':
         return 'Chờ nhận xét';
+      case 'NEED_VERIFY':
+        return 'Cần xác nhận';
+      case 'NEED_REVERIFY':
+        return 'Cần xác nhận lại';
+      case 'AI_COMPLETED':
+        return 'AI hoàn tất';
       case 'COMPLETED':
         return 'Hoàn thành';
       default:

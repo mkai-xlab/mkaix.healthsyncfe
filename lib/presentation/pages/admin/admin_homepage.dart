@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:fe/core/services/toast_service.dart';
+import '../../../core/constants/app_colors.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/domain/entities/doctor_account_entity.dart';
@@ -8,6 +10,7 @@ import 'package:fe/data/datasources/permission_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 import 'package:fe/presentation/pages/admin/permission_page.dart';
 import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart';
+import 'package:fe/presentation/widgets/pagination_bar.dart';
 import 'package:http/http.dart' as http;
 
 class AdminHomepage extends StatefulWidget {
@@ -56,7 +59,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
   Widget _buildSidebar(BuildContext context) {
     return Container(
       width: 250,
-      color: const Color(0xFF1B5A4E),
+      color: AppColors.primary,
       child: Column(
         children: [
           // Header
@@ -80,7 +83,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => const Icon(
                           Icons.local_hospital,
-                          color: Color(0xFF2D7E6E),
+                          color: AppColors.primary,
                           size: 22,
                         ),
                       ),
@@ -99,7 +102,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         fit: BoxFit.contain,
                         errorBuilder: (_, __, ___) => const Icon(
                           Icons.healing,
-                          color: Color(0xFF2D7E6E),
+                          color: AppColors.primary,
                           size: 22,
                         ),
                       ),
@@ -216,11 +219,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
   Widget _buildDrawer(BuildContext context) {
     return Drawer(
       child: Container(
-        color: const Color(0xFF1B5A4E),
+        color: AppColors.primary,
         child: Column(
           children: [
             DrawerHeader(
-              decoration: const BoxDecoration(color: Color(0xFF2D7E6E)),
+              decoration: const BoxDecoration(color: AppColors.primary),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -556,7 +559,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildUserStatCards(AdminAccountViewModel viewModel) {
-    final total = viewModel.accounts.length;
+    final total = viewModel.totalElements;
     final doctors = viewModel.accounts.where((a) => a.role == 'DOCTOR').length;
     final ktv = viewModel.accounts.where((a) => a.role == 'KTV').length;
     final locked = viewModel.accounts
@@ -1015,70 +1018,16 @@ class _AdminHomepageState extends State<AdminHomepage> {
     BuildContext context,
     AdminAccountViewModel viewModel,
   ) {
-    return Row(
-      children: [
-        Text(
-          'Hiển thị ${viewModel.accounts.length} người dùng',
-          style: const TextStyle(fontSize: 12, color: Color(0xFF718096)),
-        ),
-        const Spacer(),
-        if (!viewModel.isLastPage)
-          Row(
-            children: [
-              _buildPageBtn(Icons.chevron_left, null),
-              const SizedBox(width: 4),
-              _buildPageNumBtn('1', isActive: true),
-              const SizedBox(width: 4),
-              _buildPageNumBtn('2'),
-              const SizedBox(width: 4),
-              _buildPageBtn(Icons.chevron_right, () {
-                final token =
-                    context.read<AuthViewModel>().currentUser?.token ?? '';
-                viewModel.fetchNextPage(token);
-              }),
-            ],
-          ),
-      ],
-    );
-  }
-
-  Widget _buildPageBtn(IconData icon, VoidCallback? onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 32,
-        height: 32,
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Icon(icon, size: 18, color: const Color(0xFF4A5568)),
-      ),
-    );
-  }
-
-  Widget _buildPageNumBtn(String num, {bool isActive = false}) {
-    return Container(
-      width: 32,
-      height: 32,
-      decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF2D7E6E) : Colors.white,
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(
-          color: isActive ? const Color(0xFF2D7E6E) : const Color(0xFFE2E8F0),
-        ),
-      ),
-      child: Center(
-        child: Text(
-          num,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: isActive ? Colors.white : const Color(0xFF4A5568),
-          ),
-        ),
-      ),
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    return PaginationBar(
+      currentPage: viewModel.currentPage,
+      totalPages: viewModel.totalPages,
+      totalElements: viewModel.totalElements,
+      pageSize: viewModel.pageSize,
+      isLoading: viewModel.isLoading,
+      itemLabel: 'người dùng',
+      onPageChanged: (page) => viewModel.goToPage(token, page),
+      onPageSizeChanged: (size) => viewModel.changePageSize(token, size),
     );
   }
 
@@ -1468,13 +1417,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
   void _showCreateUserDialog(BuildContext context) {
     final pageContext = context;
     final formKey = GlobalKey<FormState>();
-    final doctorCodeController = TextEditingController();
     final nameController = TextEditingController();
     final emailController = TextEditingController();
     final phoneController = TextEditingController();
-    final specializationController = TextEditingController();
-    final hospitalNameController = TextEditingController();
-    final licenseNumberController = TextEditingController();
     final token = pageContext.read<AuthViewModel>().currentUser?.token ?? '';
     final viewModel = pageContext.read<AdminAccountViewModel>();
     bool isSubmitting = false;
@@ -1529,7 +1474,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         ),
                         SizedBox(height: 3),
                         Text(
-                          'Tạo hồ sơ bác sĩ theo backend hiện tại',
+                          'Tạo hồ sơ bác sĩ theo API mới',
                           style: TextStyle(
                             fontSize: 12,
                             color: Color(0xFF4F6F68),
@@ -1570,7 +1515,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
-                                'Nhập đầy đủ thông tin bác sĩ. Backend hiện tạo tài khoản bác sĩ qua endpoint /doctors.',
+                                'API mới tạo bác sĩ qua /doctors với họ tên, email và số điện thoại.',
                                 style: TextStyle(
                                   fontSize: 13,
                                   height: 1.4,
@@ -1582,18 +1527,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         ),
                       ),
                       const SizedBox(height: 20),
-                      _buildFieldLabel('Mã bác sĩ *'),
-                      TextFormField(
-                        controller: doctorCodeController,
-                        decoration: _buildInputDecoration(
-                          'VD: BS001',
-                          Icons.badge_outlined,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Vui lòng nhập mã bác sĩ'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
                       _buildFieldLabel('Họ và tên *'),
                       TextFormField(
                         controller: nameController,
@@ -1644,42 +1577,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           }
                           return null;
                         },
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Chuyên khoa *'),
-                      TextFormField(
-                        controller: specializationController,
-                        decoration: _buildInputDecoration(
-                          'VD: Chẩn đoán hình ảnh',
-                          Icons.medical_information_outlined,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Vui lòng nhập chuyên khoa'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Bệnh viện *'),
-                      TextFormField(
-                        controller: hospitalNameController,
-                        decoration: _buildInputDecoration(
-                          'Tên bệnh viện',
-                          Icons.local_hospital_outlined,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Vui lòng nhập bệnh viện'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Số giấy phép hành nghề *'),
-                      TextFormField(
-                        controller: licenseNumberController,
-                        decoration: _buildInputDecoration(
-                          'Số giấy phép',
-                          Icons.verified_user_outlined,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Vui lòng nhập số giấy phép'
-                            : null,
                       ),
                       if (submitError != null)
                         Padding(
@@ -1739,29 +1636,19 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           });
                           final success = await viewModel.createDoctor(
                             doctorData: {
-                              'doctorCode': doctorCodeController.text.trim(),
                               'fullName': nameController.text.trim(),
                               'email': emailController.text.trim(),
                               'phone': phoneController.text.trim(),
-                              'specialization': specializationController.text
-                                  .trim(),
-                              'hospitalName': hospitalNameController.text
-                                  .trim(),
-                              'licenseNumber': licenseNumberController.text
-                                  .trim(),
                             },
                             token: token,
                           );
-                          if (success && pageContext.mounted) {
+                          if (!mounted || !dialogContext.mounted) return;
+                          if (success) {
                             Navigator.pop(dialogContext);
-                            ScaffoldMessenger.of(pageContext).showSnackBar(
-                              const SnackBar(
-                                content: Text('Tạo bác sĩ thành công'),
-                                backgroundColor: Color(0xFF2D7E6E),
-                              ),
-                            );
+                            await viewModel.fetchFirstPage(token);
+                            AppToast.showSuccess('Tạo bác sĩ thành công');
                           }
-                          if (!success && pageContext.mounted) {
+                          if (!success) {
                             setDialogState(() {
                               isSubmitting = false;
                               submitError =
@@ -1799,13 +1686,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
         },
       ),
     ).whenComplete(() {
-      doctorCodeController.dispose();
       nameController.dispose();
       emailController.dispose();
       phoneController.dispose();
-      specializationController.dispose();
-      hospitalNameController.dispose();
-      licenseNumberController.dispose();
     });
   }
 
@@ -2047,12 +1930,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             );
                             if (success && context.mounted) {
                               Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Tạo tài khoản thành công'),
-                                  backgroundColor: Colors.green,
-                                ),
-                              );
+                              AppToast.showSuccess('Tạo tài khoản thành công');
                             }
                           }
                         },
@@ -2162,19 +2040,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
               if (context.mounted) {
                 Navigator.pop(context);
                 if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('${actionText} tài khoản thành công!'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
+                  AppToast.showSuccess('${actionText} tài khoản thành công!');
                 } else {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Có lỗi xảy ra, vui lòng thử lại.'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
+                  AppToast.showError('Có lỗi xảy ra, vui lòng thử lại.');
                 }
               }
             },

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../data/datasources/permission_remote_datasource.dart';
+import '../../data/models/permission_catalog_model.dart';
 import '../../data/models/permission_model.dart';
 import '../../data/models/role_model.dart';
 
@@ -7,20 +9,19 @@ class PermissionViewModel extends ChangeNotifier {
   final PermissionRemoteDataSource dataSource;
   PermissionViewModel(this.dataSource);
 
-  // ── State ──────────────────────────────────────
+  List<PermissionFeatureModel> _features = [];
   List<PermissionModel> _permissions = [];
   List<RoleModel> _roles = [];
 
-  // Bản làm việc — tách riêng để track thay đổi chưa lưu
-  Map<String, Set<String>> _draft = {}; // roleId → Set<permissionId>
-  Map<String, Set<String>> _saved = {}; // roleId → Set<permissionId> (đã lưu)
+  Map<String, Set<String>> _draft = {};
+  Map<String, Set<String>> _saved = {};
 
   bool _isLoading = false;
   bool _isSaving = false;
   String? _errorMessage;
   String? _successMessage;
 
-  // ── Getters ────────────────────────────────────
+  List<PermissionFeatureModel> get features => _features;
   List<PermissionModel> get permissions => _permissions;
   List<RoleModel> get roles => _roles;
   bool get isLoading => _isLoading;
@@ -28,7 +29,6 @@ class PermissionViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String? get successMessage => _successMessage;
 
-  /// True nếu có bất kỳ thay đổi chưa lưu
   bool get hasUnsavedChanges {
     for (final role in _roles) {
       if (roleHasUnsavedChanges(role.id)) return true;
@@ -36,28 +36,40 @@ class PermissionViewModel extends ChangeNotifier {
     return false;
   }
 
-  /// True nếu role cụ thể có thay đổi chưa lưu (dùng để hiển thị dot trên tab)
   bool roleHasUnsavedChanges(String roleId) {
     final draft = _draft[roleId] ?? {};
     final saved = _saved[roleId] ?? {};
     return !_setsEqual(draft, saved);
   }
 
-  /// Kiểm tra permission có được bật cho role không
   bool hasPermission(String roleId, String permissionId) {
     return _draft[roleId]?.contains(permissionId) ?? false;
   }
 
-  /// Group permissions theo resource (để render card)
   Map<String, List<PermissionModel>> get permissionsByResource {
     final map = <String, List<PermissionModel>>{};
-    for (final p in _permissions) {
-      map.putIfAbsent(p.resource, () => []).add(p);
+    for (final permission in _permissions) {
+      map.putIfAbsent(permission.resource, () => []).add(permission);
     }
-    return map;
+    final ordered = <String, List<PermissionModel>>{};
+    for (final entry in map.entries) {
+      ordered[entry.key] = _orderPermissionsByHierarchy(entry.value);
+    }
+    return ordered;
   }
 
-  // ── Load ───────────────────────────────────────
+  PermissionFeatureModel? featureById(String id) {
+    for (final feature in _features) {
+      if (feature.id == id) return feature;
+    }
+    return null;
+  }
+
+  List<PermissionModel> permissionsForFeature(String featureId) {
+    final permissions = _permissions.where((p) => p.featureId == featureId).toList();
+    return _orderPermissionsByHierarchy(permissions);
+  }
+
   Future<void> loadAll() async {
     _isLoading = true;
     _errorMessage = null;
@@ -66,14 +78,15 @@ class PermissionViewModel extends ChangeNotifier {
 
     try {
       final results = await Future.wait([
-        dataSource.getPermissions(),
+        dataSource.getPermissionCatalog(),
         dataSource.getRoles(),
       ]);
 
-      _permissions = results[0] as List<PermissionModel>;
+      final catalog = results[0] as PermissionCatalogModel;
+      _features = catalog.features;
+      _permissions = catalog.permissions;
       _roles = results[1] as List<RoleModel>;
 
-      // Khởi tạo draft và saved từ dữ liệu gốc
       _draft = {};
       _saved = {};
       for (final role in _roles) {
@@ -89,7 +102,71 @@ class PermissionViewModel extends ChangeNotifier {
     }
   }
 
-  // ── Toggle ─────────────────────────────────────
+  Future<bool> createFeature({
+    required String name,
+    String? description,
+  }) async {
+    return _runMutation(() async {
+      await dataSource.createFeature(name: name, description: description);
+    });
+  }
+
+  Future<bool> updateFeature({
+    required String id,
+    required String name,
+    String? description,
+  }) async {
+    return _runMutation(() async {
+      await dataSource.updateFeature(
+        id: id,
+        name: name,
+        description: description,
+      );
+    });
+  }
+
+  Future<bool> createPermission({
+    required String code,
+    required String name,
+    required String featureId,
+    String? presentation,
+    int? priority,
+    String? requiresPermissionId,
+  }) async {
+    return _runMutation(() async {
+      await dataSource.createPermission(
+        code: code,
+        name: name,
+        featureId: featureId,
+        presentation: presentation,
+        priority: priority,
+        requiresPermissionId: requiresPermissionId,
+      );
+    });
+  }
+
+  Future<bool> updatePermission({
+    required String id,
+    required String code,
+    required String name,
+    required String featureId,
+    String? presentation,
+    int? priority,
+    String? requiresPermissionId,
+  }) async {
+    return _runMutation(() async {
+      await dataSource.updatePermission(
+        id: id,
+        code: code,
+        name: name,
+        featureId: featureId,
+        presentation: presentation,
+        priority: priority,
+        requiresPermissionId: requiresPermissionId,
+      );
+    });
+  }
+
   void togglePermission(String roleId, String permissionId) {
     final current = _draft[roleId] ?? <String>{};
     final isEnabling = !current.contains(permissionId);
@@ -97,7 +174,6 @@ class PermissionViewModel extends ChangeNotifier {
     if (isEnabling) {
       current.add(permissionId);
     } else {
-      // Khi tắt một permission, tắt luôn tất cả permission con của nó
       current.remove(permissionId);
       _removeChildren(current, permissionId);
     }
@@ -107,19 +183,6 @@ class PermissionViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Đệ quy tắt tất cả permission có parent_id = permissionId
-  void _removeChildren(Set<String> current, String parentId) {
-    final children = _permissions
-        .where((p) => p.parentId == parentId)
-        .map((p) => p.id)
-        .toList();
-    for (final childId in children) {
-      current.remove(childId);
-      _removeChildren(current, childId); // đệ quy cho multi-level
-    }
-  }
-
-  // ── Save ───────────────────────────────────────
   Future<void> saveChanges() async {
     if (!hasUnsavedChanges) return;
 
@@ -129,7 +192,6 @@ class PermissionViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Chỉ PUT những role có thay đổi
       final futures = <Future>[];
       for (final role in _roles) {
         final draft = _draft[role.id] ?? {};
@@ -139,7 +201,6 @@ class PermissionViewModel extends ChangeNotifier {
             dataSource.updateRolePermissions(role.id, draft.toList()).then((
               updatedRole,
             ) {
-              // Cập nhật saved sau khi PUT thành công
               _saved[role.id] = Set<String>.from(draft);
             }),
           );
@@ -155,7 +216,6 @@ class PermissionViewModel extends ChangeNotifier {
     }
   }
 
-  // ── Discard ────────────────────────────────────
   void discardChanges() {
     for (final roleId in _saved.keys) {
       _draft[roleId] = Set<String>.from(_saved[roleId]!);
@@ -165,15 +225,110 @@ class PermissionViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Helpers ────────────────────────────────────
+  void clearMessages() {
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+  }
+
+  Future<bool> _runMutation(Future<void> Function() operation) async {
+    _isSaving = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await operation();
+      _successMessage = 'Đã cập nhật dữ liệu thành công';
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  void _removeChildren(Set<String> current, String parentId) {
+    final children = _permissions
+        .where((p) => p.parentId == parentId)
+        .map((p) => p.id)
+        .toList();
+    for (final childId in children) {
+      current.remove(childId);
+      _removeChildren(current, childId);
+    }
+  }
+
   bool _setsEqual(Set<String> a, Set<String> b) {
     if (a.length != b.length) return false;
     return a.containsAll(b);
   }
 
-  void clearMessages() {
-    _errorMessage = null;
-    _successMessage = null;
-    notifyListeners();
+  List<PermissionModel> _orderPermissionsByHierarchy(
+    List<PermissionModel> permissions,
+  ) {
+    final byParent = <String, List<PermissionModel>>{};
+    final allById = <String, PermissionModel>{};
+
+    for (final permission in permissions) {
+      allById[permission.id] = permission;
+      final parentKey = permission.parentId?.trim() ?? '';
+      byParent.putIfAbsent(parentKey, () => []).add(permission);
+    }
+
+    int comparePermission(PermissionModel a, PermissionModel b) {
+      final cmp = a.priority.compareTo(b.priority);
+      if (cmp != 0) return cmp;
+      final nameCmp = a.name.compareTo(b.name);
+      if (nameCmp != 0) return nameCmp;
+      return a.id.compareTo(b.id);
+    }
+
+    for (final entry in byParent.entries) {
+      entry.value.sort(comparePermission);
+    }
+
+    final ordered = <PermissionModel>[];
+    final visited = <String>{};
+
+    void visitChildren(String parentId) {
+      final children = byParent[parentId] ?? const <PermissionModel>[];
+      for (final child in children) {
+        if (!visited.add(child.id)) continue;
+        ordered.add(child);
+        visitChildren(child.id);
+      }
+    }
+
+    visitChildren('');
+
+    final remainingRoots = permissions
+        .where((permission) {
+          final parentId = permission.parentId?.trim() ?? '';
+          return parentId.isNotEmpty && !allById.containsKey(parentId);
+        })
+        .toList()
+      ..sort(comparePermission);
+
+    for (final root in remainingRoots) {
+      if (!visited.add(root.id)) continue;
+      ordered.add(root);
+      visitChildren(root.id);
+    }
+
+    final leftovers = permissions
+        .where((permission) => !visited.contains(permission.id))
+        .toList()
+      ..sort(comparePermission);
+
+    for (final permission in leftovers) {
+      visited.add(permission.id);
+      ordered.add(permission);
+      visitChildren(permission.id);
+    }
+
+    return ordered;
   }
 }

@@ -2,6 +2,7 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../../core/services/toast_service.dart';
 import '../../../data/datasources/dicom_remote_datasource.dart';
 import '../../../data/models/dicom_upload_model.dart';
 import '../../../domain/entities/examination_entity.dart';
@@ -42,7 +43,7 @@ class DicomUploadPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Tải nhiều file DICOM từ thiết bị để bắt đầu quy trình chẩn đoán.',
+                    'Tải nhiều file DICOM hoặc nhiều file ZIP để bắt đầu quy trình chẩn đoán.',
                     style: TextStyle(fontSize: 14, color: Color(0xFF4A4A4A)),
                   ),
                   const SizedBox(height: 18),
@@ -109,12 +110,7 @@ class DicomUploadPage extends StatelessWidget {
       onDragDone: (detail) async {
         await vm.handleDroppedFiles(detail.files);
         if (!context.mounted || vm.errorMessage == null) return;
-        _showToast(
-          context,
-          message: vm.errorMessage!,
-          backgroundColor: const Color(0xFFD14343),
-          icon: Icons.error_outline,
-        );
+        _showToast(message: vm.errorMessage!, type: AppToastType.error);
       },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 160),
@@ -217,7 +213,7 @@ class DicomUploadPage extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         const Text(
-          'Tải lên các tệp DICOM',
+          'Tải lên DICOM hoặc ZIP',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
@@ -226,7 +222,7 @@ class DicomUploadPage extends StatelessWidget {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Kéo thả nhiều file vào đây hoặc chọn từ máy tính. Chỉ hỗ trợ .DCM/.dcm.',
+          'Kéo thả nhiều file .dcm hoặc nhiều file .zip. Không upload lẫn ZIP và DICOM trong cùng một lượt.',
           textAlign: TextAlign.center,
           style: TextStyle(
             fontSize: 13,
@@ -244,10 +240,8 @@ class DicomUploadPage extends StatelessWidget {
                     await vm.pickFiles();
                     if (!context.mounted || vm.errorMessage == null) return;
                     _showToast(
-                      context,
                       message: vm.errorMessage!,
-                      backgroundColor: const Color(0xFFD14343),
-                      icon: Icons.error_outline,
+                      type: AppToastType.error,
                     );
                   },
             icon: const Icon(Icons.add, size: 20),
@@ -338,8 +332,10 @@ class DicomUploadPage extends StatelessWidget {
             color: const Color(0xFFEAE8E5),
             borderRadius: BorderRadius.circular(6),
           ),
-          child: const Icon(
-            Icons.insert_drive_file_outlined,
+          child: Icon(
+            file.name.toLowerCase().endsWith('.zip')
+                ? Icons.folder_zip_outlined
+                : Icons.insert_drive_file_outlined,
             color: _primaryGreen,
             size: 20,
           ),
@@ -379,7 +375,11 @@ class DicomUploadPage extends StatelessWidget {
 
   Widget _patientResultPanel(BuildContext context, DicomUploadViewModel vm) {
     final patients = vm.successfulPatients;
+    final errors = vm.batchErrors;
     final newExaminations = _newExaminationsFromResponse(patients);
+    final canGoToExaminations = context
+        .read<AuthViewModel>()
+        .hasPermissionPresentation('examination_list_page');
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -413,7 +413,7 @@ class DicomUploadPage extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${patients.length} bệnh nhân • ${newExaminations.length} ca khám',
+            '${patients.length} bệnh nhân • ${newExaminations.length} ca khám • ${errors.length} file lỗi',
             style: const TextStyle(fontSize: 12, color: Color(0xFF66736F)),
           ),
           const SizedBox(height: 12),
@@ -436,12 +436,19 @@ class DicomUploadPage extends StatelessWidget {
                         _patientResultTile(patients[index]),
                   ),
           ),
+          if (errors.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            _errorSummary(errors),
+          ],
           const SizedBox(height: 14),
           SizedBox(
             width: double.infinity,
             height: 44,
             child: ElevatedButton.icon(
-              onPressed: patients.isEmpty || onGoToExaminations == null
+              onPressed:
+                  patients.isEmpty ||
+                      onGoToExaminations == null ||
+                      !canGoToExaminations
                   ? null
                   : () => onGoToExaminations?.call(newExaminations),
               icon: const Icon(Icons.assignment_outlined, size: 18),
@@ -557,85 +564,92 @@ class DicomUploadPage extends StatelessWidget {
               color: _primaryGreen,
             ),
           ),
+          if (vm.uploadStatusMessage != null) ...[
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                vm.uploadStatusMessage!,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF66736F)),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _errorSummary(List<DicomBatchErrorModel> errors) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFF2C48C)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '${errors.length} file cần kiểm tra',
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF7A4A00),
+            ),
+          ),
+          const SizedBox(height: 6),
+          ...errors
+              .take(3)
+              .map(
+                (error) => Padding(
+                  padding: const EdgeInsets.only(bottom: 3),
+                  child: Text(
+                    '${error.filename}: ${error.errorReason}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF7A4A00),
+                    ),
+                  ),
+                ),
+              ),
+          if (errors.length > 3)
+            Text(
+              'Còn ${errors.length - 3} file lỗi khác',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF7A4A00)),
+            ),
         ],
       ),
     );
   }
 
   void _showUploadToast(BuildContext context, DicomUploadViewModel vm) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-
-    final hasError = vm.errorMessage != null || vm.batchErrors.isNotEmpty;
-    final backgroundColor = vm.errorMessage != null
-        ? const Color(0xFFD14343)
+    final type = vm.errorMessage != null
+        ? AppToastType.error
         : vm.batchErrors.isNotEmpty
-        ? const Color(0xFFB7791F)
-        : _primaryGreen;
-    final icon = vm.errorMessage != null
-        ? Icons.error_outline
-        : vm.batchErrors.isNotEmpty
-        ? Icons.warning_amber_outlined
-        : Icons.check_circle_outline;
+        ? AppToastType.warning
+        : AppToastType.success;
     final message =
         vm.errorMessage ??
         'Upload batch xong: ${vm.successfulPatients.length} bệnh nhân thành công, ${vm.batchErrors.length} file lỗi.';
 
-    _showToast(
-      context,
-      message: message,
-      backgroundColor: backgroundColor,
-      icon: icon,
-      trailing: hasError
-          ? Text(
-              vm.batchErrors.isNotEmpty
-                  ? '${vm.batchErrors.length} lỗi'
-                  : 'Lỗi',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-              ),
-            )
-          : null,
-    );
+    _showToast(message: message, type: type);
   }
 
-  void _showToast(
-    BuildContext context, {
-    required String message,
-    required Color backgroundColor,
-    required IconData icon,
-    Widget? trailing,
-  }) {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: backgroundColor,
-        duration: const Duration(seconds: 4),
-        margin: const EdgeInsets.fromLTRB(24, 0, 24, 24),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        content: Row(
-          children: [
-            Icon(icon, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                message,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-            if (trailing != null) ...[const SizedBox(width: 10), trailing],
-          ],
-        ),
-      ),
-    );
+  void _showToast({required String message, required AppToastType type}) {
+    if (type == AppToastType.success) {
+      AppToast.showSuccess(message);
+    } else if (type == AppToastType.error) {
+      AppToast.showError(message);
+    } else if (type == AppToastType.warning) {
+      AppToast.showWarning(message);
+    } else {
+      AppToast.showInfo(message);
+    }
   }
 
   String _formatBytes(int bytes) {
@@ -678,6 +692,12 @@ class DicomUploadPage extends StatelessWidget {
             thumbnailUrl: exam.thumbnailUrl,
             bodyPart: exam.bodyPart,
             referringPhysician: exam.referringPhysician,
+            studyTime: exam.studyTime,
+            chiefComplaint: exam.chiefComplaint,
+            clinicalNotes: exam.clinicalNotes,
+            priority: exam.priority,
+            finalDiagnosis: exam.finalDiagnosis,
+            description: exam.description,
             images: exam.images
                 .map(
                   (image) => ExaminationImageEntity(

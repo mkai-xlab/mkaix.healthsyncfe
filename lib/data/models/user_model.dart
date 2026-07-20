@@ -39,6 +39,13 @@ class UserModel extends UserEntity {
     final parsedPermissionItems = <UserPermissionEntity>[];
     final parsedPermissions = <String>[];
 
+    void addPermissionKey(String? value) {
+      final key = value?.trim() ?? '';
+      if (key.isNotEmpty && !parsedPermissions.contains(key)) {
+        parsedPermissions.add(key);
+      }
+    }
+
     if (json['permissions'] is List) {
       for (final permission in json['permissions'] as List) {
         if (permission is Map) {
@@ -57,19 +64,33 @@ class UserModel extends UserEntity {
                       permission['id'] ??
                       '')
                   .toString();
+          final code = (permission['code'] ?? '').toString();
+          final presentation = permission['presentation']?.toString();
           final parentId =
               permission['parent_id'] ??
               permission['parentId'] ??
               permission['requiresPermissionId'];
+          final priority = permission['priority'] is int
+              ? permission['priority'] as int
+              : int.tryParse(permission['priority']?.toString() ?? '') ?? 0;
+          final displayName = name.isNotEmpty
+              ? name
+              : (code.isNotEmpty ? code : id);
 
-          if (name.isNotEmpty) {
-            parsedPermissions.add(name);
+          if (displayName.isNotEmpty) {
+            addPermissionKey(id);
+            addPermissionKey(code);
+            addPermissionKey(name);
+            addPermissionKey(presentation);
             parsedPermissionItems.add(
               UserPermissionEntity(
-                id: id.isNotEmpty ? id : name,
-                name: name,
+                id: id.isNotEmpty ? id : displayName,
+                name: displayName,
+                code: code,
+                presentation: presentation,
                 description: permission['description']?.toString(),
                 parentId: parentId?.toString(),
+                priority: priority,
               ),
             );
           }
@@ -78,17 +99,31 @@ class UserModel extends UserEntity {
 
         final name = permission.toString();
         if (name.isNotEmpty) {
-          parsedPermissions.add(name);
+          addPermissionKey(name);
           parsedPermissionItems.add(UserPermissionEntity(id: name, name: name));
         }
       }
     }
 
+    final doctorJson = json['doctor'] is Map
+        ? Map<String, dynamic>.from(json['doctor'] as Map)
+        : null;
+    final userJson = json['user'] is Map
+        ? Map<String, dynamic>.from(json['user'] as Map)
+        : null;
+    final resolvedId =
+        json['doctorId'] ??
+        json['doctor_id'] ??
+        doctorJson?['id'] ??
+        json['userId'] ??
+        json['user_id'] ??
+        userJson?['id'] ??
+        json['id'] ??
+        json['username'] ??
+        '';
+
     return UserModel(
-      id:
-          json['id']?.toString() ??
-          json['username'] ??
-          '', // Dùng username làm ID nếu không có id riêng
+      id: resolvedId.toString(),
       name:
           json['username'] ??
           json['fullName'] ??
@@ -106,8 +141,10 @@ class UserModel extends UserEntity {
   // --- 💡 TIỆN ÍCH PHÂN QUYỀN (Hỗ trợ Routing điều hướng màn hình ở tầng UI) ---
 
   /// Kiểm tra xem User này có phải là Bác sĩ không
+  @override
   bool get isDoctor => roles.contains('DOCTOR');
 
   /// Kiểm tra xem User này có phải là Admin không
+  @override
   bool get isAdmin => roles.contains('ADMIN');
 }

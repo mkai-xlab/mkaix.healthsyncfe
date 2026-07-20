@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import '../services/toast_service.dart';
 import '../../presentation/pages/auth/login_page.dart';
 import '../../presentation/pages/auth/forgot_password_page.dart';
 import '../../presentation/pages/auth/reset_password_page.dart';
@@ -14,6 +15,7 @@ class AppRouter {
   AppRouter(this.authViewModel);
 
   late final GoRouter router = GoRouter(
+    navigatorKey: AppToast.navigatorKey,
     initialLocation: '/login',
     refreshListenable: authViewModel,
     routes: [

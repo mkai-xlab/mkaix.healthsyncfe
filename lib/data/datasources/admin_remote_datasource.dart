@@ -94,6 +94,11 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     required String token,
   }) async {
     final uri = Uri.parse(ApiConstants.createDoctorsEndpoint);
+    final requestBody = <String, dynamic>{
+      'fullName': doctorData['fullName']?.toString().trim() ?? '',
+      'email': doctorData['email']?.toString().trim() ?? '',
+      'phone': doctorData['phone']?.toString().trim() ?? '',
+    };
 
     try {
       final response = await client.post(
@@ -103,7 +108,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
-        body: jsonEncode(doctorData),
+        body: jsonEncode(requestBody),
       );
 
       if (response.statusCode == 200 || response.statusCode == 201) {
@@ -250,7 +255,9 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
   DoctorAccountPageEntity _parseDoctorPage(Map<String, dynamic> json) {
     final content = json['content'] as List<dynamic>? ?? [];
     final doctors = content
-        .map((item) => DoctorAccountModel.fromJson(item as Map<String, dynamic>))
+        .map(
+          (item) => DoctorAccountModel.fromJson(item as Map<String, dynamic>),
+        )
         .toList();
 
     return DoctorAccountPageEntity(

@@ -17,27 +17,81 @@ class ExaminationViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
-  String _selectedStatus = '';
-  String get selectedStatus => _selectedStatus;
+  int _currentPage = 0;
+  int get currentPage => _currentPage;
 
-  List<ExaminationEntity> get filteredExaminations {
-    if (_selectedStatus.isEmpty) return List.unmodifiable(_examinations);
-    return _examinations
-        .where((examination) => examination.statusGroup == _selectedStatus)
-        .toList();
-  }
+  int _pageSize = 10;
+  int get pageSize => _pageSize;
 
-  Future<void> loadAllExaminations({required String token}) async {
+  int _totalElements = 0;
+  int get totalElements => _totalElements;
+
+  int _totalPages = 1;
+  int get totalPages => _totalPages;
+
+  Future<void> loadExaminations({required String token}) async {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
-    _selectedStatus = '';
     notifyListeners();
 
     try {
-      _examinations = await getPatientExaminationsUseCase.executeAll(
+      final result = await getPatientExaminationsUseCase.executeAllPage(
+        token: token,
+        page: _currentPage,
+        size: _pageSize,
+      );
+      _examinations = result.content;
+      _totalElements = result.totalElements;
+      _totalPages = result.totalPages;
+      _currentPage = result.pageNumber;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<void> goToPage({required String token, required int page}) async {
+    if (_isLoading) return;
+    _currentPage = page
+        .clamp(0, (_totalPages <= 0 ? 1 : _totalPages) - 1)
+        .toInt();
+    await loadExaminations(token: token);
+  }
+
+  Future<void> changePageSize({
+    required String token,
+    required int size,
+  }) async {
+    if (_pageSize == size) return;
+    _pageSize = size;
+    _currentPage = 0;
+    await loadExaminations(token: token);
+  }
+
+  Future<void> loadDoctorExaminations({
+    required String doctorId,
+    required String token,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _examinations = [];
+    notifyListeners();
+
+    try {
+      final parsedDoctorId = int.tryParse(doctorId);
+      if (parsedDoctorId == null || parsedDoctorId <= 0) {
+        throw Exception('Không tìm thấy doctorId hợp lệ để tải ca khám');
+      }
+      _examinations = await getPatientExaminationsUseCase.executeDoctor(
+        doctorId: parsedDoctorId,
         token: token,
       );
+      _totalElements = _examinations.length;
+      _totalPages = 1;
+      _currentPage = 0;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -53,7 +107,6 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
-    _selectedStatus = '';
     notifyListeners();
 
     try {
@@ -61,6 +114,9 @@ class ExaminationViewModel extends ChangeNotifier {
         patientId: patientId,
         token: token,
       );
+      _totalElements = _examinations.length;
+      _totalPages = 1;
+      _currentPage = 0;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {
@@ -69,16 +125,12 @@ class ExaminationViewModel extends ChangeNotifier {
     }
   }
 
-  void selectStatus(String status) {
-    if (_selectedStatus == status) return;
-    _selectedStatus = status;
-    notifyListeners();
-  }
-
   void clear() {
     _examinations = [];
     _errorMessage = null;
-    _selectedStatus = '';
+    _totalElements = 0;
+    _totalPages = 1;
+    _currentPage = 0;
     notifyListeners();
   }
 }

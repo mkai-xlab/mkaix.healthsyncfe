@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
+import '../../../core/constants/app_colors.dart';
 import '../../viewmodels/permission_viewmodel.dart';
+import '../../../data/models/permission_catalog_model.dart';
+import '../../../data/models/permission_model.dart';
 
 class FeaturePermissionCatalogPage extends StatefulWidget {
   const FeaturePermissionCatalogPage({super.key});
@@ -12,7 +16,7 @@ class FeaturePermissionCatalogPage extends StatefulWidget {
 
 class _FeaturePermissionCatalogPageState
     extends State<FeaturePermissionCatalogPage> {
-  static const Color _primaryGreen = Color(0xFF2D7E6E);
+  static const Color _primaryGreen = AppColors.primary;
   int _selectedTab = 0;
 
   @override
@@ -29,11 +33,13 @@ class _FeaturePermissionCatalogPageState
   Widget build(BuildContext context) {
     return Consumer<PermissionViewModel>(
       builder: (context, vm, _) {
-        if (vm.isLoading) {
+        if (vm.isLoading && vm.features.isEmpty && vm.permissions.isEmpty) {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (vm.errorMessage != null && vm.permissions.isEmpty) {
+        if (vm.errorMessage != null &&
+            vm.features.isEmpty &&
+            vm.permissions.isEmpty) {
           return _buildError(vm);
         }
 
@@ -63,6 +69,12 @@ class _FeaturePermissionCatalogPageState
   }
 
   Widget _buildHeader(PermissionViewModel vm) {
+    final actionLabel = switch (_selectedTab) {
+      0 => 'Thêm feature',
+      1 => 'Thêm permission',
+      _ => 'Tải lại',
+    };
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -71,7 +83,7 @@ class _FeaturePermissionCatalogPageState
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Danh muc he thong',
+                'Danh mục quyền hệ thống',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -80,19 +92,39 @@ class _FeaturePermissionCatalogPageState
               ),
               SizedBox(height: 4),
               Text(
-                'Quan ly rieng feature, permission va role de tranh nham voi phan quyen role.',
+                'Quản lý feature, permission và role theo schema backend mới.',
                 style: TextStyle(fontSize: 13, color: Color(0xFF718096)),
               ),
             ],
           ),
         ),
+        const SizedBox(width: 12),
         OutlinedButton.icon(
           onPressed: vm.loadAll,
           icon: const Icon(Icons.refresh, size: 16),
-          label: const Text('Tai lai'),
+          label: const Text('Tải lại'),
           style: OutlinedButton.styleFrom(
             foregroundColor: _primaryGreen,
             side: const BorderSide(color: _primaryGreen),
+          ),
+        ),
+        const SizedBox(width: 10),
+        ElevatedButton.icon(
+          onPressed: vm.isSaving
+              ? null
+              : () {
+                  if (_selectedTab == 0) {
+                    _showFeatureDialog(context, vm);
+                  } else if (_selectedTab == 1) {
+                    _showPermissionDialog(context, vm);
+                  }
+                },
+          icon: const Icon(Icons.add, size: 16),
+          label: Text(actionLabel),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primaryGreen,
+            foregroundColor: Colors.white,
+            elevation: 0,
           ),
         ),
       ],
@@ -101,7 +133,7 @@ class _FeaturePermissionCatalogPageState
 
   Widget _buildTabs(PermissionViewModel vm) {
     final tabs = [
-      ('Features', vm.permissionsByResource.length),
+      ('Features', vm.features.length),
       ('Permissions', vm.permissions.length),
       ('Roles', vm.roles.length),
     ];
@@ -132,9 +164,7 @@ class _FeaturePermissionCatalogPageState
                   Text(
                     tab.$1,
                     style: TextStyle(
-                      color: selected
-                          ? _primaryGreen
-                          : const Color(0xFF718096),
+                      color: selected ? _primaryGreen : const Color(0xFF718096),
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                     ),
                   ),
@@ -176,18 +206,132 @@ class _FeaturePermissionCatalogPageState
   }
 
   Widget _buildFeatureTab(PermissionViewModel vm) {
-    final features = vm.permissionsByResource.entries.toList();
-    if (features.isEmpty) {
-      return _emptyState('Chua co feature nao');
+    if (vm.features.isEmpty) {
+      return _emptyState('Chưa có feature nào');
     }
 
     return Column(
-      children: features.map((entry) {
+      children: vm.features.map((feature) {
+        final permissions = vm.permissionsForFeature(feature.id);
         return _panel(
-          child: ListTile(
-            leading: const Icon(Icons.view_module_outlined, color: _primaryGreen),
-            title: Text(entry.key.isEmpty ? 'Feature khong ten' : entry.key),
-            subtitle: Text('${entry.value.length} permissions'),
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE6F4F1),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: const Icon(
+                        Icons.view_module_outlined,
+                        color: _primaryGreen,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            feature.name.isEmpty
+                                ? 'Feature không tên'
+                                : feature.name,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1A2B3C),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            feature.description.isEmpty
+                                ? 'Không có mô tả'
+                                : feature.description,
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFF718096),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        Text(
+                          '${permissions.length} permission',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            color: Color(0xFF4A5568),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              onPressed: () => _showFeatureDialog(
+                                context,
+                                vm,
+                                feature: feature,
+                              ),
+                              icon: const Icon(Icons.edit_outlined, size: 18),
+                              color: _primaryGreen,
+                              tooltip: 'Sửa feature',
+                            ),
+                            IconButton(
+                              onPressed: () => _showPermissionDialog(
+                                context,
+                                vm,
+                                featureId: feature.id,
+                              ),
+                              icon: const Icon(
+                                Icons.add_circle_outline,
+                                size: 18,
+                              ),
+                              color: _primaryGreen,
+                              tooltip: 'Thêm permission vào feature',
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 14),
+                if (permissions.isEmpty)
+                  const Text(
+                    'Chưa có permission con.',
+                    style: TextStyle(color: Color(0xFF718096), fontSize: 12),
+                  )
+                else
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: permissions
+                        .map(
+                          (permission) => _permissionChip(
+                            permission,
+                            onTap: () => _showPermissionDialog(
+                              context,
+                              vm,
+                              permission: permission,
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
+              ],
+            ),
           ),
         );
       }).toList(),
@@ -196,22 +340,34 @@ class _FeaturePermissionCatalogPageState
 
   Widget _buildPermissionTab(PermissionViewModel vm) {
     if (vm.permissions.isEmpty) {
-      return _emptyState('Chua co permission nao');
+      return _emptyState('Chưa có permission nào');
     }
 
     return Column(
       children: vm.permissions.map((permission) {
+        final feature = vm.featureById(permission.featureId ?? '');
         return _panel(
           child: ListTile(
             leading: const Icon(Icons.key_outlined, color: _primaryGreen),
-            title: Text(permission.name),
+            title: Text(
+              permission.name.isEmpty ? permission.code : permission.name,
+            ),
             subtitle: Text(
               [
-                'Feature: ${permission.resource.isEmpty ? 'N/A' : permission.resource}',
-                'ID: ${permission.id}',
+                'ID: ${permission.id.isEmpty ? 'N/A' : permission.id}',
+                'Code: ${permission.code.isEmpty ? 'N/A' : permission.code}',
+                'Feature: ${feature?.name ?? permission.resource}',
+                'Priority: ${permission.priority}',
+                'Presentation: ${permission.presentation.isEmpty ? 'N/A' : permission.presentation}',
                 if (permission.parentId != null)
-                  'Requires: ${permission.parentId}',
+                  'Parent: ${permission.parentId}',
               ].join('  |  '),
+            ),
+            trailing: IconButton(
+              onPressed: () =>
+                  _showPermissionDialog(context, vm, permission: permission),
+              icon: const Icon(Icons.edit_outlined, size: 18),
+              color: _primaryGreen,
             ),
           ),
         );
@@ -221,7 +377,7 @@ class _FeaturePermissionCatalogPageState
 
   Widget _buildRoleTab(PermissionViewModel vm) {
     if (vm.roles.isEmpty) {
-      return _emptyState('Chua co role nao');
+      return _emptyState('Chưa có role nào');
     }
 
     return Column(
@@ -234,6 +390,23 @@ class _FeaturePermissionCatalogPageState
           ),
         );
       }).toList(),
+    );
+  }
+
+  Widget _permissionChip(
+    PermissionModel permission, {
+    required VoidCallback onTap,
+  }) {
+    return ActionChip(
+      label: Text(
+        permission.name.isEmpty
+            ? permission.code
+            : '${permission.name} (#${permission.id})',
+        overflow: TextOverflow.ellipsis,
+      ),
+      backgroundColor: const Color(0xFFF7FAFC),
+      side: const BorderSide(color: Color(0xFFE2E8F0)),
+      onPressed: onTap,
     );
   }
 
@@ -258,8 +431,10 @@ class _FeaturePermissionCatalogPageState
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: Center(
-        child: Text(text, style: const TextStyle(color: Color(0xFF718096))),
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: Color(0xFF718096)),
       ),
     );
   }
@@ -269,11 +444,310 @@ class _FeaturePermissionCatalogPageState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text(vm.errorMessage ?? 'Khong the tai du lieu'),
+          const Icon(Icons.error_outline, color: Color(0xFFE53E3E), size: 48),
           const SizedBox(height: 12),
-          ElevatedButton(onPressed: vm.loadAll, child: const Text('Thu lai')),
+          Text(
+            vm.errorMessage ?? 'Có lỗi xảy ra',
+            style: const TextStyle(color: Color(0xFF718096), fontSize: 14),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 16),
+          ElevatedButton.icon(
+            onPressed: () => vm.loadAll(),
+            icon: const Icon(Icons.refresh, size: 16),
+            label: const Text('Thử lại'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  Future<void> _showFeatureDialog(
+    BuildContext context,
+    PermissionViewModel vm, {
+    PermissionFeatureModel? feature,
+  }) async {
+    final formKey = GlobalKey<FormState>();
+    final nameController = TextEditingController(text: feature?.name ?? '');
+    final descriptionController = TextEditingController(
+      text: feature?.description ?? '',
+    );
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(feature == null ? 'Thêm feature' : 'Sửa feature'),
+        content: SizedBox(
+          width: 520,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextFormField(
+                  controller: nameController,
+                  decoration: const InputDecoration(labelText: 'Tên feature *'),
+                  validator: (v) => (v == null || v.trim().isEmpty)
+                      ? 'Bắt buộc nhập tên'
+                      : null,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: descriptionController,
+                  decoration: const InputDecoration(labelText: 'Mô tả'),
+                  maxLines: 3,
+                ),
+                const SizedBox(height: 8),
+                if (vm.errorMessage != null)
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      vm.errorMessage!,
+                      style: const TextStyle(color: Color(0xFFE53E3E)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: vm.isSaving ? null : () => Navigator.pop(dialogContext),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: vm.isSaving
+                ? null
+                : () async {
+                    if (!formKey.currentState!.validate()) return;
+                    final success = feature == null
+                        ? await vm.createFeature(
+                            name: nameController.text.trim(),
+                            description: descriptionController.text.trim(),
+                          )
+                        : await vm.updateFeature(
+                            id: feature.id,
+                            name: nameController.text.trim(),
+                            description: descriptionController.text.trim(),
+                          );
+                    if (!dialogContext.mounted) return;
+                    if (success) {
+                      Navigator.pop(dialogContext);
+                      await vm.loadAll();
+                    }
+                  },
+            child: Text(vm.isSaving ? 'Đang lưu...' : 'Lưu'),
+          ),
+        ],
+      ),
+    );
+
+    nameController.dispose();
+    descriptionController.dispose();
+  }
+
+  Future<void> _showPermissionDialog(
+    BuildContext context,
+    PermissionViewModel vm, {
+    PermissionModel? permission,
+    String? featureId,
+  }) async {
+    final formKey = GlobalKey<FormState>();
+    final codeController = TextEditingController(text: permission?.code ?? '');
+    final nameController = TextEditingController(text: permission?.name ?? '');
+    final presentationController = TextEditingController(
+      text: permission?.presentation ?? '',
+    );
+    final priorityController = TextEditingController(
+      text: permission == null ? '' : permission.priority.toString(),
+    );
+    final requiresPermissionController = TextEditingController(
+      text: permission?.parentId ?? '',
+    );
+
+    String selectedFeatureId = featureId ?? permission?.featureId ?? '';
+    if (selectedFeatureId.isEmpty && vm.features.isNotEmpty) {
+      selectedFeatureId = vm.features.first.id;
+    }
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          return AlertDialog(
+            title: Text(
+              permission == null ? 'Thêm permission' : 'Sửa permission',
+            ),
+            content: SizedBox(
+              width: 620,
+              child: SingleChildScrollView(
+                child: Form(
+                  key: formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      TextFormField(
+                        controller: codeController,
+                        decoration: const InputDecoration(labelText: 'Code *'),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Bắt buộc nhập code'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: nameController,
+                        decoration: const InputDecoration(labelText: 'Tên *'),
+                        validator: (v) => (v == null || v.trim().isEmpty)
+                            ? 'Bắt buộc nhập tên'
+                            : null,
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: selectedFeatureId.isEmpty
+                            ? null
+                            : selectedFeatureId,
+                        decoration: const InputDecoration(
+                          labelText: 'Feature *',
+                        ),
+                        items: vm.features
+                            .map(
+                              (featureItem) => DropdownMenuItem<String>(
+                                value: featureItem.id,
+                                child: Text(featureItem.name),
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setDialogState(() => selectedFeatureId = value);
+                          }
+                        },
+                        validator: (v) =>
+                            (v == null || v.isEmpty) ? 'Chọn feature' : null,
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: presentationController,
+                        decoration: const InputDecoration(
+                          labelText: 'Presentation',
+                          helperText:
+                              'VD: patient_list_page, patient_detail_page',
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: priorityController,
+                        decoration: const InputDecoration(
+                          labelText: 'Priority',
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (v) {
+                          final value = v?.trim() ?? '';
+                          if (value.isEmpty) return null;
+                          final parsed = int.tryParse(value);
+                          if (parsed == null) return 'Priority phải là số';
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      TextFormField(
+                        controller: requiresPermissionController,
+                        decoration: const InputDecoration(
+                          labelText: 'Parent permission ID',
+                        ),
+                      ),
+                      if (vm.errorMessage != null) ...[
+                        const SizedBox(height: 12),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            vm.errorMessage!,
+                            style: const TextStyle(color: Color(0xFFE53E3E)),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: vm.isSaving
+                    ? null
+                    : () => Navigator.pop(dialogContext),
+                child: const Text('Hủy'),
+              ),
+              ElevatedButton(
+                onPressed: vm.isSaving
+                    ? null
+                    : () async {
+                        if (!formKey.currentState!.validate()) return;
+                        final priorityText = priorityController.text.trim();
+                        final success = permission == null
+                            ? await vm.createPermission(
+                                code: codeController.text.trim(),
+                                name: nameController.text.trim(),
+                                featureId: selectedFeatureId,
+                                presentation:
+                                    presentationController.text.trim().isEmpty
+                                    ? null
+                                    : presentationController.text.trim(),
+                                priority: priorityText.isEmpty
+                                    ? null
+                                    : int.tryParse(priorityText),
+                                requiresPermissionId:
+                                    requiresPermissionController.text
+                                        .trim()
+                                        .isEmpty
+                                    ? null
+                                    : requiresPermissionController.text.trim(),
+                              )
+                            : await vm.updatePermission(
+                                id: permission.id,
+                                code: codeController.text.trim(),
+                                name: nameController.text.trim(),
+                                featureId: selectedFeatureId,
+                                presentation:
+                                    presentationController.text.trim().isEmpty
+                                    ? null
+                                    : presentationController.text.trim(),
+                                priority: priorityText.isEmpty
+                                    ? null
+                                    : int.tryParse(priorityText),
+                                requiresPermissionId:
+                                    requiresPermissionController.text
+                                        .trim()
+                                        .isEmpty
+                                    ? null
+                                    : requiresPermissionController.text.trim(),
+                              );
+                        if (!dialogContext.mounted) return;
+                        if (success) {
+                          Navigator.pop(dialogContext);
+                          await vm.loadAll();
+                        }
+                      },
+                child: Text(vm.isSaving ? 'Đang lưu...' : 'Lưu'),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+
+    codeController.dispose();
+    nameController.dispose();
+    presentationController.dispose();
+    priorityController.dispose();
+    requiresPermissionController.dispose();
   }
 }

@@ -53,6 +53,31 @@ class ExaminationViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> loadDashboardExaminations({required String token}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    _examinations = [];
+    notifyListeners();
+
+    try {
+      final result = await getPatientExaminationsUseCase.executeAllPage(
+        token: token,
+        page: 0,
+        size: 5,
+      );
+      _examinations = result.content;
+      _totalElements = result.totalElements;
+      _totalPages = result.totalPages;
+      _currentPage = result.pageNumber;
+      _pageSize = result.pageSize;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<void> goToPage({required String token, required int page}) async {
     if (_isLoading) return;
     _currentPage = page

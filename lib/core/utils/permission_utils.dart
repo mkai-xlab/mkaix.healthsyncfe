@@ -11,6 +11,11 @@ String normalizePermissionKey(String value) {
 }
 
 const Map<String, String> _permissionRouteKeyFallbackByCode = {
+  'dashboard': 'doctor_dashboard_page',
+  'doctor_dashboard': 'doctor_dashboard_page',
+  'view_dashboard': 'doctor_dashboard_page',
+  'read_dashboard': 'doctor_dashboard_page',
+  'doctor_dashboard_page': 'doctor_dashboard_page',
   'read_patient_list': 'patient_list_page',
   'read_patient_detail': 'patient_detail_page',
   'view_patient_detail': 'patient_detail_page',

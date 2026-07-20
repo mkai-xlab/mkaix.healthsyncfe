@@ -140,13 +140,9 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     required int size,
     required String errorMessage,
   }) async {
-    final uri = Uri.parse(endpoint).replace(
-      queryParameters: {
-        'page': page.toString(),
-        'size': size.toString(),
-        'sort': 'visitTime,desc',
-      },
-    );
+    final uri = Uri.parse(
+      endpoint,
+    ).replace(queryParameters: {'page': '$page', 'size': '$size'});
     final response = await client
         .get(
           uri,

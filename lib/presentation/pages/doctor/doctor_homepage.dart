@@ -9,6 +9,7 @@ import '../../viewmodels/doctor_viewmodel.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
+import 'doctor_dashboard_page.dart';
 import 'examination_list_page.dart';
 import 'file_upload_page.dart';
 import 'patient_detail_page.dart';
@@ -105,6 +106,13 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   IconData _permissionIcon(String permissionName) {
     final normalized = normalizePermissionKey(permissionName);
+    if (normalized == 'doctor_dashboard_page' ||
+        normalized == 'doctor_homepage' ||
+        normalized == 'dashboard' ||
+        normalized == 'home_page' ||
+        normalized == 'trang_chu') {
+      return Icons.home_outlined;
+    }
     if (normalized == 'examination_list_page') {
       return Icons.assignment_outlined;
     }
@@ -363,6 +371,13 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
     final selectedPermission = selectedItem?.routeKey ?? '';
 
+    if (selectedPermission == 'doctor_dashboard_page' ||
+        selectedPermission == 'doctor_homepage' ||
+        selectedPermission == 'dashboard' ||
+        selectedPermission == 'home_page' ||
+        selectedPermission == 'trang_chu') {
+      return const DoctorDashboardPage(embedded: true);
+    }
     if (selectedPermission == 'examination_list_page') {
       if (!_hasPermission(context, 'examination_list_page')) {
         return _forbiddenPage(

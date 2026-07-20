@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/examination_entity.dart';
+import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/examination_viewmodel.dart';
 
 class DoctorDashboardPage extends StatefulWidget {
   final bool embedded;
@@ -22,13 +25,43 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
     super.didChangeDependencies();
     if (_didLoad) return;
     _didLoad = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+      context.read<ExaminationViewModel>().loadDashboardExaminations(
+        token: token,
+      );
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     final content = Container(
       color: _bg,
-      child: _DashboardContent(stats: _DashboardStats.sample()),
+      child: Consumer<ExaminationViewModel>(
+        builder: (context, vm, _) {
+          if (vm.isLoading && vm.examinations.isEmpty) {
+            return const Center(
+              child: CircularProgressIndicator(color: AppColors.primary),
+            );
+          }
+          final stats = vm.examinations.isEmpty
+              ? _DashboardStats.sample()
+              : _DashboardStats.from(
+                  vm.examinations,
+                  totalElements: vm.totalElements,
+                );
+          return _DashboardContent(
+            stats: stats,
+            warning: vm.errorMessage,
+            onRetry: () {
+              final token =
+                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              vm.loadDashboardExaminations(token: token);
+            },
+          );
+        },
+      ),
     );
 
     if (widget.embedded) return content;
@@ -38,8 +71,10 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
 
 class _DashboardContent extends StatelessWidget {
   final _DashboardStats stats;
+  final String? warning;
+  final VoidCallback? onRetry;
 
-  const _DashboardContent({required this.stats});
+  const _DashboardContent({required this.stats, this.warning, this.onRetry});
 
   static const Color _primary = AppColors.primary;
 
@@ -50,6 +85,10 @@ class _DashboardContent extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (warning != null) ...[
+            _WarningBanner(message: warning!, onRetry: onRetry),
+            const SizedBox(height: 16),
+          ],
           Wrap(
             spacing: 16,
             runSpacing: 16,
@@ -116,6 +155,39 @@ class _DashboardContent extends StatelessWidget {
           ),
           const SizedBox(height: 24),
           _RecentTable(stats: stats),
+        ],
+      ),
+    );
+  }
+}
+
+class _WarningBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback? onRetry;
+
+  const _WarningBanner({required this.message, this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF8E1),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFFFECB3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Color(0xFFD4A017), size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              'Đang hiển thị dữ liệu mẫu do chưa tải được dashboard: $message',
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B4E00)),
+            ),
+          ),
+          TextButton(onPressed: onRetry, child: const Text('Thử lại')),
         ],
       ),
     );

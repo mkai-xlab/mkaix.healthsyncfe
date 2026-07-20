@@ -39,6 +39,13 @@ class UserModel extends UserEntity {
     final parsedPermissionItems = <UserPermissionEntity>[];
     final parsedPermissions = <String>[];
 
+    void addPermissionKey(String? value) {
+      final key = value?.trim() ?? '';
+      if (key.isNotEmpty && !parsedPermissions.contains(key)) {
+        parsedPermissions.add(key);
+      }
+    }
+
     if (json['permissions'] is List) {
       for (final permission in json['permissions'] as List) {
         if (permission is Map) {
@@ -66,13 +73,19 @@ class UserModel extends UserEntity {
           final priority = permission['priority'] is int
               ? permission['priority'] as int
               : int.tryParse(permission['priority']?.toString() ?? '') ?? 0;
+          final displayName = name.isNotEmpty
+              ? name
+              : (code.isNotEmpty ? code : id);
 
-          if (name.isNotEmpty) {
-            parsedPermissions.add(name);
+          if (displayName.isNotEmpty) {
+            addPermissionKey(id);
+            addPermissionKey(code);
+            addPermissionKey(name);
+            addPermissionKey(presentation);
             parsedPermissionItems.add(
               UserPermissionEntity(
-                id: id.isNotEmpty ? id : name,
-                name: name,
+                id: id.isNotEmpty ? id : displayName,
+                name: displayName,
                 code: code,
                 presentation: presentation,
                 description: permission['description']?.toString(),
@@ -86,7 +99,7 @@ class UserModel extends UserEntity {
 
         final name = permission.toString();
         if (name.isNotEmpty) {
-          parsedPermissions.add(name);
+          addPermissionKey(name);
           parsedPermissionItems.add(UserPermissionEntity(id: name, name: name));
         }
       }

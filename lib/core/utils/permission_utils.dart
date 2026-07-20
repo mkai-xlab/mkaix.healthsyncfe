@@ -69,7 +69,7 @@ String permissionKeyFor(UserPermissionEntity permission) {
 
 String permissionLabelFor(UserPermissionEntity permission) {
   final name = permission.name.trim();
-  if (name.isNotEmpty && !_looksLikePermissionCode(name)) {
+  if (name.isNotEmpty) {
     return name;
   }
 

@@ -22,13 +22,6 @@ class DoctorHomepage extends StatefulWidget {
 }
 
 class _DoctorHomepageState extends State<DoctorHomepage> {
-  static const Set<String> _sidebarRouteKeys = {
-    'patient_list_page',
-    'examination_list_page',
-    'dicom_upload_page',
-    'file_upload_page',
-  };
-
   int _selectedNavIndex = 0;
   final _searchController = TextEditingController();
   bool _showUploadExaminationList = false;
@@ -92,13 +85,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             if (cmp != 0) return cmp;
             return permissionKeyFor(a).compareTo(permissionKeyFor(b));
           });
-    final navSource = permissionItems
-        .where(
-          (permission) =>
-              permission.isParent &&
-              _sidebarRouteKeys.contains(permissionKeyFor(permission)),
-        )
-        .toList();
+    final navSource = permissionItems.where((permission) {
+      return permission.isParent && permissionKeyFor(permission).isNotEmpty;
+    }).toList();
     final visibleSource = navSource;
 
     return List.generate(visibleSource.length, (index) {

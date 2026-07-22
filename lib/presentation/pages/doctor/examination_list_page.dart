@@ -169,9 +169,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
               ),
               Text(
                 widget.patient == null
-                    ? _selectedStatus.isEmpty
-                          ? '${vm.totalElements} ca'
-                          : '${visibleExaminations.length} ca trong trang'
+                    ? '${vm.totalElements} ca'
                     : '${visibleExaminations.length} ca',
                 style: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
               ),

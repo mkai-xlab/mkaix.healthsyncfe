@@ -228,6 +228,23 @@ void initState() {
 - `DoctorResponse.role` là string trong doc 15/07; `UserResponse.role` vẫn là object `Role`.
 - Vẫn không có `GET /users`; chỉ còn `POST /users`, nên danh sách tài khoản admin/doctor không nên phụ thuộc vào `GET /users` nếu chưa kiểm chứng backend live.
 
+### 4.1.4 Exam API runtime 21-22/07/2026
+
+Nguon: bang API user cung cap ngay 22/07/2026.
+
+- Cac API dem tong `/examinations/total`, `/examinations/total-severe`, `/examinations/total-verified`, `/examinations/total-unverified` can FE truyen `userId` cua user hien hanh; backend dung `userId` de lay role va dem theo DOCTOR/DEPARTMENT_HEAD.
+- Cac API list/filter/sort exam moi KHONG truyen `userId`; FE chi gui access token header. Backend tu resolve user/role tu token.
+- Loc status dung `GET /examinations/status?status={STATUS_NAME}&page={page}&size={size}`.
+- Loc max predicted grade dung `GET /examinations/grade?grade={GRADE_NUMBER}&page={page}&size={size}`.
+- Thong ke benh nhan theo grade dung `GET /examinations/statistics/patients-by-grade`, khong query param.
+- Sort ngay chup dung `GET /examinations/sort/study-date?direction=asc|desc&page={page}&size={size}`.
+- Sort ngay upload dung `GET /examinations/sort/upload-date?direction=asc|desc&page={page}&size={size}`.
+- Filter ngay chup dung `GET /examinations/filter/study-date?date=YYYY-MM-DD&page={page}&size={size}`.
+- Filter ngay upload dung `GET /examinations/filter/upload-date?date=YYYY-MM-DD&page={page}&size={size}`.
+- Loc exam cua mot benh nhan theo thang chup dung `/examinations/patient/{patientId}/filter/study-month?year=YYYY&month=M&page={page}&size={size}`.
+- `POST /dicom/verify` runtime moi tra `List<PatientGradeStatsDto>` gom `{grade, patientCount}` cho rieng batch vua verify/AI thanh cong, khong con mac dinh tra `List<ExaminationDto>`.
+- Notification dropdown tren doctor topbar tam dung `GET /notifications/unread` de lay tat ca thong bao chua doc cua user hien tai; API nay chua paging public, nen FE paging gia bang `visibleCount` ban dau 10 va moi lan "Xem them" tang 1 item. `PUT /notifications/{id}/read` duoc dung khi user bam vao notification.
+
 ### 4.2 Patient list không dùng mock fallback
 Danh sách bệnh nhân trong Doctor role phải lấy dữ liệu thật từ backend `/patients`. Không fallback sang `MockPatients.samples`; nếu API trả rỗng thì hiển thị rỗng, nếu API lỗi thì báo lỗi để tránh nhầm dữ liệu tạm là dữ liệu thật.
 
@@ -344,6 +361,7 @@ Tất cả trang của Doctor role dùng cùng một style top bar:
 - Flow upload mới được dựng ở `FileUploadPage` (`lib/presentation/pages/doctor/file_upload_page.dart`) để giữ lại `DicomUploadPage` cũ làm phương án rollback. Doctor shell hiện route permission `dicom_upload_page` sang `FileUploadPage` và hiển thị mini progress bar toàn cục ở góc phải khi upload/processing/verify/AI đang chạy.
 - Màn upload DICOM ưu tiên layout gọn trong một viewport desktop: bên trái là danh sách file chờ gửi, có nút xóa từng file; sau khi upload batch thành công tự clear file chờ. Bên phải hiển thị danh sách bệnh nhân trong `successfulPatients[]` của response, không hiển thị lịch sử file đã upload.
 - Thông báo trong app dùng toast overlay chung (`AppToast`) ở góc dưới bên phải, dạng thanh nhỏ, tự ẩn sau 5 giây và có nút `X` để đóng sớm. Không dùng `SnackBar` riêng cho từng màn nữa.
+- Cập nhật 22/07/2026: toast notification từ WebSocket chỉ hiển thị `title` và nội dung thật của `message`; nếu backend/log gửi chuỗi kiểu `message:"..."` thì FE phải bỏ tiền tố `message:`. Toast notification không tự thay thế khi có toast mới; các toast xếp chồng lên nhau từ góc dưới bên phải, từng toast tự tắt sau 5 giây hoặc đóng sớm khi người dùng bấm `X`.
 - Sau upload batch, panel response có nút "Đi tới ca khám" để mở `ExaminationListPage` trong doctor shell và truyền các `recentExaminations[]` vừa trả về. `ExaminationListPage` luôn có chip đầu tiên và mặc định là "Ca khám mới"; chip đó hiển thị dữ liệu từ response upload, còn các chip trạng thái còn lại vẫn đọc dữ liệu ca khám theo luồng patient detail/tổng hợp hiện có.
 
 ---

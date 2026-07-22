@@ -10,94 +10,172 @@ class AppToast {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
 
-  static OverlayEntry? _currentEntry;
-  static Timer? _dismissTimer;
+  static OverlayEntry? _overlayEntry;
+  static final List<_ToastItem> _items = [];
+  static int _nextId = 0;
 
-  static void showSuccess(String message) {
-    show(message: message, type: AppToastType.success);
+  static void showSuccess(String message, {String? title}) {
+    show(title: title, message: message, type: AppToastType.success);
   }
 
-  static void showError(String message) {
-    show(message: message, type: AppToastType.error);
+  static void showError(String message, {String? title}) {
+    show(title: title, message: message, type: AppToastType.error);
   }
 
-  static void showWarning(String message) {
-    show(message: message, type: AppToastType.warning);
+  static void showWarning(String message, {String? title}) {
+    show(title: title, message: message, type: AppToastType.warning);
   }
 
-  static void showInfo(String message) {
-    show(message: message, type: AppToastType.info);
+  static void showInfo(String message, {String? title}) {
+    show(title: title, message: message, type: AppToastType.info);
   }
 
   static void show({
+    String? title,
     required String message,
     AppToastType type = AppToastType.info,
-    Duration duration = const Duration(seconds: 5),
+    Duration? duration = const Duration(seconds: 5),
   }) {
     final overlay = navigatorKey.currentState?.overlay;
     if (overlay == null) return;
 
-    _removeCurrent();
+    _ensureOverlay(overlay);
 
-    final entry = OverlayEntry(
-      builder: (context) => _ToastOverlay(
-        message: message,
-        type: type,
-        duration: duration,
-        onDismiss: _removeCurrent,
-      ),
+    final item = _ToastItem(
+      id: _nextId++,
+      title: title?.trim(),
+      message: message.trim(),
+      type: type,
     );
+    _items.add(item);
 
-    _currentEntry = entry;
-    overlay.insert(entry);
-    _dismissTimer = Timer(duration, _removeCurrent);
+    if (duration != null) {
+      item.dismissTimer = Timer(duration, () => _dismiss(item.id));
+    }
+
+    _overlayEntry?.markNeedsBuild();
   }
 
   static void dismissCurrent() {
-    _removeCurrent();
+    if (_items.isEmpty) return;
+    _dismiss(_items.last.id);
   }
 
-  static void _removeCurrent() {
-    _dismissTimer?.cancel();
-    _dismissTimer = null;
+  static void _ensureOverlay(OverlayState overlay) {
+    if (_overlayEntry != null) return;
 
-    final entry = _currentEntry;
-    _currentEntry = null;
-    entry?.remove();
+    _overlayEntry = OverlayEntry(
+      builder: (context) => _ToastStackOverlay(
+        items: List.unmodifiable(_items),
+        onDismiss: _dismiss,
+      ),
+    );
+    overlay.insert(_overlayEntry!);
+  }
+
+  static void _dismiss(int id) {
+    final index = _items.indexWhere((item) => item.id == id);
+    if (index == -1) return;
+
+    final item = _items.removeAt(index);
+    item.dismissTimer?.cancel();
+
+    if (_items.isEmpty) {
+      _overlayEntry?.remove();
+      _overlayEntry = null;
+      return;
+    }
+
+    _overlayEntry?.markNeedsBuild();
   }
 }
 
-class _ToastOverlay extends StatefulWidget {
-  const _ToastOverlay({
+class _ToastItem {
+  _ToastItem({
+    required this.id,
+    required this.title,
     required this.message,
     required this.type,
-    required this.duration,
-    required this.onDismiss,
   });
 
+  final int id;
+  final String? title;
   final String message;
   final AppToastType type;
-  final Duration duration;
+  Timer? dismissTimer;
+}
+
+class _ToastStackOverlay extends StatelessWidget {
+  const _ToastStackOverlay({required this.items, required this.onDismiss});
+
+  final List<_ToastItem> items;
+  final ValueChanged<int> onDismiss;
+
+  @override
+  Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final toastWidth = screenWidth < 600
+        ? screenWidth - 32
+        : (screenWidth * 0.28).clamp(320.0, 520.0);
+
+    return Positioned.fill(
+      child: IgnorePointer(
+        ignoring: false,
+        child: SafeArea(
+          child: Align(
+            alignment: Alignment.bottomRight,
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16, bottom: 16, top: 16),
+              child: Material(
+                color: Colors.transparent,
+                child: SizedBox(
+                  width: toastWidth,
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    reverse: true,
+                    itemCount: items.length,
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 10),
+                    itemBuilder: (context, index) {
+                      final item = items[items.length - 1 - index];
+                      return _ToastCard(
+                        key: ValueKey(item.id),
+                        item: item,
+                        onDismiss: () => onDismiss(item.id),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ToastCard extends StatefulWidget {
+  const _ToastCard({super.key, required this.item, required this.onDismiss});
+
+  final _ToastItem item;
   final VoidCallback onDismiss;
 
   @override
-  State<_ToastOverlay> createState() => _ToastOverlayState();
+  State<_ToastCard> createState() => _ToastCardState();
 }
 
-class _ToastOverlayState extends State<_ToastOverlay>
+class _ToastCardState extends State<_ToastCard>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
 
   @override
   void initState() {
     super.initState();
-    _controller = AnimationController(vsync: this, duration: widget.duration)
-      ..addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
-          widget.onDismiss();
-        }
-      });
-    _controller.forward();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 180),
+    )..forward();
   }
 
   @override
@@ -108,129 +186,99 @@ class _ToastOverlayState extends State<_ToastOverlay>
 
   @override
   Widget build(BuildContext context) {
-    final scheme = _ToastTheme.of(widget.type);
-    final screenWidth = MediaQuery.sizeOf(context).width;
-    final toastWidth = screenWidth < 600
-        ? screenWidth - 32
-        : (screenWidth * 0.2).clamp(280.0, 360.0);
+    final scheme = _ToastTheme.of(widget.item.type);
+    final title = widget.item.title?.trim() ?? '';
 
-    return Positioned.fill(
-      child: IgnorePointer(
-        ignoring: false,
-        child: SafeArea(
-          child: Align(
-            alignment: Alignment.bottomRight,
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16, bottom: 16),
-              child: Material(
-                color: Colors.transparent,
-                child: AnimatedBuilder(
-                  animation: _controller,
-                  builder: (context, child) {
-                    return Opacity(
-                      opacity: Curves.easeOut.transform(
-                        _controller.value < 0.15
-                            ? _controller.value / 0.15
-                            : (_controller.value > 0.85
-                                  ? (1 - _controller.value) / 0.15
-                                  : 1),
-                      ),
-                      child: child,
-                    );
-                  },
-                  child: SizedBox(
-                    width: toastWidth,
-                    child: DecoratedBox(
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: _controller, curve: Curves.easeOut),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x24000000),
+              blurRadius: 18,
+              offset: Offset(0, 8),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
                       decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x24000000),
-                            blurRadius: 18,
-                            offset: Offset(0, 8),
+                        color: scheme.softBackground,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(scheme.icon, size: 18, color: scheme.accent),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (title.isNotEmpty) ...[
+                            Text(
+                              title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                height: 1.25,
+                                fontWeight: FontWeight.w800,
+                                color: Color(0xFF1F2937),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                          ],
+                          Text(
+                            widget.item.message,
+                            maxLines: 4,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              height: 1.3,
+                              fontWeight: FontWeight.w500,
+                              color: Color(0xFF6B7280),
+                            ),
                           ),
                         ],
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 14,
-                                vertical: 12,
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 30,
-                                    height: 30,
-                                    decoration: BoxDecoration(
-                                      color: scheme.softBackground,
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: Icon(
-                                      scheme.icon,
-                                      size: 18,
-                                      color: scheme.accent,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Expanded(
-                                    child: Text(
-                                      widget.message,
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        height: 1.3,
-                                        fontWeight: FontWeight.w500,
-                                        color: Color(0xFF1F2937),
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 6),
-                                  IconButton(
-                                    padding: EdgeInsets.zero,
-                                    constraints: const BoxConstraints(
-                                      minWidth: 26,
-                                      minHeight: 26,
-                                    ),
-                                    visualDensity: VisualDensity.compact,
-                                    onPressed: widget.onDismiss,
-                                    icon: const Icon(
-                                      Icons.close,
-                                      size: 16,
-                                      color: Color(0xFF9CA3AF),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            AnimatedBuilder(
-                              animation: _controller,
-                              builder: (context, _) {
-                                return FractionallySizedBox(
-                                  alignment: Alignment.centerLeft,
-                                  widthFactor: 1 - _controller.value,
-                                  child: Container(
-                                    height: 4,
-                                    color: scheme.accent,
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
-                        ),
+                    ),
+                    const SizedBox(width: 6),
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 26,
+                        minHeight: 26,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                      onPressed: widget.onDismiss,
+                      icon: const Icon(
+                        Icons.close,
+                        size: 16,
+                        color: Color(0xFF9CA3AF),
                       ),
                     ),
-                  ),
+                  ],
                 ),
               ),
-            ),
+              Container(height: 4, color: scheme.accent),
+            ],
           ),
         ),
       ),

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
@@ -81,6 +82,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       final uri = Uri.parse(
         endpoint,
       ).replace(queryParameters: {'page': page.toString(), 'size': '100'});
+      _logRequest('GET', uri, token);
       final response = await client
           .get(
             uri,
@@ -141,12 +143,9 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     required String errorMessage,
   }) async {
     final uri = Uri.parse(endpoint).replace(
-      queryParameters: {
-        'page': page.toString(),
-        'size': size.toString(),
-        'sort': 'visitTime,desc',
-      },
+      queryParameters: {'page': page.toString(), 'size': size.toString()},
     );
+    _logRequest('GET', uri, token);
     final response = await client
         .get(
           uri,
@@ -226,6 +225,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     Map<String, dynamic>? fallbackPatientJson,
   }) async {
     final uri = Uri.parse(ApiConstants.patientDetailsEndpoint(patientId));
+    _logRequest('GET', uri, token);
     final response = await client
         .get(
           uri,
@@ -260,5 +260,13 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     }
 
     throw Exception('Không thể tải danh sách ca khám (${response.statusCode})');
+  }
+
+  void _logRequest(String method, Uri uri, String token) {
+    debugPrint(
+      '[Examination API request] $method $uri, '
+      'Authorization=${token.trim().isEmpty ? 'missing' : 'Bearer ***'}',
+      wrapWidth: 1024,
+    );
   }
 }

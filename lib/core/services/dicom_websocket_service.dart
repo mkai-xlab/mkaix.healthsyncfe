@@ -205,10 +205,14 @@ class DicomWebSocketService {
   Map<String, dynamic>? _decodeBatchPayload(Object? value) {
     if (value is Map) return Map<String, dynamic>.from(value);
     if (value is String && value.trim().isNotEmpty) {
-      final decoded = jsonDecode(value);
-      if (decoded is Map) {
-        final map = Map<String, dynamic>.from(decoded);
-        return _looksLikeBatchResult(map) ? map : null;
+      try {
+        final decoded = jsonDecode(value);
+        if (decoded is Map) {
+          final map = Map<String, dynamic>.from(decoded);
+          return _looksLikeBatchResult(map) ? map : null;
+        }
+      } catch (_) {
+        return null;
       }
     }
     return null;

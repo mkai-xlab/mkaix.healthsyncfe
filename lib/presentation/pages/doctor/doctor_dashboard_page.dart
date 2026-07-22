@@ -80,50 +80,93 @@ class _DashboardContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final greeting = _getGreeting(now.hour);
+    final user = context.read<AuthViewModel>().currentUser;
+    final doctorName = user?.name ?? 'Bác sĩ';
+
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(24, 22, 24, 28),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (warning != null) ...[
-            _WarningBanner(message: warning!, onRetry: onRetry),
-            const SizedBox(height: 16),
-          ],
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              _StatCard(
-                title: 'Tổng số ca',
-                value: stats.total.toString(),
-                trend: '+${stats.todayCount} hôm nay',
-                icon: Icons.groups_2_outlined,
-                accent: _primary,
-              ),
-              _StatCard(
-                title: 'Ca nguy cơ cao',
-                value: stats.severeCount.toString(),
-                trend: '${stats.severePercent}%',
-                icon: Icons.priority_high_rounded,
-                accent: const Color(0xFFD71920),
-              ),
-              _StatCard(
-                title: 'Đã hoàn thành',
-                value: stats.completedCount.toString(),
-                trend: '${stats.completedPercent}%',
-                icon: Icons.verified_outlined,
-                accent: _primary,
-              ),
-              _StatCard(
-                title: 'Chờ xác nhận',
-                value: stats.pendingCount.toString().padLeft(2, '0'),
-                trend: 'cần xử lý',
-                icon: Icons.more_horiz_rounded,
-                accent: const Color(0xFFD4A017),
-              ),
-            ],
+          // Dashboard Header
+          _DashboardHeader(
+            greeting: greeting,
+            doctorName: doctorName,
+            todayDate: DateFormat('dd/MM/yyyy').format(now),
+            todayExams: stats.todayCount,
+            highRiskCases: stats.severeCount,
           ),
           const SizedBox(height: 24),
+          
+          if (warning != null) ...[
+            _WarningBanner(message: warning!, onRetry: onRetry),
+            const SizedBox(height: 20),
+          ],
+          
+          // Responsive Stats Grid
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final width = constraints.maxWidth;
+              int crossAxisCount = 4;
+              double childAspectRatio = 2.0;
+              
+              if (width < 600) {
+                crossAxisCount = 1;
+                childAspectRatio = 2.5;
+              } else if (width < 900) {
+                crossAxisCount = 2;
+                childAspectRatio = 2.2;
+              } else if (width < 1200) {
+                crossAxisCount = 3;
+                childAspectRatio = 2.0;
+              }
+              
+              return GridView.count(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                crossAxisCount: crossAxisCount,
+                crossAxisSpacing: 20,
+                mainAxisSpacing: 20,
+                childAspectRatio: childAspectRatio,
+                children: [
+                  _StatCard(
+                    title: 'Tổng số ca',
+                    value: stats.total.toString(),
+                    trend: '+${stats.todayCount} hôm nay',
+                    icon: Icons.groups_2_outlined,
+                    accent: _primary,
+                  ),
+                  _StatCard(
+                    title: 'Ca nguy cơ cao',
+                    value: stats.severeCount.toString(),
+                    trend: '${stats.severePercent}%',
+                    icon: Icons.priority_high_rounded,
+                    accent: AppColors.error,
+                  ),
+                  _StatCard(
+                    title: 'Đã hoàn thành',
+                    value: stats.completedCount.toString(),
+                    trend: '${stats.completedPercent}%',
+                    icon: Icons.verified_outlined,
+                    accent: AppColors.success,
+                  ),
+                  _StatCard(
+                    title: 'Chờ xác nhận',
+                    value: stats.pendingCount.toString(),
+                    trend: 'cần xử lý',
+                    icon: Icons.pending_actions_outlined,
+                    accent: AppColors.warning,
+                  ),
+                ],
+              );
+            },
+          ),
+          
+          const SizedBox(height: 24),
+          
+          // Charts Row
           LayoutBuilder(
             builder: (context, constraints) {
               final wide = constraints.maxWidth >= 1060;
@@ -134,9 +177,9 @@ class _DashboardContent extends StatelessWidget {
                 return Column(
                   children: [
                     left,
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     middle,
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
                     right,
                   ],
                 );
@@ -145,18 +188,141 @@ class _DashboardContent extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(flex: 4, child: left),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 20),
                   Expanded(flex: 5, child: middle),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 20),
                   Expanded(flex: 3, child: right),
                 ],
               );
             },
           ),
+          
           const SizedBox(height: 24),
+          
           _RecentTable(stats: stats),
         ],
       ),
+    );
+  }
+
+  String _getGreeting(int hour) {
+    if (hour < 12) return 'Chào buổi sáng';
+    if (hour < 18) return 'Chào buổi chiều';
+    return 'Chào buổi tối';
+  }
+}
+
+// Dashboard Header Widget
+class _DashboardHeader extends StatelessWidget {
+  final String greeting;
+  final String doctorName;
+  final String todayDate;
+  final int todayExams;
+  final int highRiskCases;
+
+  const _DashboardHeader({
+    required this.greeting,
+    required this.doctorName,
+    required this.todayDate,
+    required this.todayExams,
+    required this.highRiskCases,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$greeting, $doctorName',
+          style: const TextStyle(
+            fontSize: 28,
+            fontWeight: FontWeight.w700,
+            color: AppColors.textPrimary,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 16,
+          runSpacing: 8,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.calendar_today_outlined,
+                  size: 16,
+                  color: AppColors.textSecondary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  todayDate,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: AppColors.textSecondary,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryXLight.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.assignment_outlined,
+                    size: 16,
+                    color: AppColors.primary,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    '$todayExams ca khám hôm nay',
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (highRiskCases > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: AppColors.errorLight.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.warning_amber_rounded,
+                      size: 16,
+                      color: AppColors.error,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      '$highRiskCases ca nguy cơ cao',
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -211,63 +377,81 @@ class _StatCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      width: 250,
-      height: 118,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(8),
-          border: Border(left: BorderSide(color: accent, width: 4)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x11000000),
-              blurRadius: 20,
-              offset: Offset(0, 10),
-            ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Column(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border(left: BorderSide(color: accent, width: 4)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                children: [
-                  Container(
-                    width: 34,
-                    height: 34,
-                    decoration: BoxDecoration(
-                      color: accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Icon(icon, color: accent, size: 20),
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: accent, size: 20),
+              ),
+              Flexible(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: accent.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  const Spacer(),
-                  Text(
+                  child: Text(
                     trend,
                     style: TextStyle(
                       color: accent,
                       fontWeight: FontWeight.w700,
-                      fontSize: 12,
+                      fontSize: 10,
                     ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              Text(title, style: const TextStyle(color: Color(0xFF4B5563))),
-              const SizedBox(height: 4),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF1F2937),
                 ),
               ),
             ],
           ),
-        ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: const TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+              height: 1,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -355,42 +539,91 @@ class _TrendCard extends StatelessWidget {
       title: 'Xu hướng phân tích',
       trailing: const _SmallBadge('7 ngày qua'),
       child: SizedBox(
-        height: 236,
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: List.generate(stats.weeklyCounts.length, (index) {
-            final count = stats.weeklyCounts[index];
-            final height = 42 + (count / maxCount) * 118;
-            final isToday = index == stats.weeklyCounts.length - 1;
-            return Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 250),
-                      height: height,
-                      decoration: BoxDecoration(
-                        color: isToday
-                            ? AppColors.primary
-                            : const Color(0xFFE0F4EF),
-                        borderRadius: BorderRadius.circular(4),
+        height: 220,
+        child: Column(
+          children: [
+            Expanded(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: List.generate(stats.weeklyCounts.length, (index) {
+                  final count = stats.weeklyCounts[index];
+                  final heightFactor = maxCount > 0 ? count / maxCount : 0;
+                  final isToday = index == stats.weeklyCounts.length - 1;
+                  return Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          if (count > 0)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: Text(
+                                count.toString(),
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: isToday
+                                      ? AppColors.primary
+                                      : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          Expanded(
+                            child: Align(
+                              alignment: Alignment.bottomCenter,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 600),
+                                curve: Curves.easeOutCubic,
+                                height: heightFactor * 140,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.topCenter,
+                                    end: Alignment.bottomCenter,
+                                    colors: isToday
+                                        ? [
+                                            AppColors.primaryLight,
+                                            AppColors.primary,
+                                          ]
+                                        : [
+                                            AppColors.primaryXLight.withOpacity(0.3),
+                                            AppColors.primaryLight.withOpacity(0.2),
+                                          ],
+                                  ),
+                                  borderRadius: const BorderRadius.vertical(
+                                    top: Radius.circular(6),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 10),
-                    Text(
-                      stats.weekdayLabels[index],
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF4B5563),
-                      ),
-                    ),
-                  ],
-                ),
+                  );
+                }),
               ),
-            );
-          }),
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: List.generate(stats.weekdayLabels.length, (index) {
+                final isToday = index == stats.weekdayLabels.length - 1;
+                return Expanded(
+                  child: Text(
+                    stats.weekdayLabels[index],
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isToday ? FontWeight.w700 : FontWeight.w500,
+                      color: isToday
+                          ? AppColors.primary
+                          : AppColors.textSecondary,
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ],
         ),
       ),
     );
@@ -406,23 +639,39 @@ class _SevereAlertCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return _Panel(
       title: 'Cảnh báo ca nghiêm trọng',
-      titleColor: const Color(0xFFD71920),
+      titleColor: AppColors.error,
       child: Column(
         children: stats.severeExaminations.isEmpty
             ? [
-                const SizedBox(height: 36),
-                Icon(
-                  Icons.health_and_safety_outlined,
-                  size: 42,
-                  color: Colors.grey.shade300,
+                const SizedBox(height: 30),
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: AppColors.successLight.withOpacity(0.3),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.health_and_safety_outlined,
+                    size: 28,
+                    color: AppColors.success,
+                  ),
                 ),
-                const SizedBox(height: 8),
-                const Text('Chưa có ca nghiêm trọng'),
+                const SizedBox(height: 12),
+                const Text(
+                  'Không có ca nghiêm trọng',
+                  style: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 30),
               ]
             : stats.severeExaminations
-                  .take(3)
-                  .map((item) => _SevereItem(examination: item))
-                  .toList(),
+                .take(3)
+                .map((item) => _SevereItem(examination: item))
+                .toList(),
       ),
     );
   }
@@ -484,15 +733,15 @@ class _Panel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: const [
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x0F000000),
-            blurRadius: 18,
-            offset: Offset(0, 8),
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -507,14 +756,14 @@ class _Panel extends StatelessWidget {
                   style: TextStyle(
                     color: titleColor,
                     fontWeight: FontWeight.w700,
-                    fontSize: 16,
+                    fontSize: 17,
                   ),
                 ),
               ),
-              ?trailing,
+              if (trailing != null) trailing!,
             ],
           ),
-          const SizedBox(height: 14),
+          const SizedBox(height: 16),
           child,
         ],
       ),
@@ -576,14 +825,31 @@ class _SevereItem extends StatelessWidget {
     final grade = examination.maxPredictedGrade;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF1F1),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: const Color(0xFFFFCACA)),
+        color: AppColors.errorLight.withOpacity(0.15),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: AppColors.error.withOpacity(0.2),
+          width: 1,
+        ),
       ),
       child: Row(
         children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: AppColors.error.withOpacity(0.1),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.warning_amber_rounded,
+              color: AppColors.error,
+              size: 18,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -591,34 +857,45 @@ class _SevereItem extends StatelessWidget {
                 Text(
                   examination.patientName.isEmpty
                       ? examination.patientCode
-                      : 'BN: ${examination.patientName}',
+                      : examination.patientName,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    color: AppColors.textPrimary,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   examination.description.isNotEmpty
                       ? examination.description
-                      : examination.chiefComplaint,
+                      : examination.chiefComplaint.isNotEmpty
+                          ? examination.chiefComplaint
+                          : 'Không có mô tả',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
-                    fontSize: 12,
-                    fontStyle: FontStyle.italic,
-                    color: Color(0xFF6B7280),
+                    fontSize: 11,
+                    color: AppColors.textSecondary,
                   ),
                 ),
               ],
             ),
           ),
-          Text(
-            grade > 0 ? 'GRADE $grade' : 'N/A',
-            style: TextStyle(
-              color: grade >= 4
-                  ? const Color(0xFFD71920)
-                  : const Color(0xFFD4A017),
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.error,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: Text(
+              grade > 0 ? 'GRADE $grade' : 'N/A',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+              ),
             ),
           ),
         ],

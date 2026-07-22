@@ -1863,15 +1863,6 @@ class _NotificationTile extends StatelessWidget {
                       color: Color(0xFF4B5563),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _formatNotificationTime(notification.createdAt),
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: color,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
                 ],
               ),
             ),
@@ -1915,19 +1906,6 @@ class _NotificationTile extends StatelessWidget {
       default:
         return AppColors.primary;
     }
-  }
-
-  static String _formatNotificationTime(DateTime? createdAt) {
-    if (createdAt == null) return '';
-    final now = DateTime.now();
-    final diff = now.difference(createdAt);
-    if (diff.inMinutes < 1) return 'Vừa xong';
-    if (diff.inHours < 1) return '${diff.inMinutes} phút trước';
-    if (diff.inDays < 1) return '${diff.inHours} giờ trước';
-    if (diff.inDays < 7) return '${diff.inDays} ngày trước';
-    return '${createdAt.day.toString().padLeft(2, '0')}/'
-        '${createdAt.month.toString().padLeft(2, '0')}/'
-        '${createdAt.year}';
   }
 }
 

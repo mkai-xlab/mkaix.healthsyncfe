@@ -19,4 +19,4 @@ jobs:
           username: ubuntu
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd capstone/mkaix.healthsyncfe/ && git pull && flutter build web && sudo systemctl reload nginx
+            cd healthsync/mkaix.healthsyncfe/ && git pull && flutter build web && sudo systemctl reload nginx

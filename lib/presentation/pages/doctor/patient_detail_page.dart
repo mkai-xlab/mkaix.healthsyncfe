@@ -28,9 +28,7 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
   bool _didLoad = false;
 
   String get _patientDetailId {
-    return widget.patient.patientCode.isNotEmpty
-        ? widget.patient.patientCode
-        : widget.patient.id.toString();
+    return widget.patient.id.toString();
   }
 
   @override

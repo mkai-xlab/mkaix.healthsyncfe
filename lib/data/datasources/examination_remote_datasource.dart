@@ -79,9 +79,13 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     var isLast = false;
 
     while (!isLast) {
-      final uri = Uri.parse(
-        endpoint,
-      ).replace(queryParameters: {'page': page.toString(), 'size': '100'});
+      final uri = Uri.parse(endpoint).replace(
+        queryParameters: {
+          'page': page.toString(),
+          'size': '100',
+          'sort': 'asc',
+        },
+      );
       _logRequest('GET', uri, token);
       final response = await client
           .get(
@@ -122,7 +126,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       }
 
       if (response.statusCode != 200) {
-        throw Exception('$errorMessage (${response.statusCode})');
+        throw Exception(_httpErrorMessage(response.statusCode, errorMessage));
       }
     }
 
@@ -143,7 +147,11 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     required String errorMessage,
   }) async {
     final uri = Uri.parse(endpoint).replace(
-      queryParameters: {'page': page.toString(), 'size': size.toString()},
+      queryParameters: {
+        'page': page.toString(),
+        'size': size.toString(),
+        'sort': 'asc',
+      },
     );
     _logRequest('GET', uri, token);
     final response = await client
@@ -157,7 +165,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
-      throw Exception('$errorMessage (${response.statusCode})');
+      throw Exception(_httpErrorMessage(response.statusCode, errorMessage));
     }
 
     final data = jsonDecode(utf8.decode(response.bodyBytes));
@@ -216,50 +224,24 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     required String patientId,
     required String token,
   }) async {
-    return _getPatientExaminationsById(patientId: patientId, token: token);
+    final page = await _getExaminationsPage(
+      endpoint: ApiConstants.examinationsByPatientEndpoint(patientId),
+      token: token,
+      page: 0,
+      size: 10,
+      errorMessage: 'Khong the tai danh sach ca kham cua benh nhan',
+    );
+    return page.content;
   }
 
-  Future<List<ExaminationEntity>> _getPatientExaminationsById({
-    required String patientId,
-    required String token,
-    Map<String, dynamic>? fallbackPatientJson,
-  }) async {
-    final uri = Uri.parse(ApiConstants.patientDetailsEndpoint(patientId));
-    _logRequest('GET', uri, token);
-    final response = await client
-        .get(
-          uri,
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        )
-        .timeout(const Duration(seconds: 10));
-
-    if (response.statusCode == 200) {
-      final data = jsonDecode(utf8.decode(response.bodyBytes));
-      if (data is! Map) {
-        throw Exception('Định dạng chi tiết bệnh nhân không hợp lệ');
-      }
-
-      final examinations = data['recentExaminations'];
-      if (examinations is! List) return [];
-      final patientJson = data['patient'] is Map
-          ? Map<String, dynamic>.from(data['patient'] as Map)
-          : fallbackPatientJson;
-
-      return examinations
-          .whereType<Map>()
-          .map(
-            (item) => ExaminationModel.fromJson(
-              Map<String, dynamic>.from(item),
-              patientJson: patientJson,
-            ),
-          )
-          .toList();
+  String _httpErrorMessage(int statusCode, String fallbackMessage) {
+    if (statusCode == 403) {
+      return 'Bạn cần được cấp quyền để tiếp tục sử dụng tính năng này ($statusCode)';
     }
-
-    throw Exception('Không thể tải danh sách ca khám (${response.statusCode})');
+    if (statusCode >= 500 && statusCode < 600) {
+      return 'Chưa nhận được phản hồi từ sever ($statusCode)';
+    }
+    return '$fallbackMessage ($statusCode)';
   }
 
   void _logRequest(String method, Uri uri, String token) {

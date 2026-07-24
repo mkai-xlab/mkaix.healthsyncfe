@@ -1,4 +1,14 @@
 # AGENT_GUIDELINE.md
+
+## Examination status diagram update 23/07/2026
+
+- Status moi cua examination bam theo flow `AI_PROCESSING -> NEED_VERIFY -> VERIFIED -> REPORT_GENERATED`.
+- `AI_PROCESSING`: doctor accept/upload DICOM, he thong dang chay AI.
+- `NEED_VERIFY`: AI da co ket qua, doctor can verify clinic/comment.
+- `VERIFIED`: doctor da verify clinic/comment.
+- `REPORT_GENERATED`: doctor da export/generate report.
+- Neu doctor upload them DICOM vao cung examination khi status dang la `NEED_VERIFY` hoac `VERIFIED`, status quay lai `AI_PROCESSING`.
+- Cho luong moi, khong dung cac status cu `AI_COMPLETED`, `NEED_REVERIFY`, `COMPLETED`, `PENDING`, `ANALYZING`, `AWAITING_REVIEW` tru khi can tuong thich du lieu cu/runtime cu.
 > Tài liệu ghi lại các quy tắc, bài học và quyết định kiến trúc được học trong quá trình phát triển dự án **MKAix HealthSync FE**.  
 > Cập nhật liên tục. Agent phải đọc file này trước khi thực hiện thay đổi lớn.
 > Từ 24/06/2026: mọi điều agent học được từ tài liệu, API doc, yêu cầu hoặc chỉ dẫn mới của user phải được ghi lại vào file này khi có giá trị tái sử dụng cho các lần làm việc sau.

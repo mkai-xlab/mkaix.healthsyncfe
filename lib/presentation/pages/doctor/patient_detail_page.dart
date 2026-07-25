@@ -543,7 +543,11 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
 
   List<String> _imageUrlsFor(ExaminationEntity examination) {
     final urls = examination.images
-        .map((image) => image.imageUrl)
+        .map(
+          (image) => image.annotatedImageUrl.isNotEmpty
+              ? image.annotatedImageUrl
+              : image.imageUrl,
+        )
         .where((url) => url.isNotEmpty)
         .toList();
     if (urls.isNotEmpty) return urls;

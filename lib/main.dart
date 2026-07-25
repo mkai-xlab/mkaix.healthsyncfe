@@ -23,7 +23,9 @@ import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/dicom_upload_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   final httpClient = http.Client();
 
   // Auth
@@ -68,6 +70,7 @@ void main() {
     loginUseCase: loginUseCase,
     authRepository: authRepository,
   );
+  await authViewModel.restoreSession();
   final doctorViewModel = DoctorViewModel(
     getAllPatientsUseCase: getAllPatientsUseCase,
   );

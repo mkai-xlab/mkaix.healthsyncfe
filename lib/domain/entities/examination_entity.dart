@@ -4,25 +4,52 @@ class AiPredictionResultEntity {
   final int dicomInstanceId;
   final int aiAnalysisId;
   final int aiResultId;
+  final String kneeSide;
   final int predictedGrade;
+  final int confirmedGrade;
+  final int effectiveGrade;
   final double confidence;
   final String description;
   final Map<String, double> details;
+  final String roiImageUrl;
   final String gradcamImageUrl;
+  final String annotatedImageUrl;
 
   const AiPredictionResultEntity({
     this.dicomInstanceId = 0,
     this.aiAnalysisId = 0,
     this.aiResultId = 0,
+    this.kneeSide = '',
     this.predictedGrade = 0,
+    this.confirmedGrade = 0,
+    this.effectiveGrade = 0,
     this.confidence = 0,
     this.description = '',
     this.details = const {},
+    this.roiImageUrl = '',
     this.gradcamImageUrl = '',
+    this.annotatedImageUrl = '',
   });
 
+  int get displayGrade {
+    if (effectiveGrade > 0) return effectiveGrade;
+    if (confirmedGrade > 0) return confirmedGrade;
+    return predictedGrade;
+  }
+
   String get predictedGradeDisplay =>
-      predictedGrade > 0 ? 'Grade $predictedGrade' : '---';
+      displayGrade > 0 ? 'Grade $displayGrade' : '---';
+
+  String get kneeSideDisplay {
+    switch (kneeSide.toUpperCase()) {
+      case 'LEFT':
+        return 'Gối trái';
+      case 'RIGHT':
+        return 'Gối phải';
+      default:
+        return kneeSide.isEmpty ? 'Kết quả AI' : kneeSide;
+    }
+  }
 
   String get confidenceDisplay {
     if (confidence <= 0) return '---';
@@ -39,6 +66,7 @@ class ExaminationImageEntity {
   final DateTime? visitTime;
   final String bodyPart;
   final String imageUrl;
+  final String annotatedImageUrl;
   final List<AiPredictionResultEntity> aiResults;
 
   const ExaminationImageEntity({
@@ -49,6 +77,7 @@ class ExaminationImageEntity {
     this.visitTime,
     this.bodyPart = '',
     required this.imageUrl,
+    this.annotatedImageUrl = '',
     this.aiResults = const [],
   });
 }

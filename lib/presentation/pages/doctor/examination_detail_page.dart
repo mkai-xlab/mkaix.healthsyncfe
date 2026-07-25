@@ -6,7 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
-enum _ImageMode { original, gradcam }
+enum _ImageMode { original, annotated, roi, gradcam }
 
 class ExaminationDetailPage extends StatefulWidget {
   final ExaminationEntity examination;
@@ -27,6 +27,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   static const Color _pageBg = AppColors.surface1;
 
   int _selectedImageIndex = 0;
+  int _selectedResultIndex = 0;
   _ImageMode _imageMode = _ImageMode.original;
 
   ExaminationEntity get examination => widget.examination;
@@ -43,14 +44,15 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   AiPredictionResultEntity? get _selectedAiResult {
     final image = _selectedImage;
     if (image == null || image.aiResults.isEmpty) return null;
-    return image.aiResults.first;
+    final safeIndex = _selectedResultIndex.clamp(0, image.aiResults.length - 1);
+    return image.aiResults[safeIndex.toInt()];
   }
 
   List<AiPredictionResultEntity> get _allAiResults {
     return examination.images.expand((image) => image.aiResults).toList();
   }
 
-  String get _selectedImageUrl {
+  String get _selectedOriginalUrl {
     final image = _selectedImage;
     if (image != null && image.imageUrl.isNotEmpty) {
       return _absoluteUrl(image.imageUrl);
@@ -61,26 +63,120 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     return '';
   }
 
-  String get _selectedGradcamUrl {
+  String get _selectedAnnotatedUrl {
+    final image = _selectedImage;
     final result = _selectedAiResult;
-    if (result == null) return '';
-    if (result.gradcamImageUrl.isNotEmpty) {
-      return _absoluteUrl(result.gradcamImageUrl);
+    if (image != null && image.annotatedImageUrl.isNotEmpty) {
+      return _absoluteUrl(image.annotatedImageUrl);
     }
-    if (result.aiResultId > 0) {
-      return ApiConstants.aiHeatmapEndpoint(result.aiResultId);
+    if (result != null && result.annotatedImageUrl.isNotEmpty) {
+      return _absoluteUrl(result.annotatedImageUrl);
     }
     return '';
   }
 
-  String get _viewerUrl {
-    if (_imageMode == _ImageMode.gradcam && _selectedGradcamUrl.isNotEmpty) {
-      return _selectedGradcamUrl;
-    }
-    return _selectedImageUrl;
+  String get _selectedRoiUrl {
+    final result = _selectedAiResult;
+    if (result == null || result.roiImageUrl.isEmpty) return '';
+    return _absoluteUrl(result.roiImageUrl);
   }
 
+  String get _selectedGradcamUrl {
+    final result = _selectedAiResult;
+    if (result == null || result.gradcamImageUrl.isEmpty) return '';
+    return _absoluteUrl(result.gradcamImageUrl);
+  }
+
+  String get _viewerUrl {
+    final modeUrl = switch (_imageMode) {
+      _ImageMode.original => _selectedOriginalUrl,
+      _ImageMode.annotated => _selectedAnnotatedUrl,
+      _ImageMode.roi => _selectedRoiUrl,
+      _ImageMode.gradcam => _selectedGradcamUrl,
+    };
+    if (modeUrl.isNotEmpty) return modeUrl;
+
+    for (final fallback in [
+      _selectedOriginalUrl,
+      _selectedAnnotatedUrl,
+      _selectedRoiUrl,
+      _selectedGradcamUrl,
+    ]) {
+      if (fallback.isNotEmpty) return fallback;
+    }
+    return '';
+  }
+
+  bool get _canShowOriginal => _selectedOriginalUrl.isNotEmpty;
+  bool get _canShowAnnotated => _selectedAnnotatedUrl.isNotEmpty;
+  bool get _canShowRoi => _selectedRoiUrl.isNotEmpty;
   bool get _canShowGradcam => _selectedGradcamUrl.isNotEmpty;
+
+  String get _imageModeLabel {
+    switch (_imageMode) {
+      case _ImageMode.original:
+        return 'Ảnh gốc';
+      case _ImageMode.annotated:
+        return 'Ảnh khoanh vùng';
+      case _ImageMode.roi:
+        return 'Ảnh cắt gối';
+      case _ImageMode.gradcam:
+        return 'Grad-CAM';
+    }
+  }
+
+  bool _isModeAvailable(_ImageMode mode) {
+    switch (mode) {
+      case _ImageMode.original:
+        return _canShowOriginal;
+      case _ImageMode.annotated:
+        return _canShowAnnotated;
+      case _ImageMode.roi:
+        return _canShowRoi;
+      case _ImageMode.gradcam:
+        return _canShowGradcam;
+    }
+  }
+
+  String _modeMissingMessage(_ImageMode mode) {
+    switch (mode) {
+      case _ImageMode.original:
+        return 'Chưa có ảnh gốc';
+      case _ImageMode.annotated:
+        return 'Chưa có ảnh khoanh vùng';
+      case _ImageMode.roi:
+        return 'Chưa có ảnh cắt gối';
+      case _ImageMode.gradcam:
+        return 'Chưa có Grad-CAM';
+    }
+  }
+
+  _ImageMode _firstAvailableMode() {
+    for (final mode in _ImageMode.values) {
+      if (_isModeAvailable(mode)) return mode;
+    }
+    return _ImageMode.original;
+  }
+
+  void _selectImage(int index) {
+    setState(() {
+      _selectedImageIndex = index;
+      _selectedResultIndex = 0;
+      if (!_isModeAvailable(_imageMode)) _imageMode = _firstAvailableMode();
+    });
+  }
+
+  void _selectAiResult(int index) {
+    setState(() {
+      _selectedResultIndex = index;
+      if (!_isModeAvailable(_imageMode)) _imageMode = _firstAvailableMode();
+    });
+  }
+
+  void _selectImageMode(_ImageMode mode) {
+    if (!_isModeAvailable(mode)) return;
+    setState(() => _imageMode = mode);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -231,6 +327,10 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               children: [
                 _viewerModeButton('Ảnh gốc', _ImageMode.original),
                 const SizedBox(width: 8),
+                _viewerModeButton('Khoanh vùng', _ImageMode.annotated),
+                const SizedBox(width: 8),
+                _viewerModeButton('ROI', _ImageMode.roi),
+                const SizedBox(width: 8),
                 _viewerModeButton('Grad-CAM', _ImageMode.gradcam),
                 const Spacer(),
                 if (examination.images.isNotEmpty)
@@ -281,11 +381,11 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
 
   Widget _viewerModeButton(String label, _ImageMode mode) {
     final isSelected = _imageMode == mode;
-    final isEnabled = mode == _ImageMode.original || _canShowGradcam;
+    final isEnabled = _isModeAvailable(mode);
     return Tooltip(
-      message: isEnabled ? label : 'Chưa có Grad-CAM',
+      message: isEnabled ? label : _modeMissingMessage(mode),
       child: InkWell(
-        onTap: isEnabled ? () => setState(() => _imageMode = mode) : null,
+        onTap: isEnabled ? () => _selectImageMode(mode) : null,
         borderRadius: BorderRadius.circular(6),
         child: Container(
           height: 26,
@@ -331,15 +431,14 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
         separatorBuilder: (context, index) => const SizedBox(width: 10),
         itemBuilder: (context, index) {
           final image = examination.images[index];
-          final imageUrl = _absoluteUrl(image.imageUrl);
+          final imageUrl = _absoluteUrl(
+            image.imageUrl.isNotEmpty
+                ? image.imageUrl
+                : image.annotatedImageUrl,
+          );
           final isSelected = index == _selectedImageIndex;
           return InkWell(
-            onTap: () {
-              setState(() {
-                _selectedImageIndex = index;
-                if (!_canShowGradcam) _imageMode = _ImageMode.original;
-              });
-            },
+            onTap: () => _selectImage(index),
             borderRadius: BorderRadius.circular(8),
             child: Container(
               width: 72,
@@ -458,9 +557,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    _imageMode == _ImageMode.gradcam
-                        ? 'Grad-CAM'
-                        : 'Ảnh ${_selectedImageIndex + 1}/${examination.images.length}',
+                    '$_imageModeLabel - Ảnh ${_selectedImageIndex + 1}/${examination.images.length}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
@@ -540,12 +637,17 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   }
 
   Widget _aiResultState(AiPredictionResultEntity result) {
-    final riskColor = _riskColor(result.predictedGrade);
+    final grade = result.displayGrade;
+    final riskColor = _riskColor(grade);
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _panelTitle(Icons.analytics_outlined, 'Kết quả phân tích'),
+          if ((_selectedImage?.aiResults.length ?? 0) > 0) ...[
+            const SizedBox(height: 12),
+            _kneeSelector(),
+          ],
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
@@ -577,7 +679,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  _gradeDescription(result.predictedGrade),
+                  _gradeDescription(grade),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 13,
@@ -607,28 +709,10 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               ),
             ),
           ],
-          const SizedBox(height: 10),
-          _aiInfoBox(
-            icon: Icons.warning_amber_rounded,
-            title: 'Nhận định AI',
-            body: result.description.isEmpty
-                ? 'Chưa có mô tả chi tiết từ AI.'
-                : result.description,
-            color: riskColor,
-          ),
-          const SizedBox(height: 12),
-          _aiInfoBox(
-            icon: Icons.local_fire_department_outlined,
-            title: 'Grad-CAM',
-            body: _canShowGradcam
-                ? 'Có thể bật Grad-CAM trực tiếp trên vùng xem ảnh.'
-                : 'Chưa có ảnh Grad-CAM cho ảnh đang chọn.',
-            color: _primaryGreen,
-          ),
           if (_allAiResults.length > 1) ...[
             const SizedBox(height: 16),
             Text(
-              'Ảnh có kết quả AI: ${_allAiResults.length}',
+              'Tổng kết quả AI trong ca: ${_allAiResults.length}',
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
@@ -638,6 +722,47 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _kneeSelector() {
+    final results =
+        _selectedImage?.aiResults ?? const <AiPredictionResultEntity>[];
+    if (results.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        for (var index = 0; index < results.length; index++)
+          ChoiceChip(
+            label: Text(results[index].kneeSideDisplay),
+            selected: index == _selectedResultIndex,
+            onSelected: results.length == 1
+                ? null
+                : (selected) {
+                    if (selected) _selectAiResult(index);
+                  },
+            selectedColor: _primaryGreen.withValues(alpha: 0.14),
+            backgroundColor: const Color(0xFFF8FAFC),
+            disabledColor: _primaryGreen.withValues(alpha: 0.1),
+            labelStyle: TextStyle(
+              color: index == _selectedResultIndex
+                  ? _primaryGreen
+                  : AppColors.textSecondary,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+            side: BorderSide(
+              color: index == _selectedResultIndex
+                  ? _primaryGreen.withValues(alpha: 0.5)
+                  : const Color(0xFFE2E8F0),
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+      ],
     );
   }
 
@@ -704,54 +829,6 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _aiInfoBox({
-    required IconData icon,
-    required String title,
-    required String body,
-    required Color color,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.16)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(icon, color: color, size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w900,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  body,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.35,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 

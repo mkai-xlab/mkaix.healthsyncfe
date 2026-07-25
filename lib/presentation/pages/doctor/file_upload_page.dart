@@ -441,124 +441,130 @@ class FileUploadPage extends StatelessWidget {
         ),
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final pendingFilesHeight = (constraints.maxHeight - 330).clamp(
-              96.0,
-              220.0,
+            final pendingFilesHeight = (constraints.maxHeight - 260).clamp(
+              160.0,
+              320.0,
             );
             return SingleChildScrollView(
               child: ConstrainedBox(
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 58,
-                      height: 58,
-                      decoration: const BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: AppColors.primaryXLight,
-                      ),
-                      child: const Icon(
-                        Icons.cloud_upload_outlined,
-                        color: _primary,
-                        size: 30,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Chọn file DICOM hoặc ZIP',
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.textPrimary,
-                      ),
-                    ),
-                    const SizedBox(height: 7),
-                    const Text(
-                      'Nhiều file .dcm hoặc nhiều file .zip. Không upload lẫn hai loại trong cùng lượt.',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 12,
-                        height: 1.35,
-                        color: AppColors.textSecondary,
-                      ),
-                    ),
-                    const SizedBox(height: 14),
-                    ElevatedButton.icon(
-                      onPressed: vm.isUploading
-                          ? null
-                          : () async {
-                              await vm.pickFiles();
-                              if (!context.mounted || vm.errorMessage == null) {
-                                return;
-                              }
-                              AppToast.showError(vm.errorMessage!);
-                            },
-                      icon: const Icon(Icons.add, size: 18),
-                      label: Text(
-                        vm.selectedFiles.isEmpty ? 'Chọn tệp' : 'Chọn thêm',
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: _primary,
-                        foregroundColor: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: [
+                      Container(
+                        width: 58,
+                        height: 58,
+                        decoration: const BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: AppColors.primaryXLight,
+                        ),
+                        child: const Icon(
+                          Icons.cloud_upload_outlined,
+                          color: _primary,
+                          size: 30,
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 14),
-                    SizedBox(
-                      height: pendingFilesHeight,
-                      child: _pendingFiles(vm),
-                    ),
-                    if (vm.uploadStatusMessage != null) ...[
                       const SizedBox(height: 12),
-                      _statusBox(vm),
-                    ],
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 46,
-                      child: ElevatedButton.icon(
+                      const Text(
+                        'Chọn file DICOM hoặc ZIP',
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                      const SizedBox(height: 7),
+                      const Text(
+                        'Nhiều file .dcm hoặc nhiều file .zip. Không upload lẫn hai loại trong cùng lượt.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      ElevatedButton.icon(
                         onPressed: vm.isUploading
                             ? null
                             : () async {
-                                await vm.uploadSelected(token);
-                                if (!context.mounted) return;
-                                if (vm.errorMessage != null) {
-                                  AppToast.showError(vm.errorMessage!);
-                                } else if (vm.stage ==
-                                    DicomUploadStage.waitingVerification) {
-                                  AppToast.showInfo(
-                                    'Đã xử lý xong, cần bác sĩ xác nhận danh sách.',
-                                  );
+                                await vm.pickFiles();
+                                if (!context.mounted ||
+                                    vm.errorMessage == null) {
+                                  return;
                                 }
+                                AppToast.showError(vm.errorMessage!);
                               },
-                        icon: vm.isUploading
-                            ? const SizedBox(
-                                width: 16,
-                                height: 16,
-                                child: CircularProgressIndicator(
-                                  color: Colors.white,
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Icon(Icons.upload_file_outlined, size: 18),
+                        icon: const Icon(Icons.add, size: 18),
                         label: Text(
-                          vm.isUploading ? 'Đang upload' : 'Bắt đầu upload',
+                          vm.selectedFiles.isEmpty ? 'Chọn tệp' : 'Chọn thêm',
                         ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: _primary,
                           foregroundColor: Colors.white,
-                          disabledBackgroundColor: AppColors.borderStrong,
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        height: pendingFilesHeight,
+                        child: _pendingFiles(vm),
+                      ),
+                      if (vm.uploadStatusMessage != null) ...[
+                        const SizedBox(height: 12),
+                        _statusBox(vm),
+                      ],
+                      const Spacer(),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 46,
+                        child: ElevatedButton.icon(
+                          onPressed: vm.isUploading
+                              ? null
+                              : () async {
+                                  await vm.uploadSelected(token);
+                                  if (!context.mounted) return;
+                                  if (vm.errorMessage != null) {
+                                    AppToast.showError(vm.errorMessage!);
+                                  } else if (vm.stage ==
+                                      DicomUploadStage.waitingVerification) {
+                                    AppToast.showInfo(
+                                      'Đã xử lý xong, cần bác sĩ xác nhận danh sách.',
+                                    );
+                                  }
+                                },
+                          icon: vm.isUploading
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(
+                                  Icons.upload_file_outlined,
+                                  size: 18,
+                                ),
+                          label: Text(
+                            vm.isUploading ? 'Đang upload' : 'Bắt đầu upload',
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: _primary,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: AppColors.borderStrong,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );

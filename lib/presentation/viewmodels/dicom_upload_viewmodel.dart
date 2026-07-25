@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:cross_file/cross_file.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../core/services/toast_service.dart';
 import '../../core/services/dicom_websocket_service.dart';
 import '../../data/datasources/dicom_remote_datasource.dart';
 import '../../data/models/dicom_upload_model.dart';
@@ -637,6 +639,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       'errors=${_batchErrors.length}, '
       'dicomInstanceCount=${dicomInstanceIdsForVerification.length}',
     );
+    _showBatchErrorToast();
     if (_successfulPatients.isEmpty) {
       _uploadStatusMessage =
           'Backend đã trả kết quả nhưng chưa có bệnh nhân cần xác nhận.';
@@ -666,6 +669,29 @@ class DicomUploadViewModel extends ChangeNotifier {
     return result != null &&
         result.successfulPatients.isEmpty &&
         result.errors.isEmpty;
+  }
+
+  void _showBatchErrorToast() {
+    if (_batchErrors.isEmpty) return;
+
+    final firstError = _batchErrors.first;
+    final filename = firstError.filename.trim();
+    final reason = firstError.errorReason.trim();
+    final detail = [
+      if (filename.isNotEmpty) filename,
+      if (reason.isNotEmpty) reason,
+    ].join(': ');
+    final message = [
+      '${_batchErrors.length} file DICOM bị lỗi.',
+      if (detail.isNotEmpty) detail,
+    ].join('\n');
+
+    if (_successfulPatients.isEmpty) {
+      AppToast.showError(message, title: 'Upload DICOM thất bại');
+      return;
+    }
+
+    AppToast.showWarning(message, title: 'Upload DICOM có file lỗi');
   }
 
   void removeSelectedFileAt(int index) {
@@ -749,6 +775,10 @@ class DicomUploadViewModel extends ChangeNotifier {
     final message = notification.message.trim();
     if (title.isEmpty && message.isEmpty) return;
 
+    if (message.isNotEmpty) {
+      _showWebSocketToast(notification, title, message);
+    }
+
     if (notification.type == 'DICOM_BATCH_RESULT') {
       _uploadStatusMessage =
           'Upload DICOM thành công, đang chuẩn bị danh sách xác nhận.';
@@ -774,6 +804,61 @@ class DicomUploadViewModel extends ChangeNotifier {
       _progress = _progress < 0.45 ? 0.45 : _progress;
     }
     notifyListeners();
+  }
+
+  void _showWebSocketToast(
+    DicomUploadNotification notification,
+    String title,
+    String message,
+  ) {
+    final (displayTitle, displayMessage) = _cleanNotificationToast(
+      title,
+      message,
+    );
+    if (displayMessage.isEmpty) return;
+
+    switch (notification.type) {
+      case 'ERROR':
+        AppToast.showError(displayMessage, title: displayTitle);
+      case 'AI_RESULT':
+      case 'DICOM_BATCH_RESULT':
+        AppToast.showSuccess(displayMessage, title: displayTitle);
+      case 'SYSTEM':
+        AppToast.showInfo(displayMessage, title: displayTitle);
+      default:
+        AppToast.showInfo(displayMessage, title: displayTitle);
+    }
+  }
+
+  (String, String) _cleanNotificationToast(String title, String message) {
+    var cleaned = message.trim();
+    var cleanedTitle = title.trim();
+    final decoded = _tryDecodeJsonMap(cleaned);
+    if (decoded != null) {
+      cleanedTitle = (decoded['title']?.toString().trim().isNotEmpty ?? false)
+          ? decoded['title'].toString().trim()
+          : cleanedTitle;
+      cleaned = decoded['message']?.toString().trim() ?? cleaned;
+    }
+
+    final prefixedMessage = RegExp(
+      r'^message\s*:\s*"?([\s\S]*?)"?$',
+      caseSensitive: false,
+    ).firstMatch(cleaned);
+    if (prefixedMessage != null) {
+      cleaned = prefixedMessage.group(1)?.trim() ?? '';
+    }
+    return (cleanedTitle, cleaned);
+  }
+
+  Map<String, dynamic>? _tryDecodeJsonMap(String value) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {
+      return null;
+    }
+    return null;
   }
 
   void _startUploadTimer() {

@@ -50,6 +50,7 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
               : _DashboardStats.from(
                   vm.examinations,
                   totalElements: vm.totalElements,
+                  severeTotal: vm.dashboardSevereTotal,
                 );
           return _DashboardContent(
             stats: stats,
@@ -99,19 +100,19 @@ class _DashboardContent extends StatelessWidget {
             highRiskCases: stats.severeCount,
           ),
           const SizedBox(height: 24),
-          
+
           if (warning != null) ...[
             _WarningBanner(message: warning!, onRetry: onRetry),
             const SizedBox(height: 20),
           ],
-          
+
           // Responsive Stats Grid
           LayoutBuilder(
             builder: (context, constraints) {
               final width = constraints.maxWidth;
               int crossAxisCount = 4;
               double childAspectRatio = 2.0;
-              
+
               if (width < 600) {
                 crossAxisCount = 1;
                 childAspectRatio = 2.5;
@@ -122,7 +123,7 @@ class _DashboardContent extends StatelessWidget {
                 crossAxisCount = 3;
                 childAspectRatio = 2.0;
               }
-              
+
               return GridView.count(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -163,9 +164,9 @@ class _DashboardContent extends StatelessWidget {
               );
             },
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Charts Row
           LayoutBuilder(
             builder: (context, constraints) {
@@ -196,9 +197,9 @@ class _DashboardContent extends StatelessWidget {
               );
             },
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           _RecentTable(stats: stats),
         ],
       ),
@@ -295,7 +296,10 @@ class _DashboardHeader extends StatelessWidget {
             ),
             if (highRiskCases > 0)
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
                 decoration: BoxDecoration(
                   color: AppColors.errorLight.withOpacity(0.5),
                   borderRadius: BorderRadius.circular(20),
@@ -411,7 +415,10 @@ class _StatCard extends StatelessWidget {
               ),
               Flexible(
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: accent.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(12),
@@ -586,8 +593,12 @@ class _TrendCard extends StatelessWidget {
                                             AppColors.primary,
                                           ]
                                         : [
-                                            AppColors.primaryXLight.withOpacity(0.3),
-                                            AppColors.primaryLight.withOpacity(0.2),
+                                            AppColors.primaryXLight.withOpacity(
+                                              0.3,
+                                            ),
+                                            AppColors.primaryLight.withOpacity(
+                                              0.2,
+                                            ),
                                           ],
                                   ),
                                   borderRadius: const BorderRadius.vertical(
@@ -669,9 +680,9 @@ class _SevereAlertCard extends StatelessWidget {
                 const SizedBox(height: 30),
               ]
             : stats.severeExaminations
-                .take(3)
-                .map((item) => _SevereItem(examination: item))
-                .toList(),
+                  .take(3)
+                  .map((item) => _SevereItem(examination: item))
+                  .toList(),
       ),
     );
   }
@@ -829,10 +840,7 @@ class _SevereItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.errorLight.withOpacity(0.15),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: AppColors.error.withOpacity(0.2),
-          width: 1,
-        ),
+        border: Border.all(color: AppColors.error.withOpacity(0.2), width: 1),
       ),
       child: Row(
         children: [
@@ -870,8 +878,8 @@ class _SevereItem extends StatelessWidget {
                   examination.description.isNotEmpty
                       ? examination.description
                       : examination.chiefComplaint.isNotEmpty
-                          ? examination.chiefComplaint
-                          : 'Không có mô tả',
+                      ? examination.chiefComplaint
+                      : 'Không có mô tả',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
@@ -1076,6 +1084,7 @@ class _DashboardStats {
   factory _DashboardStats.from(
     List<ExaminationEntity> source, {
     int? totalElements,
+    int? severeTotal,
   }) {
     final sorted = [...source]
       ..sort((a, b) {
@@ -1141,7 +1150,7 @@ class _DashboardStats {
       total: sorted.length,
       totalResults: totalElements ?? sorted.length,
       todayCount: todayCount,
-      severeCount: severe.length,
+      severeCount: severeTotal ?? severe.length,
       completedCount: completed,
       pendingCount: pending,
       lowGradeCount: low,
@@ -1238,7 +1247,7 @@ class _DashboardStats {
     return _DashboardStats.from(samples, totalElements: samples.length);
   }
 
-  int get severePercent => _percent(severeCount);
+  int get severePercent => _percentOf(severeCount, totalResults);
   int get completedPercent => _percent(completedCount);
   int get lowGradePercent => _percent(lowGradeCount);
   int get midGradePercent => _percent(midGradeCount);
@@ -1248,5 +1257,10 @@ class _DashboardStats {
   int _percent(int value) {
     if (total <= 0) return 0;
     return ((value / total) * 100).round();
+  }
+
+  int _percentOf(int value, int denominator) {
+    if (denominator <= 0) return 0;
+    return ((value / denominator) * 100).round();
   }
 }

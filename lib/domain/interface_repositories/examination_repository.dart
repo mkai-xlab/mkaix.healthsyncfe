@@ -8,6 +8,8 @@ abstract class ExaminationRepository {
     int size = 10,
   });
 
+  Future<int> getMyTotalSevereExaminations({required String token});
+
   Future<List<ExaminationEntity>> getExaminations({required String token});
 
   Future<List<ExaminationEntity>> getDoctorExaminations({

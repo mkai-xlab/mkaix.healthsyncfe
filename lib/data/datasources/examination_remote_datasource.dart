@@ -14,6 +14,8 @@ abstract class ExaminationRemoteDataSource {
     int size = 10,
   });
 
+  Future<int> getMyTotalSevereExaminations({required String token});
+
   Future<List<ExaminationEntity>> getExaminations({required String token});
 
   Future<List<ExaminationEntity>> getDoctorExaminations({
@@ -54,6 +56,29 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       token: token,
       errorMessage: 'Không thể tải danh sách ca khám',
     );
+  }
+
+  @override
+  Future<int> getMyTotalSevereExaminations({required String token}) async {
+    final uri = Uri.parse(ApiConstants.myTotalSevereExaminationsEndpoint);
+    final response = await client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw Exception('Khong the tai so ca kham nang (${response.statusCode})');
+    }
+
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is int) return decoded;
+    if (decoded is num) return decoded.toInt();
+    throw Exception('Dinh dang so ca kham nang khong hop le');
   }
 
   @override

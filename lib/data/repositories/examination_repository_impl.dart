@@ -27,6 +27,11 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
   }
 
   @override
+  Future<int> getMyTotalSevereExaminations({required String token}) {
+    return remoteDataSource.getMyTotalSevereExaminations(token: token);
+  }
+
+  @override
   Future<List<ExaminationEntity>> getDoctorExaminations({
     required int doctorId,
     required String token,

@@ -26,6 +26,9 @@ class ExaminationViewModel extends ChangeNotifier {
   int _totalElements = 0;
   int get totalElements => _totalElements;
 
+  int? _dashboardSevereTotal;
+  int? get dashboardSevereTotal => _dashboardSevereTotal;
+
   int _totalPages = 1;
   int get totalPages => _totalPages;
 
@@ -57,19 +60,23 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
+    _dashboardSevereTotal = null;
     notifyListeners();
 
     try {
-      final result = await getPatientExaminationsUseCase.executeAllPage(
+      final pageResult = await getPatientExaminationsUseCase.executeAllPage(
         token: token,
         page: 0,
         size: 5,
       );
-      _examinations = result.content;
-      _totalElements = result.totalElements;
-      _totalPages = result.totalPages;
-      _currentPage = result.pageNumber;
-      _pageSize = result.pageSize;
+      final severeTotal = await getPatientExaminationsUseCase
+          .executeMyTotalSevere(token: token);
+      _examinations = pageResult.content;
+      _totalElements = pageResult.totalElements;
+      _totalPages = pageResult.totalPages;
+      _currentPage = pageResult.pageNumber;
+      _pageSize = pageResult.pageSize;
+      _dashboardSevereTotal = severeTotal;
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
     } finally {

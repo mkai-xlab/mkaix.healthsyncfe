@@ -19,6 +19,10 @@ class GetPatientExaminationsUseCase {
     return repository.getExaminationsPage(token: token, page: page, size: size);
   }
 
+  Future<int> executeMyTotalSevere({required String token}) {
+    return repository.getMyTotalSevereExaminations(token: token);
+  }
+
   Future<List<ExaminationEntity>> executeDoctor({
     required int doctorId,
     required String token,

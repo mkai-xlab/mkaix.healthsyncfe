@@ -1,9 +1,19 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/usecases/get_patient_examinations_usecase.dart';
 
 class ExaminationViewModel extends ChangeNotifier {
+  static const ExaminationDashboardTotalsEntity _emptyDashboardTotals =
+      ExaminationDashboardTotalsEntity(
+        total: 0,
+        verified: 0,
+        unverified: 0,
+        severe: 0,
+        warningMessage: 'Khong the tai so lieu dashboard',
+      );
+
   final GetPatientExaminationsUseCase getPatientExaminationsUseCase;
 
   ExaminationViewModel({required this.getPatientExaminationsUseCase});
@@ -26,8 +36,8 @@ class ExaminationViewModel extends ChangeNotifier {
   int _totalElements = 0;
   int get totalElements => _totalElements;
 
-  int? _dashboardSevereTotal;
-  int? get dashboardSevereTotal => _dashboardSevereTotal;
+  ExaminationDashboardTotalsEntity? _dashboardTotals;
+  ExaminationDashboardTotalsEntity? get dashboardTotals => _dashboardTotals;
 
   int _totalPages = 1;
   int get totalPages => _totalPages;
@@ -60,29 +70,47 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
-    _dashboardSevereTotal = null;
+    _dashboardTotals = null;
     notifyListeners();
 
     try {
-      final pageResult = await getPatientExaminationsUseCase.executeAllPage(
-        token: token,
-        page: 0,
-        size: 5,
-      );
-      final severeTotal = await getPatientExaminationsUseCase
-          .executeMyTotalSevere(token: token);
-      _examinations = pageResult.content;
-      _totalElements = pageResult.totalElements;
-      _totalPages = pageResult.totalPages;
-      _currentPage = pageResult.pageNumber;
-      _pageSize = pageResult.pageSize;
-      _dashboardSevereTotal = severeTotal;
+      final dashboardTotals = await getPatientExaminationsUseCase
+          .executeMyDashboardTotals(token: token);
+      _totalElements = dashboardTotals.total;
+      _totalPages = 1;
+      _currentPage = 0;
+      _dashboardTotals = dashboardTotals;
+      final totalWarning = dashboardTotals.warningMessage;
+      if (totalWarning != null && totalWarning.isNotEmpty) {
+        _errorMessage = totalWarning;
+      }
+
+      try {
+        final recentPage = await getPatientExaminationsUseCase
+            .executeMyRecentPage(token: token, page: 0, size: 5);
+        _examinations = recentPage.content;
+      } catch (e) {
+        final recentError = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = _appendDashboardError(_errorMessage, recentError);
+        _examinations = [];
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _examinations = [];
+      _totalElements = 0;
+      _totalPages = 1;
+      _currentPage = 0;
+      _dashboardTotals = _emptyDashboardTotals;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  String _appendDashboardError(String? current, String next) {
+    if (current == null || current.isEmpty) return next;
+    if (next.isEmpty || current.contains(next)) return current;
+    return '$current\n$next';
   }
 
   Future<void> goToPage({required String token, required int page}) async {

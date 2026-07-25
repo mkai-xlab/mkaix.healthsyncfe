@@ -93,6 +93,8 @@ void main() {
 }
 
 class MyApp extends StatelessWidget {
+  static const double _compactTextScale = 0.9;
+
   final AppRouter appRouter;
 
   const MyApp({required this.appRouter, super.key});
@@ -102,8 +104,21 @@ class MyApp extends StatelessWidget {
     return MaterialApp.router(
       debugShowCheckedModeBanner: false,
       routerConfig: appRouter.router,
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        final currentTextScale = mediaQuery.textScaler.scale(1);
+
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(currentTextScale * _compactTextScale),
+          ),
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       theme: ThemeData(
         useMaterial3: true,
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
         colorScheme: ColorScheme.fromSeed(
           seedColor: AppColors.primary,
           primary: AppColors.primary,
@@ -116,6 +131,49 @@ class MyApp extends StatelessWidget {
           backgroundColor: AppColors.surface3,
           foregroundColor: AppColors.white,
           elevation: 0,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 10,
+          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(0, 34),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+        ),
+        iconButtonTheme: IconButtonThemeData(
+          style: IconButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(34, 34),
+            padding: const EdgeInsets.all(6),
+          ),
         ),
       ),
     );

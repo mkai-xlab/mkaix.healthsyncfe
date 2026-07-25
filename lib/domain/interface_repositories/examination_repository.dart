@@ -7,6 +7,9 @@ abstract class ExaminationRepository {
     required String token,
     int page = 0,
     int size = 10,
+    String mode = 'all',
+    String direction = 'desc',
+    String? date,
   });
 
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({

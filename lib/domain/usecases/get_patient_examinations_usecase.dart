@@ -16,8 +16,18 @@ class GetPatientExaminationsUseCase {
     required String token,
     int page = 0,
     int size = 10,
+    String mode = 'all',
+    String direction = 'desc',
+    String? date,
   }) {
-    return repository.getExaminationsPage(token: token, page: page, size: size);
+    return repository.getExaminationsPage(
+      token: token,
+      page: page,
+      size: size,
+      mode: mode,
+      direction: direction,
+      date: date,
+    );
   }
 
   Future<ExaminationDashboardTotalsEntity> executeMyDashboardTotals({

@@ -14,6 +14,9 @@ abstract class ExaminationRemoteDataSource {
     required String token,
     int page = 0,
     int size = 10,
+    String mode = 'all',
+    String direction = 'desc',
+    String? date,
   });
 
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
@@ -56,13 +59,90 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     required String token,
     int page = 0,
     int size = 10,
+    String mode = 'all',
+    String direction = 'desc',
+    String? date,
   }) async {
+    final normalizedDirection = direction == 'asc' ? 'asc' : 'desc';
+    final filterDate = date ?? '';
+
+    if (mode == 'studyDateAsc' || mode == 'studyDateDesc') {
+      return _getExaminationsPage(
+        endpoint: ApiConstants.examinationsStudyDateSortEndpoint,
+        token: token,
+        page: page,
+        size: size,
+        queryParameters: {'direction': mode == 'studyDateAsc' ? 'asc' : 'desc'},
+        includeSort: false,
+        shouldSortLocally: false,
+        errorMessage: 'Khong the sap xep ca kham theo ngay kham',
+      );
+    }
+
+    if (mode == 'uploadDateAsc' || mode == 'uploadDateDesc') {
+      return _getExaminationsPage(
+        endpoint: ApiConstants.examinationsUploadDateSortEndpoint,
+        token: token,
+        page: page,
+        size: size,
+        queryParameters: {
+          'direction': mode == 'uploadDateAsc' ? 'asc' : 'desc',
+        },
+        includeSort: false,
+        shouldSortLocally: false,
+        errorMessage: 'Khong the sap xep ca kham theo ngay upload',
+      );
+    }
+
+    if (mode == 'studyDateFilter') {
+      return _getExaminationsPage(
+        endpoint: ApiConstants.examinationsStudyDateFilterEndpoint,
+        token: token,
+        page: page,
+        size: size,
+        queryParameters: {'date': filterDate},
+        includeSort: false,
+        shouldSortLocally: false,
+        errorMessage: 'Khong the loc ca kham theo ngay kham',
+      );
+    }
+
+    if (mode == 'uploadDateFilter') {
+      return _getExaminationsPage(
+        endpoint: ApiConstants.examinationsUploadDateFilterEndpoint,
+        token: token,
+        page: page,
+        size: size,
+        queryParameters: {'date': filterDate},
+        includeSort: false,
+        shouldSortLocally: false,
+        errorMessage: 'Khong the loc ca kham theo ngay upload',
+      );
+    }
+
+    if (mode.startsWith('grade')) {
+      final grade = mode.replaceFirst('grade', '');
+      return _getExaminationsPage(
+        endpoint: ApiConstants.examinationsGradeEndpoint,
+        token: token,
+        page: page,
+        size: size,
+        queryParameters: {'grade': grade, 'sort': normalizedDirection},
+        includeSort: false,
+        shouldSortLocally: false,
+        errorMessage: 'Khong the loc ca kham theo KL grade',
+      );
+    }
+
     return _getExaminationsPage(
       endpoint: ApiConstants.examinationsEndpoint,
       token: token,
       page: page,
       size: size,
-      errorMessage: 'Không thể tải danh sách ca khám',
+      queryParameters: {'sort': normalizedDirection},
+      includeSort: false,
+      shouldSortLocally: false,
+      errorMessage: 'Khong the tai danh sach ca kham',
     );
   }
 
@@ -257,7 +337,6 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         throw Exception(_httpErrorMessage(response.statusCode, errorMessage));
       }
     }
-
     examinations.sort((a, b) {
       final bTime = b.visitTime ?? b.studyDate ?? DateTime(1900);
       final aTime = a.visitTime ?? a.studyDate ?? DateTime(1900);
@@ -275,6 +354,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     required String errorMessage,
     Map<String, String> queryParameters = const {},
     bool includeSort = true,
+    bool shouldSortLocally = true,
   }) async {
     final uri = Uri.parse(endpoint).replace(
       queryParameters: {
@@ -332,11 +412,13 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
               )
               .toList()
         : <ExaminationEntity>[];
-    examinations.sort((a, b) {
-      final bTime = b.visitTime ?? b.studyDate ?? DateTime(1900);
-      final aTime = a.visitTime ?? a.studyDate ?? DateTime(1900);
-      return bTime.compareTo(aTime);
-    });
+    if (shouldSortLocally) {
+      examinations.sort((a, b) {
+        final bTime = b.visitTime ?? b.studyDate ?? DateTime(1900);
+        final aTime = a.visitTime ?? a.studyDate ?? DateTime(1900);
+        return bTime.compareTo(aTime);
+      });
+    }
 
     return ExaminationPageEntity(
       content: examinations,

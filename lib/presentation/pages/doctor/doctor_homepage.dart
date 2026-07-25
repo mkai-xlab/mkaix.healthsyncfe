@@ -6,7 +6,9 @@ import '../../../core/utils/permission_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/dicom_upload_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
+import '../../viewmodels/notification_viewmodel.dart';
 import '../../../domain/entities/examination_entity.dart';
+import '../../../domain/entities/notification_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import 'doctor_dashboard_page.dart';
@@ -32,6 +34,15 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   static const Color _primaryGreen = AppColors.primary;
   static const Color _darkGreen = AppColors.primary;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<NotificationViewModel>().loadUnreadNotifications(_token);
+    });
+  }
 
   @override
   void dispose() {
@@ -701,11 +712,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             ),
           ),
           const SizedBox(width: 12),
-          const Icon(
-            Icons.notifications_outlined,
-            color: Color(0xFF718096),
-            size: 20,
-          ),
+          _notificationButton(context),
           const SizedBox(width: 12),
           // Doctor info — đồng bộ với patient_detail_page
           Consumer<AuthViewModel>(
@@ -1522,6 +1529,82 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   }
 
   */
+  Widget _notificationButton(BuildContext context) {
+    return Consumer<NotificationViewModel>(
+      builder: (context, vm, _) {
+        return PopupMenuButton<void>(
+          tooltip: 'Thông báo',
+          position: PopupMenuPosition.under,
+          offset: const Offset(0, 8),
+          color: Colors.white,
+          elevation: 12,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          constraints: const BoxConstraints.tightFor(width: 380),
+          onOpened: () => vm.loadUnreadNotifications(_token),
+          itemBuilder: (context) => [
+            PopupMenuItem<void>(
+              enabled: false,
+              padding: EdgeInsets.zero,
+              child: _NotificationDropdown(token: _token),
+            ),
+          ],
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Center(
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: vm.unreadCount > 0
+                          ? const Color(0xFFEAF2FF)
+                          : Colors.transparent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: Color(0xFF718096),
+                      size: 20,
+                    ),
+                  ),
+                ),
+                if (vm.unreadCount > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 17,
+                        minHeight: 17,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE53E3E),
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        vm.unreadCount > 99 ? '99+' : vm.unreadCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   String _formatUploadDuration(Duration duration) {
     final hours = duration.inHours;
     final minutes = duration.inMinutes.remainder(60).toString().padLeft(2, '0');
@@ -1642,6 +1725,203 @@ class _DoctorNavItemData {
     required this.label,
     required this.icon,
   });
+}
+
+class _NotificationDropdown extends StatelessWidget {
+  const _NotificationDropdown({required this.token});
+
+  final String token;
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<NotificationViewModel>(
+      builder: (context, vm, _) {
+        return SizedBox(
+          height: 520,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Thông báo',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF1F2937),
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Tải lại',
+                      onPressed: vm.isLoading
+                          ? null
+                          : () => vm.loadUnreadNotifications(token),
+                      icon: const Icon(Icons.refresh, size: 18),
+                    ),
+                  ],
+                ),
+              ),
+              if (vm.isLoading && vm.notifications.isEmpty)
+                const Expanded(
+                  child: Center(
+                    child: CircularProgressIndicator(color: AppColors.primary),
+                  ),
+                )
+              else if (vm.errorMessage != null && vm.notifications.isEmpty)
+                Expanded(
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.all(18),
+                      child: Text(
+                        vm.errorMessage!,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Color(0xFF718096)),
+                      ),
+                    ),
+                  ),
+                )
+              else if (vm.notifications.isEmpty)
+                const Expanded(
+                  child: Center(
+                    child: Text(
+                      'Không có thông báo chưa đọc',
+                      style: TextStyle(color: Color(0xFF718096)),
+                    ),
+                  ),
+                )
+              else
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+                    itemCount:
+                        vm.visibleNotifications.length +
+                        (vm.canShowMore ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index >= vm.visibleNotifications.length) {
+                        return TextButton(
+                          onPressed: vm.showMore,
+                          child: const Text('Xem thêm'),
+                        );
+                      }
+                      final notification = vm.visibleNotifications[index];
+                      return _NotificationTile(
+                        notification: notification,
+                        onTap: () =>
+                            vm.markAsRead(id: notification.id, token: token),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _NotificationTile extends StatelessWidget {
+  const _NotificationTile({required this.notification, required this.onTap});
+
+  final NotificationEntity notification;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _notificationColor(notification.type);
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(_notificationIcon(notification.type), color: color),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification.title.isEmpty
+                        ? 'Thông báo'
+                        : notification.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF1F2937),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    notification.message,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.3,
+                      color: Color(0xFF4B5563),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              width: 8,
+              height: 8,
+              margin: const EdgeInsets.only(top: 6),
+              decoration: const BoxDecoration(
+                color: Color(0xFFE53E3E),
+                shape: BoxShape.circle,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static IconData _notificationIcon(String type) {
+    switch (type) {
+      case 'AI_RESULT':
+      case 'DICOM_BATCH_RESULT':
+        return Icons.check_circle_outline;
+      case 'ERROR':
+        return Icons.error_outline;
+      case 'SYSTEM':
+      default:
+        return Icons.notifications_outlined;
+    }
+  }
+
+  static Color _notificationColor(String type) {
+    switch (type) {
+      case 'AI_RESULT':
+      case 'DICOM_BATCH_RESULT':
+        return const Color(0xFF2F855A);
+      case 'ERROR':
+        return const Color(0xFFE53E3E);
+      case 'SYSTEM':
+      default:
+        return AppColors.primary;
+    }
+  }
 }
 
 // ─────────────────────────────────────────────

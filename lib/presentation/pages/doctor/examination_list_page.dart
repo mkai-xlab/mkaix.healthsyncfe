@@ -31,25 +31,11 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
 
   bool _didLoad = false;
   ExaminationEntity? _selectedExamination;
-  String _selectedStatus = '';
-
-  static const List<_StatusFilter> _statusFilters = [
-    _StatusFilter('', 'Tất cả'),
-    _StatusFilter('NEED_VERIFY', 'Cần xác nhận'),
-    _StatusFilter('NEED_REVERIFY', 'Cần xác nhận lại'),
-    _StatusFilter('AI_COMPLETED', 'AI hoàn tất'),
-    _StatusFilter('COMPLETED', 'Hoàn thành'),
-    _StatusFilter('PENDING', 'Đang chờ'),
-    _StatusFilter('ANALYZING', 'Đang phân tích'),
-    _StatusFilter('AWAITING_REVIEW', 'Chờ nhận xét'),
-  ];
 
   String get _patientDetailId {
     final patient = widget.patient;
     if (patient == null) return '';
-    return patient.patientCode.isNotEmpty
-        ? patient.patientCode
-        : patient.id.toString();
+    return patient.id.toString();
   }
 
   @override
@@ -169,9 +155,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
               ),
               Text(
                 widget.patient == null
-                    ? _selectedStatus.isEmpty
-                          ? '${vm.totalElements} ca'
-                          : '${visibleExaminations.length} ca trong trang'
+                    ? '${vm.totalElements} ca'
                     : '${visibleExaminations.length} ca',
                 style: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
               ),
@@ -180,58 +164,11 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
           if (widget.patient != null) ...[
             const SizedBox(height: 6),
             Text(
-              '${widget.patient!.displayAgeGender} • ${widget.patient!.dobDisplay}',
+              '${widget.patient!.displayAgeGender} - ${widget.patient!.dobDisplay}',
               style: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
             ),
           ],
-          const SizedBox(height: 14),
-          _statusFilterRow(),
         ],
-      ),
-    );
-  }
-
-  Widget _statusFilterRow() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        children: _statusFilters
-            .map(
-              (filter) => Padding(
-                padding: const EdgeInsets.only(right: 8),
-                child: _statusChip(filter),
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
-
-  Widget _statusChip(_StatusFilter filter) {
-    final isSelected = _selectedStatus == filter.status;
-    final color = filter.status.isEmpty
-        ? _primaryGreen
-        : _statusColor(filter.status);
-    return InkWell(
-      onTap: () => setState(() => _selectedStatus = filter.status),
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-        decoration: BoxDecoration(
-          color: isSelected ? color : Colors.white,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: isSelected ? color : const Color(0xFFE2E8F0),
-          ),
-        ),
-        child: Text(
-          filter.label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: isSelected ? Colors.white : const Color(0xFF4A5568),
-          ),
-        ),
       ),
     );
   }
@@ -250,11 +187,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     }
 
     if (examinations.isEmpty) {
-      return _emptyState(
-        _selectedStatus.isEmpty
-            ? 'Chưa có ca khám'
-            : 'Không có ca khám thuộc trạng thái này trong trang hiện tại',
-      );
+      return _emptyState('Chưa có ca khám');
     }
 
     return Column(
@@ -490,16 +423,6 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     final source = widget.newExaminations.isNotEmpty && vm.examinations.isEmpty
         ? widget.newExaminations
         : vm.examinations;
-    if (_selectedStatus.isEmpty) return List.unmodifiable(source);
-    return source
-        .where((examination) => examination.statusGroup == _selectedStatus)
-        .toList();
+    return List.unmodifiable(source);
   }
-}
-
-class _StatusFilter {
-  final String status;
-  final String label;
-
-  const _StatusFilter(this.status, this.label);
 }

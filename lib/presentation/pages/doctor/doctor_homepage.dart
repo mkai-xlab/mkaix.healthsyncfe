@@ -400,6 +400,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       return ExaminationListPage(
         embedded: true,
         newExaminations: _newUploadExaminations,
+        onOpenPatientDetail: (patient) =>
+            setState(() => _selectedPatientDetail = patient),
       );
     }
     if (selectedPermission == 'patient_list_page') {

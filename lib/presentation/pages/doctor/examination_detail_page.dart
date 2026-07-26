@@ -4,18 +4,22 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/examination_entity.dart';
+import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import 'patient_detail_page.dart';
 
 enum _ImageMode { original, annotated, roi, gradcam }
 
 class ExaminationDetailPage extends StatefulWidget {
   final ExaminationEntity examination;
   final VoidCallback onBack;
+  final ValueChanged<PatientEntity>? onOpenPatientDetail;
 
   const ExaminationDetailPage({
     super.key,
     required this.examination,
     required this.onBack,
+    this.onOpenPatientDetail,
   });
 
   @override
@@ -225,6 +229,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   }
 
   Widget _patientHeader() {
+    final canOpenPatient = examination.patientDbId > 0;
     return Container(
       width: double.infinity,
       color: Colors.white,
@@ -244,30 +249,43 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
           ),
           const SizedBox(width: 14),
           Expanded(
-            child: Wrap(
-              spacing: 28,
-              runSpacing: 10,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                _headerField(
-                  'ID ca khám',
-                  examination.examinationId > 0
-                      ? examination.examinationId.toString()
-                      : '---',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(8),
+                onTap: canOpenPatient ? _openPatientDetail : null,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Wrap(
+                    spacing: 28,
+                    runSpacing: 10,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      _headerField(
+                        'ID ca khám',
+                        examination.examinationId > 0
+                            ? examination.examinationId.toString()
+                            : '---',
+                      ),
+                      _headerField(
+                        'Tên bệnh nhân',
+                        examination.patientName.isEmpty
+                            ? '---'
+                            : examination.patientName,
+                      ),
+                      _headerField(
+                        'Ngày sinh',
+                        examination.patientDateOfBirthDisplay,
+                      ),
+                      _headerField(
+                        'Giới tính',
+                        examination.patientGenderDisplay,
+                      ),
+                      _headerField('Ngày chụp', examination.studyDateDisplay),
+                    ],
+                  ),
                 ),
-                _headerField(
-                  'Tên bệnh nhân',
-                  examination.patientName.isEmpty
-                      ? '---'
-                      : examination.patientName,
-                ),
-                _headerField(
-                  'Ngày sinh',
-                  examination.patientDateOfBirthDisplay,
-                ),
-                _headerField('Giới tính', examination.patientGenderDisplay),
-                _headerField('Ngày chụp', examination.studyDateDisplay),
-              ],
+              ),
             ),
           ),
           const SizedBox(width: 14),
@@ -305,6 +323,29 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
           ),
         ],
       ),
+    );
+  }
+
+  void _openPatientDetail() {
+    final patient = PatientEntity(
+      id: examination.patientDbId,
+      patientCode: examination.patientCode,
+      fullName: examination.patientName,
+      dateOfBirth: examination.patientDateOfBirth,
+      gender: examination.patientGender,
+      phone: null,
+      email: null,
+      address: null,
+    );
+
+    if (widget.onOpenPatientDetail != null) {
+      widget.onOpenPatientDetail!(patient);
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => PatientDetailPage(patient: patient)),
     );
   }
 

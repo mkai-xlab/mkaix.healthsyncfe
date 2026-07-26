@@ -13,12 +13,14 @@ class ExaminationListPage extends StatefulWidget {
   final PatientEntity? patient;
   final bool embedded;
   final List<ExaminationEntity> newExaminations;
+  final ValueChanged<PatientEntity>? onOpenPatientDetail;
 
   const ExaminationListPage({
     super.key,
     this.patient,
     this.embedded = false,
     this.newExaminations = const [],
+    this.onOpenPatientDetail,
   });
 
   @override
@@ -61,7 +63,13 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       final token = context.read<AuthViewModel>().currentUser?.token ?? '';
       final vm = context.read<ExaminationViewModel>();
       if (widget.patient == null) {
-        vm.loadExaminations(token: token);
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        vm.applyListMode(
+          token: token,
+          mode: ExaminationListMode.uploadDateFilter,
+          date: today,
+        );
       } else {
         vm.loadPatientExaminations(patientId: _patientDetailId, token: token);
       }
@@ -75,6 +83,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       final detail = ExaminationDetailPage(
         examination: selectedExamination,
         onBack: () => setState(() => _selectedExamination = null),
+        onOpenPatientDetail: widget.onOpenPatientDetail,
       );
       if (widget.embedded) return detail;
       return Scaffold(backgroundColor: _pageBg, body: detail);
@@ -257,6 +266,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
   Widget _gradeChip(ExaminationViewModel vm, int grade) {
     final mode = _gradeMode(grade);
     final selected = vm.listMode == mode;
+    final chipColor = _gradeChipColor(grade);
     return ChoiceChip(
       label: Text('KL $grade'),
       selected: selected,
@@ -264,20 +274,50 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
         final token = context.read<AuthViewModel>().currentUser?.token ?? '';
         vm.applyListMode(token: token, mode: mode);
       },
-      selectedColor: _primaryGreen.withValues(alpha: 0.14),
-      backgroundColor: Colors.white,
+      selectedColor: chipColor.withValues(alpha: 0.35),
+      backgroundColor: selected
+          ? chipColor.withValues(alpha: 0.35)
+          : chipColor.withValues(alpha: 0.18),
       labelStyle: TextStyle(
-        color: selected ? _primaryGreen : const Color(0xFF4A5568),
+        color: selected ? _gradeChipSelectedLabelColor(grade) : chipColor,
         fontSize: 12,
         fontWeight: FontWeight.w800,
       ),
       side: BorderSide(
         color: selected
-            ? _primaryGreen.withValues(alpha: 0.5)
-            : const Color(0xFFE2E8F0),
+            ? chipColor.withValues(alpha: 0.6)
+            : chipColor.withValues(alpha: 0.35),
       ),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
     );
+  }
+
+  Color _gradeChipColor(int grade) {
+    switch (grade) {
+      case 4:
+        return const Color(0xFFF44336); // đỏ
+      case 3:
+        return const Color(0xFFFF9800); // cam
+      case 2:
+        return const Color(0xFFFFC107); // vàng
+      case 1:
+        return const Color(0xFF2196F3); // xanh dương
+      default:
+        return const Color(0xFF4CAF50); // xanh lá
+    }
+  }
+
+  Color _gradeChipSelectedLabelColor(int grade) {
+    switch (grade) {
+      case 4:
+      case 3:
+      case 2:
+        return const Color(0xFF1F2937); // xám đậm cho nền đỏ/cam/vàng
+      case 1:
+      case 0:
+      default:
+        return Colors.white;
+    }
   }
 
   ExaminationListMode _gradeMode(int grade) {

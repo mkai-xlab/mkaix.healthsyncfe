@@ -18,9 +18,11 @@ import 'package:fe/presentation/viewmodels/doctor_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/examination_viewmodel.dart';
 import 'package:fe/data/datasources/admin_remote_datasource.dart';
 import 'package:fe/data/datasources/dicom_remote_datasource.dart';
+import 'package:fe/data/datasources/doctor_profile_remote_datasource.dart';
 import 'package:fe/data/datasources/notification_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/dicom_upload_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/doctor_profile_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
 
 Future<void> main() async {
@@ -59,6 +61,14 @@ Future<void> main() async {
   final dicomRemoteDataSource = DicomRemoteDataSourceImpl(httpClient);
   final dicomUploadViewModel = DicomUploadViewModel(dicomRemoteDataSource);
 
+  // Doctor profile
+  final doctorProfileRemoteDataSource = DoctorProfileRemoteDataSource(
+    httpClient,
+  );
+  final doctorProfileViewModel = DoctorProfileViewModel(
+    doctorProfileRemoteDataSource,
+  );
+
   // Notifications
   final notificationRemoteDataSource = NotificationRemoteDataSource(httpClient);
   final notificationViewModel = NotificationViewModel(
@@ -88,6 +98,7 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: examinationViewModel),
         ChangeNotifierProvider.value(value: adminAccountViewModel),
         ChangeNotifierProvider.value(value: dicomUploadViewModel),
+        ChangeNotifierProvider.value(value: doctorProfileViewModel),
         ChangeNotifierProvider.value(value: notificationViewModel),
       ],
       child: MyApp(appRouter: appRouter),

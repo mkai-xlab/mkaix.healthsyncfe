@@ -231,6 +231,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
             ),
           ],
         ),
+        _allChip(vm),
         for (var grade = 4; grade >= 0; grade--) _gradeChip(vm, grade),
         if (vm.listMode != ExaminationListMode.all)
           ActionChip(
@@ -261,6 +262,31 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
         mode == ExaminationListMode.studyDateDesc ||
         mode == ExaminationListMode.uploadDateAsc ||
         mode == ExaminationListMode.uploadDateDesc;
+  }
+
+  Widget _allChip(ExaminationViewModel vm) {
+    final selected = vm.listMode == ExaminationListMode.all;
+    return ChoiceChip(
+      label: const Text('Tất cả'),
+      selected: selected,
+      onSelected: (_) {
+        final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+        vm.clearListMode(token: token);
+      },
+      selectedColor: _primaryGreen.withValues(alpha: 0.14),
+      backgroundColor: Colors.white,
+      labelStyle: TextStyle(
+        color: selected ? _primaryGreen : const Color(0xFF4A5568),
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+      side: BorderSide(
+        color: selected
+            ? _primaryGreen.withValues(alpha: 0.45)
+            : const Color(0xFFE2E8F0),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
   }
 
   Widget _gradeChip(ExaminationViewModel vm, int grade) {
@@ -424,7 +450,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     }
 
     if (examinations.isEmpty) {
-      return _emptyState('Chưa có ca khám');
+      return _emptyState('Chưa có ca khám mới hôm nay.');
     }
 
     return Column(

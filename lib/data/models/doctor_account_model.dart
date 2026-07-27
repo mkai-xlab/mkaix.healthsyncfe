@@ -60,7 +60,7 @@ class DoctorAccountModel extends DoctorAccountEntity {
       academicTitle: json['academicTitle'] as String?,
       degree: json['degree'] as String?,
       signatureUrl: json['signatureUrl'] as String?,
-      bio: json['bio'] as String?,
+      bio: (json['biography'] ?? json['bio']) as String?,
       position: json['position'] as String?,
       createdAt: _parseDateTime(json['createdAt']),
       updatedAt: _parseDateTime(json['updatedAt']),

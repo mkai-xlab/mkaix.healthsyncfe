@@ -1,3 +1,4 @@
+import '../entities/examination_dashboard_totals_entity.dart';
 import '../entities/examination_entity.dart';
 import '../entities/examination_page_entity.dart';
 
@@ -6,9 +7,20 @@ abstract class ExaminationRepository {
     required String token,
     int page = 0,
     int size = 10,
+    String mode = 'all',
+    String direction = 'desc',
+    String? date,
   });
 
-  Future<int> getMyTotalSevereExaminations({required String token});
+  Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
+    required String token,
+  });
+
+  Future<ExaminationPageEntity> getMyRecentExaminationsPage({
+    required String token,
+    int page = 0,
+    int size = 10,
+  });
 
   Future<List<ExaminationEntity>> getExaminations({required String token});
 

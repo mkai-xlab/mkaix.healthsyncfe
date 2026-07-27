@@ -138,51 +138,9 @@ class _PatientListPageState extends State<PatientListPage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: () => _showFilterDialog(context, vm),
-                icon: const Icon(Icons.filter_list, size: 16),
-                label: const Text('Bộ lọc'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: _primaryGreen,
-                  side: const BorderSide(color: _primaryGreen),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              ElevatedButton.icon(
-                onPressed: () => _showCreatePatientDialog(context, vm),
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Thêm bệnh nhân'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _primaryGreen,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-              ),
             ],
           ),
           const SizedBox(height: 16),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                _filterChip('Tất cả', '', vm),
-                const SizedBox(width: 8),
-                _filterChip('Nam', 'MALE', vm),
-                const SizedBox(width: 8),
-                _filterChip('Nữ', 'FEMALE', vm),
-                const SizedBox(width: 8),
-                _filterChip('Khác', 'OTHER', vm),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
         ],
       ),
     );

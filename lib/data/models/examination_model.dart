@@ -6,11 +6,16 @@ class AiPredictionResultModel extends AiPredictionResultEntity {
     super.dicomInstanceId,
     super.aiAnalysisId,
     super.aiResultId,
+    super.kneeSide,
     super.predictedGrade,
+    super.confirmedGrade,
+    super.effectiveGrade,
     super.confidence,
     super.description,
     super.details,
+    super.roiImageUrl,
     super.gradcamImageUrl,
+    super.annotatedImageUrl,
   });
 
   factory AiPredictionResultModel.fromJson(Map<String, dynamic> json) {
@@ -29,13 +34,25 @@ class AiPredictionResultModel extends AiPredictionResultEntity {
       dicomInstanceId: _intAt(json, ['dicomInstanceId', 'dicom_instance_id']),
       aiAnalysisId: _intAt(json, ['aiAnalysisId', 'ai_analysis_id']),
       aiResultId: _intAt(json, ['aiResultId', 'ai_result_id', 'id']),
+      kneeSide:
+          json['kneeSide']?.toString() ?? json['knee_side']?.toString() ?? '',
       predictedGrade: _intAt(json, ['predictedGrade', 'predicted_grade']),
+      confirmedGrade: _intAt(json, ['confirmedGrade', 'confirmed_grade']),
+      effectiveGrade: _intAt(json, ['effectiveGrade', 'effective_grade']),
       confidence: _doubleAt(json, ['confidence']),
       description: json['description']?.toString() ?? '',
       details: details,
+      roiImageUrl:
+          json['roiImageUrl']?.toString() ??
+          json['roi_image_url']?.toString() ??
+          '',
       gradcamImageUrl:
           json['gradcamImageUrl']?.toString() ??
           json['gradcam_image_url']?.toString() ??
+          '',
+      annotatedImageUrl:
+          json['annotatedImageUrl']?.toString() ??
+          json['annotated_image_url']?.toString() ??
           '',
     );
   }
@@ -50,6 +67,7 @@ class ExaminationImageModel extends ExaminationImageEntity {
     super.visitTime,
     super.bodyPart,
     required super.imageUrl,
+    super.annotatedImageUrl,
     super.aiResults,
   });
 
@@ -59,6 +77,10 @@ class ExaminationImageModel extends ExaminationImageEntity {
       'dicom_instance_id',
     ]);
     final imageUrl = json['imageUrl']?.toString() ?? '';
+    final annotatedImageUrl =
+        json['annotatedImageUrl']?.toString() ??
+        json['annotated_image_url']?.toString() ??
+        '';
     final aiResults = json['aiResults'] is List
         ? (json['aiResults'] as List)
               .whereType<Map>()
@@ -84,6 +106,7 @@ class ExaminationImageModel extends ExaminationImageEntity {
           : dicomInstanceId > 0
           ? ApiConstants.dicomInstanceImageEndpoint(dicomInstanceId)
           : '',
+      annotatedImageUrl: annotatedImageUrl,
       aiResults: aiResults,
     );
   }

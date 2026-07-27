@@ -1,3 +1,4 @@
+import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/entities/examination_page_entity.dart';
 import '../../domain/interface_repositories/examination_repository.dart';
@@ -13,11 +14,17 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
     required String token,
     int page = 0,
     int size = 10,
+    String mode = 'all',
+    String direction = 'desc',
+    String? date,
   }) {
     return remoteDataSource.getExaminationsPage(
       token: token,
       page: page,
       size: size,
+      mode: mode,
+      direction: direction,
+      date: date,
     );
   }
 
@@ -27,8 +34,23 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
   }
 
   @override
-  Future<int> getMyTotalSevereExaminations({required String token}) {
-    return remoteDataSource.getMyTotalSevereExaminations(token: token);
+  Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
+    required String token,
+  }) {
+    return remoteDataSource.getMyDashboardTotals(token: token);
+  }
+
+  @override
+  Future<ExaminationPageEntity> getMyRecentExaminationsPage({
+    required String token,
+    int page = 0,
+    int size = 10,
+  }) {
+    return remoteDataSource.getMyRecentExaminationsPage(
+      token: token,
+      page: page,
+      size: size,
+    );
   }
 
   @override

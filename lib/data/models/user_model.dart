@@ -125,9 +125,9 @@ class UserModel extends UserEntity {
     return UserModel(
       id: resolvedId.toString(),
       name:
-          json['username'] ??
           json['fullName'] ??
-          '', // Dự phòng nếu backend trả về username hoặc fullName
+          json['username'] ??
+          '', // Uu tien ho ten day du, fallback username neu backend khong tra ve fullName
       token:
           json['accessToken'] ??
           json['token'] ??

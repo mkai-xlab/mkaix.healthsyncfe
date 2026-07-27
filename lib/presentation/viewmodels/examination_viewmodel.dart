@@ -1,9 +1,34 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/usecases/get_patient_examinations_usecase.dart';
 
+enum ExaminationListMode {
+  all,
+  studyDateDesc,
+  studyDateAsc,
+  uploadDateDesc,
+  uploadDateAsc,
+  studyDateFilter,
+  uploadDateFilter,
+  grade0,
+  grade1,
+  grade2,
+  grade3,
+  grade4,
+}
+
 class ExaminationViewModel extends ChangeNotifier {
+  static const ExaminationDashboardTotalsEntity _emptyDashboardTotals =
+      ExaminationDashboardTotalsEntity(
+        total: 0,
+        verified: 0,
+        unverified: 0,
+        severe: 0,
+        warningMessage: 'Khong the tai so lieu dashboard',
+      );
+
   final GetPatientExaminationsUseCase getPatientExaminationsUseCase;
 
   ExaminationViewModel({required this.getPatientExaminationsUseCase});
@@ -26,11 +51,17 @@ class ExaminationViewModel extends ChangeNotifier {
   int _totalElements = 0;
   int get totalElements => _totalElements;
 
-  int? _dashboardSevereTotal;
-  int? get dashboardSevereTotal => _dashboardSevereTotal;
+  ExaminationDashboardTotalsEntity? _dashboardTotals;
+  ExaminationDashboardTotalsEntity? get dashboardTotals => _dashboardTotals;
 
   int _totalPages = 1;
   int get totalPages => _totalPages;
+
+  ExaminationListMode _listMode = ExaminationListMode.all;
+  ExaminationListMode get listMode => _listMode;
+
+  DateTime? _filterDate;
+  DateTime? get filterDate => _filterDate;
 
   Future<void> loadExaminations({required String token}) async {
     _isLoading = true;
@@ -43,6 +74,9 @@ class ExaminationViewModel extends ChangeNotifier {
         token: token,
         page: _currentPage,
         size: _pageSize,
+        mode: _listMode.name,
+        direction: _listMode.name.endsWith('Asc') ? 'asc' : 'desc',
+        date: _filterDate == null ? null : _formatApiDate(_filterDate!),
       );
       _examinations = result.content;
       _totalElements = result.totalElements;
@@ -60,29 +94,47 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
-    _dashboardSevereTotal = null;
+    _dashboardTotals = null;
     notifyListeners();
 
     try {
-      final pageResult = await getPatientExaminationsUseCase.executeAllPage(
-        token: token,
-        page: 0,
-        size: 5,
-      );
-      final severeTotal = await getPatientExaminationsUseCase
-          .executeMyTotalSevere(token: token);
-      _examinations = pageResult.content;
-      _totalElements = pageResult.totalElements;
-      _totalPages = pageResult.totalPages;
-      _currentPage = pageResult.pageNumber;
-      _pageSize = pageResult.pageSize;
-      _dashboardSevereTotal = severeTotal;
+      final dashboardTotals = await getPatientExaminationsUseCase
+          .executeMyDashboardTotals(token: token);
+      _totalElements = dashboardTotals.total;
+      _totalPages = 1;
+      _currentPage = 0;
+      _dashboardTotals = dashboardTotals;
+      final totalWarning = dashboardTotals.warningMessage;
+      if (totalWarning != null && totalWarning.isNotEmpty) {
+        _errorMessage = totalWarning;
+      }
+
+      try {
+        final recentPage = await getPatientExaminationsUseCase
+            .executeMyRecentPage(token: token, page: 0, size: 5);
+        _examinations = recentPage.content;
+      } catch (e) {
+        final recentError = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = _appendDashboardError(_errorMessage, recentError);
+        _examinations = [];
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _examinations = [];
+      _totalElements = 0;
+      _totalPages = 1;
+      _currentPage = 0;
+      _dashboardTotals = _emptyDashboardTotals;
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  String _appendDashboardError(String? current, String next) {
+    if (current == null || current.isEmpty) return next;
+    if (next.isEmpty || current.contains(next)) return current;
+    return '$current\n$next';
   }
 
   Future<void> goToPage({required String token, required int page}) async {
@@ -99,6 +151,24 @@ class ExaminationViewModel extends ChangeNotifier {
   }) async {
     if (_pageSize == size) return;
     _pageSize = size;
+    _currentPage = 0;
+    await loadExaminations(token: token);
+  }
+
+  Future<void> applyListMode({
+    required String token,
+    required ExaminationListMode mode,
+    DateTime? date,
+  }) async {
+    _listMode = mode;
+    _filterDate = date;
+    _currentPage = 0;
+    await loadExaminations(token: token);
+  }
+
+  Future<void> clearListMode({required String token}) async {
+    _listMode = ExaminationListMode.all;
+    _filterDate = null;
     _currentPage = 0;
     await loadExaminations(token: token);
   }
@@ -163,6 +233,14 @@ class ExaminationViewModel extends ChangeNotifier {
     _totalElements = 0;
     _totalPages = 1;
     _currentPage = 0;
+    _listMode = ExaminationListMode.all;
+    _filterDate = null;
     notifyListeners();
+  }
+
+  String _formatApiDate(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
   }
 }

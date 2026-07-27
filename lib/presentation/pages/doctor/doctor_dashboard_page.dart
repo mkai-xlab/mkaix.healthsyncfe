@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
@@ -45,13 +46,11 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
               child: CircularProgressIndicator(color: AppColors.primary),
             );
           }
-          final stats = vm.examinations.isEmpty
-              ? _DashboardStats.sample()
-              : _DashboardStats.from(
-                  vm.examinations,
-                  totalElements: vm.totalElements,
-                  severeTotal: vm.dashboardSevereTotal,
-                );
+          final stats = _DashboardStats.from(
+            vm.examinations,
+            totalElements: vm.totalElements,
+            dashboardTotals: vm.dashboardTotals,
+          );
           return _DashboardContent(
             stats: stats,
             warning: vm.errorMessage,
@@ -97,7 +96,7 @@ class _DashboardContent extends StatelessWidget {
             doctorName: doctorName,
             todayDate: DateFormat('dd/MM/yyyy').format(now),
             todayExams: stats.todayCount,
-            highRiskCases: stats.severeCount,
+            severeCases: stats.severeCount,
           ),
           const SizedBox(height: 24),
 
@@ -140,7 +139,7 @@ class _DashboardContent extends StatelessWidget {
                     accent: _primary,
                   ),
                   _StatCard(
-                    title: 'Ca nguy cơ cao',
+                    title: 'Ca khám nặng',
                     value: stats.severeCount.toString(),
                     trend: '${stats.severePercent}%',
                     icon: Icons.priority_high_rounded,
@@ -219,14 +218,14 @@ class _DashboardHeader extends StatelessWidget {
   final String doctorName;
   final String todayDate;
   final int todayExams;
-  final int highRiskCases;
+  final int severeCases;
 
   const _DashboardHeader({
     required this.greeting,
     required this.doctorName,
     required this.todayDate,
     required this.todayExams,
-    required this.highRiskCases,
+    required this.severeCases,
   });
 
   @override
@@ -294,7 +293,7 @@ class _DashboardHeader extends StatelessWidget {
                 ],
               ),
             ),
-            if (highRiskCases > 0)
+            if (severeCases > 0)
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 12,
@@ -314,7 +313,7 @@ class _DashboardHeader extends StatelessWidget {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      '$highRiskCases ca nguy cơ cao',
+                      '$severeCases ca khám nặng',
                       style: const TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -649,7 +648,7 @@ class _SevereAlertCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Panel(
-      title: 'Cảnh báo ca nghiêm trọng',
+      title: 'Ca khám nặng cần chú ý',
       titleColor: AppColors.error,
       child: Column(
         children: stats.severeExaminations.isEmpty
@@ -670,7 +669,7 @@ class _SevereAlertCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 12),
                 const Text(
-                  'Không có ca nghiêm trọng',
+                  'Không có ca khám nặng',
                   style: TextStyle(
                     color: AppColors.textSecondary,
                     fontSize: 13,
@@ -1084,7 +1083,7 @@ class _DashboardStats {
   factory _DashboardStats.from(
     List<ExaminationEntity> source, {
     int? totalElements,
-    int? severeTotal,
+    ExaminationDashboardTotalsEntity? dashboardTotals,
   }) {
     final sorted = [...source]
       ..sort((a, b) {
@@ -1147,104 +1146,17 @@ class _DashboardStats {
       severeExaminations: severe,
       weeklyCounts: weeklyCounts,
       weekdayLabels: weekdayLabels,
-      total: sorted.length,
-      totalResults: totalElements ?? sorted.length,
+      total: dashboardTotals?.total ?? totalElements ?? sorted.length,
+      totalResults: dashboardTotals?.total ?? totalElements ?? sorted.length,
       todayCount: todayCount,
-      severeCount: severeTotal ?? severe.length,
-      completedCount: completed,
-      pendingCount: pending,
+      severeCount: dashboardTotals?.severe ?? severe.length,
+      completedCount: dashboardTotals?.verified ?? completed,
+      pendingCount: dashboardTotals?.unverified ?? pending,
       lowGradeCount: low,
       midGradeCount: mid,
       grade4Count: g4,
       unknownGradeCount: unknown,
     );
-  }
-
-  factory _DashboardStats.sample() {
-    final now = DateTime.now();
-    final samples = [
-      ExaminationEntity(
-        patientCode: '#BN-2023-001',
-        patientName: 'Trần Thị Hoa',
-        patientGender: 'FEMALE',
-        patientDateOfBirth: DateTime(now.year - 62, 4, 12),
-        examinationId: 1,
-        encounterCode: 'EX-001',
-        status: 'COMPLETED',
-        visitTime: now.subtract(const Duration(hours: 2)),
-        thumbnailUrl: '',
-        bodyPart: 'Knee',
-        referringPhysician: '',
-        description: 'Thoái hóa khớp nặng, tràn dịch khớp',
-        maxPredictedGrade: 4,
-        images: const [],
-      ),
-      ExaminationEntity(
-        patientCode: '#BN-2023-045',
-        patientName: 'Trương Minh Đạt',
-        patientGender: 'MALE',
-        patientDateOfBirth: DateTime(now.year - 68, 8, 2),
-        examinationId: 2,
-        encounterCode: 'EX-002',
-        status: 'NEED_VERIFY',
-        visitTime: now.subtract(const Duration(hours: 5)),
-        thumbnailUrl: '',
-        bodyPart: 'Knee',
-        referringPhysician: '',
-        description: 'Hẹp khe khớp nghiêm trọng',
-        maxPredictedGrade: 3,
-        images: const [],
-      ),
-      ExaminationEntity(
-        patientCode: '#BN-2023-089',
-        patientName: 'Phạm Quỳnh Anh',
-        patientGender: 'FEMALE',
-        patientDateOfBirth: DateTime(now.year - 35, 1, 20),
-        examinationId: 3,
-        encounterCode: 'EX-003',
-        status: 'COMPLETED',
-        visitTime: now.subtract(const Duration(days: 1, hours: 3)),
-        thumbnailUrl: '',
-        bodyPart: 'Knee',
-        referringPhysician: '',
-        description: 'Tăng sừng hóa đầu xương',
-        maxPredictedGrade: 1,
-        images: const [],
-      ),
-      ExaminationEntity(
-        patientCode: '#BN-2023-102',
-        patientName: 'Lê Văn A',
-        patientGender: 'MALE',
-        patientDateOfBirth: DateTime(now.year - 59, 6, 9),
-        examinationId: 4,
-        encounterCode: 'EX-004',
-        status: 'AWAITING_REVIEW',
-        visitTime: now.subtract(const Duration(days: 2, hours: 1)),
-        thumbnailUrl: '',
-        bodyPart: 'Knee',
-        referringPhysician: '',
-        description: 'Cần bác sĩ xác nhận kết quả AI',
-        maxPredictedGrade: 4,
-        images: const [],
-      ),
-      ExaminationEntity(
-        patientCode: '#BN-2023-118',
-        patientName: 'Nguyễn Thị B',
-        patientGender: 'FEMALE',
-        patientDateOfBirth: DateTime(now.year - 47, 11, 4),
-        examinationId: 5,
-        encounterCode: 'EX-005',
-        status: 'AI_COMPLETED',
-        visitTime: now.subtract(const Duration(days: 3, hours: 6)),
-        thumbnailUrl: '',
-        bodyPart: 'Knee',
-        referringPhysician: '',
-        description: 'AI đã phân tích, chờ xác nhận',
-        maxPredictedGrade: 2,
-        images: const [],
-      ),
-    ];
-    return _DashboardStats.from(samples, totalElements: samples.length);
   }
 
   int get severePercent => _percentOf(severeCount, totalResults);

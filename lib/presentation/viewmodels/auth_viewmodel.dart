@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import '../../core/services/session_storage_service.dart';
 import '../../core/utils/permission_utils.dart';
+import '../../data/models/user_model.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/interface_repositories/auth_repository.dart';
 import '../../domain/usecases/login_usecase.dart';
@@ -8,8 +12,13 @@ import '../../data/datasources/auth_remote_datasource.dart';
 class AuthViewModel extends ChangeNotifier {
   final LoginUseCase loginUseCase;
   final AuthRepository authRepository;
+  final SessionStorageService sessionStorage;
 
-  AuthViewModel({required this.loginUseCase, required this.authRepository});
+  AuthViewModel({
+    required this.loginUseCase,
+    required this.authRepository,
+    SessionStorageService? sessionStorage,
+  }) : sessionStorage = sessionStorage ?? SessionStorageService();
 
   UserEntity? _currentUser;
   bool _isLoading = false;
@@ -66,6 +75,30 @@ class AuthViewModel extends ChangeNotifier {
     return hasPermissionKey(presentation);
   }
 
+  Future<void> restoreSession() async {
+    try {
+      final raw = await sessionStorage.readUserJson();
+      if (raw == null || raw.trim().isEmpty) return;
+
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        await sessionStorage.clearUser();
+        return;
+      }
+
+      final user = UserModel.fromJson(decoded);
+      if (user.token.trim().isEmpty) {
+        await sessionStorage.clearUser();
+        return;
+      }
+
+      _currentUser = user;
+      notifyListeners();
+    } catch (_) {
+      await sessionStorage.clearUser();
+    }
+  }
+
   /// Đăng nhập — trả về true nếu thành công, false nếu lỗi thường,
   /// và set isFirstTimeLogin = true nếu cần đổi mật khẩu lần đầu
   Future<bool> login(String email, String password) async {
@@ -76,6 +109,7 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       _currentUser = await loginUseCase.execute(email, password);
+      await sessionStorage.saveUserJson(jsonEncode(_userToJson(_currentUser!)));
       _isLoading = false;
       notifyListeners();
       return true;
@@ -97,12 +131,38 @@ class AuthViewModel extends ChangeNotifier {
 
   Future<void> logout() async {
     await authRepository.logout();
+    await sessionStorage.clearUser();
     _currentUser = null;
     _errorMessage = null;
     _isFirstTimeLogin = false;
     _pendingUsername = null;
     _pendingOldPassword = null;
     notifyListeners();
+  }
+
+  Map<String, dynamic> _userToJson(UserEntity user) {
+    return {
+      'id': user.id,
+      'username': user.name,
+      'fullName': user.name,
+      'token': user.token,
+      'roles': user.roles,
+      'permissions': user.permissionItems.isNotEmpty
+          ? user.permissionItems
+                .map(
+                  (permission) => {
+                    'id': permission.id,
+                    'name': permission.name,
+                    'code': permission.code,
+                    'presentation': permission.presentation,
+                    'description': permission.description,
+                    'parentId': permission.parentId,
+                    'priority': permission.priority,
+                  },
+                )
+                .toList()
+          : user.permissions,
+    };
   }
 
   /// Đổi mật khẩu lần đầu đăng nhập

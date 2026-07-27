@@ -12,6 +12,7 @@ import '../../../domain/entities/notification_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import 'doctor_dashboard_page.dart';
+import 'doctor_profile_page.dart';
 import 'examination_list_page.dart';
 import 'file_upload_page.dart';
 import 'patient_detail_page.dart';
@@ -28,6 +29,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   int _selectedNavIndex = 0;
   final _searchController = TextEditingController();
   bool _showUploadExaminationList = false;
+  bool _showDoctorProfile = false;
   bool _isUploadMiniProgressCollapsed = false;
   final List<ExaminationEntity> _newUploadExaminations = const [];
   PatientEntity? _selectedPatientDetail;
@@ -171,8 +173,6 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                     : navItems.map((item) => _buildNavItem(item)).toList(),
               ),
             ),
-            const Divider(color: Colors.white24, height: 1),
-            _buildLogoutTile(context),
           ],
         ),
       ),
@@ -263,6 +263,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       onTap: () {
         setState(() {
           _selectedNavIndex = index;
+          _showDoctorProfile = false;
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
         });
@@ -284,20 +285,6 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       child: Text(
         'Chưa có quyền hiển thị',
         style: TextStyle(color: Colors.white70, fontSize: 13),
-      ),
-    );
-  }
-
-  Widget _buildLogoutTile(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(12),
-      child: ListTile(
-        leading: const Icon(Icons.logout, color: Colors.white70, size: 20),
-        title: const Text(
-          'Đăng xuất',
-          style: TextStyle(color: Colors.white70, fontSize: 14),
-        ),
-        onTap: () => context.read<AuthViewModel>().logout(),
       ),
     );
   }
@@ -344,7 +331,6 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                           .toList(),
               ),
             ),
-            _buildLogoutTile(context),
           ],
         ),
       ),
@@ -355,6 +341,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   // MAIN CONTENT ROUTER
   // ─────────────────────────────────────────────
   Widget _buildMainContent(BuildContext context) {
+    if (_showDoctorProfile) {
+      return const DoctorProfilePage(embedded: true);
+    }
+
     final selectedPatientDetail = _selectedPatientDetail;
     if (selectedPatientDetail != null) {
       if (!_hasPermission(context, 'patient_detail_page')) {
@@ -400,6 +390,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       return ExaminationListPage(
         embedded: true,
         newExaminations: _newUploadExaminations,
+        onOpenPatientDetail: (patient) =>
+            setState(() => _selectedPatientDetail = patient),
       );
     }
     if (selectedPermission == 'patient_list_page') {
@@ -443,6 +435,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     if (examIndex < 0) return;
     setState(() {
       _selectedNavIndex = examIndex;
+      _showDoctorProfile = false;
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
     });
@@ -643,6 +636,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     if (uploadIndex < 0) return;
     setState(() {
       _selectedNavIndex = uploadIndex;
+      _showDoctorProfile = false;
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
       _isUploadMiniProgressCollapsed = false;
@@ -714,50 +708,118 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           const SizedBox(width: 12),
           _notificationButton(context),
           const SizedBox(width: 12),
-          // Doctor info — đồng bộ với patient_detail_page
+          // Doctor info menu
           Consumer<AuthViewModel>(
-            builder: (context, vm, child) => Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircleAvatar(
-                  radius: 15,
-                  backgroundColor: const Color(0xFFE6F4F1),
-                  child: Text(
-                    vm.currentUser?.name.isNotEmpty == true
-                        ? vm.currentUser!.name[0].toUpperCase()
-                        : 'B',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: _primaryGreen,
+            builder: (context, vm, child) =>
+                PopupMenuButton<_DoctorUserMenuAction>(
+                  tooltip: 'Tai khoan',
+                  color: Colors.white,
+                  surfaceTintColor: Colors.white,
+                  elevation: 10,
+                  offset: const Offset(0, 46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  onSelected: (action) =>
+                      _handleUserMenuAction(context, action),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem<_DoctorUserMenuAction>(
+                      value: _DoctorUserMenuAction.profile,
+                      child: _UserMenuItem(
+                        icon: Icons.person_outline_rounded,
+                        label: 'Thông tin cá nhân',
+                      ),
+                    ),
+                    PopupMenuItem<_DoctorUserMenuAction>(
+                      value: _DoctorUserMenuAction.logout,
+                      child: _UserMenuItem(
+                        icon: Icons.logout_rounded,
+                        label: 'Đăng xuất',
+                        isDestructive: true,
+                      ),
+                    ),
+                  ],
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        CircleAvatar(
+                          radius: 15,
+                          backgroundColor: const Color(0xFFE6F4F1),
+                          child: Text(
+                            vm.currentUser?.name.isNotEmpty == true
+                                ? vm.currentUser!.name[0].toUpperCase()
+                                : 'B',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: _primaryGreen,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              'BS. ${vm.currentUser?.name ?? 'Bac si'}',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: Color(0xFF1A2B3C),
+                              ),
+                            ),
+                            const Text(
+                              'Chan doan hinh anh',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Color(0xFF718096),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(width: 8),
+                        const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 18,
+                          color: Color(0xFF718096),
+                        ),
+                      ],
                     ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'BS. ${vm.currentUser?.name ?? 'Bác sĩ'}',
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1A2B3C),
-                      ),
-                    ),
-                    const Text(
-                      'Chẩn đoán hình ảnh',
-                      style: TextStyle(fontSize: 10, color: Color(0xFF718096)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
           ),
         ],
       ),
     );
+  }
+
+  Future<void> _handleUserMenuAction(
+    BuildContext context,
+    _DoctorUserMenuAction action,
+  ) async {
+    switch (action) {
+      case _DoctorUserMenuAction.profile:
+        setState(() {
+          _showDoctorProfile = true;
+          _showUploadExaminationList = false;
+          _selectedPatientDetail = null;
+        });
+        break;
+      case _DoctorUserMenuAction.logout:
+        await context.read<AuthViewModel>().logout();
+        break;
+    }
   }
 
   Widget _buildFeaturePlaceholderPage({
@@ -1710,6 +1772,41 @@ class _TableHeader extends StatelessWidget {
   }
 }
 */
+
+enum _DoctorUserMenuAction { profile, logout }
+
+class _UserMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDestructive;
+
+  const _UserMenuItem({
+    required this.icon,
+    required this.label,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive
+        ? const Color(0xFFD14343)
+        : const Color(0xFF1A2B3C);
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
 
 class _DoctorNavItemData {
   final int index;

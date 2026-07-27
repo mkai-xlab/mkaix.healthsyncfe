@@ -55,14 +55,23 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `PUT` | `/examinations/{id}/view` | Mark examination as viewed | `200 OK` |
 | `POST` | `/examinations/{id}/generate-report` | Generate PDF report | `string` |
 | `GET` | `/examinations/patient/{patientId}` | Get examinations by patient | `ExaminationDto[]` or paged response |
-| `GET` | `/examinations/patient/{patientId}/filter/study-month` | Filter patient examinations by study month | `ExaminationDto[]` |
-| `GET` | `/examinations/doctor/{doctorId}` | Get examinations by doctor | `ExaminationDto[]` or paged response |
+| `GET` | `/examinations/patient/{patientId}/filter/study-month` | Filter patient examinations by study month | `PageResponseExaminationDto` |
+| `GET` | `/examinations/doctor/{doctorId}` | Get examinations by doctor | `PageResponseExaminationDto` |
 | `GET` | `/examinations/status` | Filter by status | `PageResponseExaminationDto` |
 | `GET` | `/examinations/grade` | Filter by AI grade | `PageResponseExaminationDto` |
 | `GET` | `/examinations/filter/upload-date` | Filter by upload date | `PageResponseExaminationDto` |
 | `GET` | `/examinations/filter/study-date` | Filter by study date | `PageResponseExaminationDto` |
 | `GET` | `/examinations/sort/upload-date` | Sort by upload date | `PageResponseExaminationDto` |
 | `GET` | `/examinations/sort/study-date` | Sort by study date | `PageResponseExaminationDto` |
+| `GET` | `/examinations/total` | Total examinations | `number` |
+| `GET` | `/examinations/total-verified` | Total verified examinations | `number` |
+| `GET` | `/examinations/total-unverified` | Total unverified examinations | `number` |
+| `GET` | `/examinations/total-severe` | Total severe examinations | `number` |
+| `GET` | `/examinations/my-total` | Current doctor's total examinations | `number` |
+| `GET` | `/examinations/my-total-verified` | Current doctor's verified examinations | `number` |
+| `GET` | `/examinations/my-total-unverified` | Current doctor's unverified examinations | `number` |
+| `GET` | `/examinations/my-total-severe` | Current doctor's severe examinations | `number` |
+| `GET` | `/examinations/statistics/patients-by-grade` | Patient count by predicted grade | `PatientGradeStatsDto[]` |
 
 ## Examination Statistics
 
@@ -92,6 +101,8 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/dicom/total-studies` | Total DICOM studies | number |
 | `POST` | `/ai/predict-batch` | Run AI prediction for DICOM instances | `ExaminationDto[]` |
 | `GET` | `/ai/heatmap/{aiResultId}` | Get heatmap image | binary/image |
+| `PUT` | `/ai/results/{aiResultId}/kl-grade` | Adjust KL grade | `DiagnosisReviewResponse` |
+| `PUT` | `/ai/results/{aiResultId}/confirm` | Confirm AI grade | `DiagnosisReviewResponse` |
 
 ## Permissions And Features
 
@@ -109,6 +120,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 
 | Method | Path | Purpose | Response |
 | --- | --- | --- | --- |
+| `GET` | `/notifications` | Get all notifications | `NotificationDto[]` |
 | `GET` | `/notifications/unread` | Get unread notifications | `NotificationDto[]` |
 | `PUT` | `/notifications/{id}/read` | Mark notification as read | `string` |
 | `POST` | `/notifications/send` | Send test notification | `string` |

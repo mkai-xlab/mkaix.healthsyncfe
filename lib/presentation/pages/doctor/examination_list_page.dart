@@ -13,16 +13,30 @@ class ExaminationListPage extends StatefulWidget {
   final PatientEntity? patient;
   final bool embedded;
   final List<ExaminationEntity> newExaminations;
+  final ValueChanged<PatientEntity>? onOpenPatientDetail;
 
   const ExaminationListPage({
     super.key,
     this.patient,
     this.embedded = false,
     this.newExaminations = const [],
+    this.onOpenPatientDetail,
   });
 
   @override
   State<ExaminationListPage> createState() => _ExaminationListPageState();
+}
+
+class _SortOption {
+  final String label;
+  final ExaminationListMode mode;
+  final IconData icon;
+
+  const _SortOption({
+    required this.label,
+    required this.mode,
+    required this.icon,
+  });
 }
 
 class _ExaminationListPageState extends State<ExaminationListPage> {
@@ -49,7 +63,13 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       final token = context.read<AuthViewModel>().currentUser?.token ?? '';
       final vm = context.read<ExaminationViewModel>();
       if (widget.patient == null) {
-        vm.loadExaminations(token: token);
+        final now = DateTime.now();
+        final today = DateTime(now.year, now.month, now.day);
+        vm.applyListMode(
+          token: token,
+          mode: ExaminationListMode.uploadDateFilter,
+          date: today,
+        );
       } else {
         vm.loadPatientExaminations(patientId: _patientDetailId, token: token);
       }
@@ -63,6 +83,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       final detail = ExaminationDetailPage(
         examination: selectedExamination,
         onBack: () => setState(() => _selectedExamination = null),
+        onOpenPatientDetail: widget.onOpenPatientDetail,
       );
       if (widget.embedded) return detail;
       return Scaffold(backgroundColor: _pageBg, body: detail);
@@ -168,7 +189,249 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
               style: const TextStyle(fontSize: 13, color: Color(0xFF718096)),
             ),
           ],
+          if (widget.patient == null) ...[
+            const SizedBox(height: 14),
+            _sortDropdowns(vm),
+          ],
         ],
+      ),
+    );
+  }
+
+  Widget _sortDropdowns(ExaminationViewModel vm) {
+    return Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _sortDropdown(
+          vm,
+          label: 'Sắp xếp',
+          value: _isSortMode(vm.listMode) ? vm.listMode : null,
+          items: const [
+            _SortOption(
+              label: 'Ngày khám tăng dần',
+              mode: ExaminationListMode.studyDateAsc,
+              icon: Icons.arrow_upward_rounded,
+            ),
+            _SortOption(
+              label: 'Ngày khám giảm dần',
+              mode: ExaminationListMode.studyDateDesc,
+              icon: Icons.arrow_downward_rounded,
+            ),
+            _SortOption(
+              label: 'Ngày upload tăng dần',
+              mode: ExaminationListMode.uploadDateAsc,
+              icon: Icons.arrow_upward_rounded,
+            ),
+            _SortOption(
+              label: 'Ngày upload giảm dần',
+              mode: ExaminationListMode.uploadDateDesc,
+              icon: Icons.arrow_downward_rounded,
+            ),
+          ],
+        ),
+        _allChip(vm),
+        for (var grade = 4; grade >= 0; grade--) _gradeChip(vm, grade),
+        if (vm.listMode != ExaminationListMode.all)
+          ActionChip(
+            avatar: const Icon(Icons.close_rounded, size: 16),
+            label: const Text('Bỏ sắp xếp'),
+            onPressed: () {
+              final token =
+                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              vm.clearListMode(token: token);
+            },
+            backgroundColor: Colors.white,
+            labelStyle: const TextStyle(
+              color: Color(0xFF4A5568),
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
+            side: const BorderSide(color: Color(0xFFE2E8F0)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+      ],
+    );
+  }
+
+  bool _isSortMode(ExaminationListMode mode) {
+    return mode == ExaminationListMode.studyDateAsc ||
+        mode == ExaminationListMode.studyDateDesc ||
+        mode == ExaminationListMode.uploadDateAsc ||
+        mode == ExaminationListMode.uploadDateDesc;
+  }
+
+  Widget _allChip(ExaminationViewModel vm) {
+    final selected = vm.listMode == ExaminationListMode.all;
+    return ChoiceChip(
+      label: const Text('Tất cả'),
+      selected: selected,
+      onSelected: (_) {
+        final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+        vm.clearListMode(token: token);
+      },
+      selectedColor: _primaryGreen.withValues(alpha: 0.14),
+      backgroundColor: Colors.white,
+      labelStyle: TextStyle(
+        color: selected ? _primaryGreen : const Color(0xFF4A5568),
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+      ),
+      side: BorderSide(
+        color: selected
+            ? _primaryGreen.withValues(alpha: 0.45)
+            : const Color(0xFFE2E8F0),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
+  }
+
+  Widget _gradeChip(ExaminationViewModel vm, int grade) {
+    final mode = _gradeMode(grade);
+    final selected = vm.listMode == mode;
+    final chipColor = _gradeChipColor(grade);
+    return ChoiceChip(
+      label: Text('KL $grade'),
+      selected: selected,
+      onSelected: (_) {
+        final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+        vm.applyListMode(token: token, mode: mode);
+      },
+      selectedColor: chipColor.withValues(alpha: 0.35),
+      backgroundColor: selected
+          ? chipColor.withValues(alpha: 0.35)
+          : chipColor.withValues(alpha: 0.18),
+      labelStyle: TextStyle(
+        color: selected ? _gradeChipSelectedLabelColor(grade) : chipColor,
+        fontSize: 12,
+        fontWeight: FontWeight.w800,
+      ),
+      side: BorderSide(
+        color: selected
+            ? chipColor.withValues(alpha: 0.6)
+            : chipColor.withValues(alpha: 0.35),
+      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+    );
+  }
+
+  Color _gradeChipColor(int grade) {
+    switch (grade) {
+      case 4:
+        return const Color(0xFFF44336); // đỏ
+      case 3:
+        return const Color(0xFFFF9800); // cam
+      case 2:
+        return const Color(0xFFFFC107); // vàng
+      case 1:
+        return const Color(0xFF2196F3); // xanh dương
+      default:
+        return const Color(0xFF4CAF50); // xanh lá
+    }
+  }
+
+  Color _gradeChipSelectedLabelColor(int grade) {
+    switch (grade) {
+      case 4:
+      case 3:
+      case 2:
+        return const Color(0xFF1F2937); // xám đậm cho nền đỏ/cam/vàng
+      case 1:
+      case 0:
+      default:
+        return Colors.white;
+    }
+  }
+
+  ExaminationListMode _gradeMode(int grade) {
+    switch (grade) {
+      case 4:
+        return ExaminationListMode.grade4;
+      case 3:
+        return ExaminationListMode.grade3;
+      case 2:
+        return ExaminationListMode.grade2;
+      case 1:
+        return ExaminationListMode.grade1;
+      default:
+        return ExaminationListMode.grade0;
+    }
+  }
+
+  Widget _sortDropdown(
+    ExaminationViewModel vm, {
+    required String label,
+    required ExaminationListMode? value,
+    required List<_SortOption> items,
+  }) {
+    return SizedBox(
+      width: 230,
+      child: DropdownButtonFormField<ExaminationListMode>(
+        initialValue: value,
+        hint: Text(label),
+        isDense: true,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: _primaryGreen, width: 1.4),
+          ),
+        ),
+        items: [
+          for (final item in items)
+            DropdownMenuItem<ExaminationListMode>(
+              value: item.mode,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(item.icon, size: 16, color: _primaryGreen),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(item.label, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        selectedItemBuilder: (context) {
+          return [
+            for (final item in items)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(item.icon, size: 16, color: _primaryGreen),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(item.label, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+          ];
+        },
+        onChanged: (mode) {
+          if (mode == null) return;
+          final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+          vm.applyListMode(token: token, mode: mode);
+        },
+        style: const TextStyle(
+          color: Color(0xFF1A2B3C),
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        dropdownColor: Colors.white,
       ),
     );
   }
@@ -187,7 +450,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     }
 
     if (examinations.isEmpty) {
-      return _emptyState('Chưa có ca khám');
+      return _emptyState('Chưa có ca khám mới hôm nay.');
     }
 
     return Column(

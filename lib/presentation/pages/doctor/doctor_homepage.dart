@@ -11,7 +11,7 @@ import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/notification_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
-import 'doctor_change_password_page.dart';
+import '../auth/account_change_password_page.dart';
 import 'doctor_dashboard_page.dart';
 import 'doctor_profile_page.dart';
 import 'examination_list_page.dart';
@@ -345,7 +345,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   // ─────────────────────────────────────────────
   Widget _buildMainContent(BuildContext context) {
     if (_showChangePassword) {
-      return DoctorChangePasswordPage(
+      return AccountChangePasswordPage(
         onCancel: () {
           setState(() {
             _showChangePassword = false;

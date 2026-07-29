@@ -5,11 +5,14 @@ import 'package:fe/core/services/toast_service.dart';
 import '../../../core/constants/app_colors.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:fe/domain/entities/doctor_account_entity.dart';
+import 'package:fe/domain/entities/notification_entity.dart';
 import 'package:fe/data/datasources/permission_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 import 'package:fe/presentation/pages/admin/permission_page.dart';
 import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart';
+import 'package:fe/presentation/pages/auth/account_change_password_page.dart';
 import 'package:fe/presentation/widgets/pagination_bar.dart';
 import 'package:http/http.dart' as http;
 
@@ -23,6 +26,9 @@ class AdminHomepage extends StatefulWidget {
 class _AdminHomepageState extends State<AdminHomepage> {
   int _selectedNavIndex = 0;
   DoctorAccountEntity? _selectedUser;
+  bool _showChangePassword = false;
+
+  String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
 
   @override
   void initState() {
@@ -206,6 +212,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
       onTap: () {
         setState(() {
           _selectedNavIndex = index;
+          _showChangePassword = false;
         });
       },
       tileColor: isSelected ? Colors.white.withOpacity(0.1) : null,
@@ -327,6 +334,22 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildMainContent(BuildContext context) {
+    if (_showChangePassword) {
+      return Container(
+        color: const Color(0xFFF0F4F3),
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            Expanded(
+              child: AccountChangePasswordPage(
+                onCancel: () => setState(() => _showChangePassword = false),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (_selectedNavIndex == 1) {
       return _buildUserManagementPage(context);
     }
@@ -2354,6 +2377,123 @@ class _AdminHomepageState extends State<AdminHomepage> {
   Widget _buildTopBar(BuildContext context) {
     return Container(
       color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          if (MediaQuery.of(context).size.width < 900)
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.menu,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ),
+          const Spacer(),
+          _notificationButton(context),
+          const SizedBox(width: 12),
+          Consumer<AuthViewModel>(
+            builder: (context, vm, _) => PopupMenuButton<_AdminUserMenuAction>(
+              tooltip: 'Tài khoản',
+              color: Colors.white,
+              surfaceTintColor: Colors.white,
+              elevation: 10,
+              offset: const Offset(0, 46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              onSelected: (action) => _handleAdminUserMenuAction(action),
+              itemBuilder: (context) => const [
+                PopupMenuItem<_AdminUserMenuAction>(
+                  value: _AdminUserMenuAction.changePassword,
+                  child: _AdminUserMenuItem(
+                    icon: Icons.lock_reset_rounded,
+                    label: 'Đổi mật khẩu',
+                  ),
+                ),
+                PopupMenuItem<_AdminUserMenuAction>(
+                  value: _AdminUserMenuAction.logout,
+                  child: _AdminUserMenuItem(
+                    icon: Icons.logout_rounded,
+                    label: 'Đăng xuất',
+                    isDestructive: true,
+                  ),
+                ),
+              ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 15,
+                      backgroundColor: const Color(0xFFE6F4F1),
+                      child: Text(
+                        vm.currentUser?.displayName.isNotEmpty == true
+                            ? vm.currentUser!.displayName[0].toUpperCase()
+                            : 'A',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          vm.currentUser?.displayName ?? 'Admin',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1A2B3C),
+                          ),
+                        ),
+                        const Text(
+                          'Quản trị hệ thống',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF718096),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: Color(0xFF718096),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildLegacyTopBar(BuildContext context) {
+    return Container(
+      color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
         children: [
@@ -2436,6 +2576,93 @@ class _AdminHomepageState extends State<AdminHomepage> {
           ),
         ],
       ),
+    );
+  }
+
+  void _handleAdminUserMenuAction(_AdminUserMenuAction action) {
+    switch (action) {
+      case _AdminUserMenuAction.changePassword:
+        setState(() => _showChangePassword = true);
+        break;
+      case _AdminUserMenuAction.logout:
+        context.read<AuthViewModel>().logout();
+        break;
+    }
+  }
+
+  Widget _notificationButton(BuildContext context) {
+    return Consumer<NotificationViewModel>(
+      builder: (context, vm, _) {
+        return PopupMenuButton<void>(
+          tooltip: 'Thông báo',
+          position: PopupMenuPosition.under,
+          offset: const Offset(0, 8),
+          color: Colors.white,
+          elevation: 12,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          constraints: const BoxConstraints.tightFor(width: 380),
+          onOpened: () => vm.loadUnreadNotifications(_token),
+          itemBuilder: (context) => [
+            PopupMenuItem<void>(
+              enabled: false,
+              padding: EdgeInsets.zero,
+              child: _AdminNotificationDropdown(token: _token),
+            ),
+          ],
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Center(
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: vm.unreadCount > 0
+                          ? const Color(0xFFEAF2FF)
+                          : Colors.transparent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: Color(0xFF718096),
+                      size: 20,
+                    ),
+                  ),
+                ),
+                if (vm.unreadCount > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 17,
+                        minHeight: 17,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE53E3E),
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        vm.unreadCount > 99 ? '99+' : vm.unreadCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -3108,6 +3335,242 @@ class _AdminHomepageState extends State<AdminHomepage> {
       default:
         return Colors.grey.shade700;
     }
+  }
+}
+
+enum _AdminUserMenuAction { changePassword, logout }
+
+class _AdminUserMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDestructive;
+
+  const _AdminUserMenuItem({
+    required this.icon,
+    required this.label,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive
+        ? const Color(0xFFD14343)
+        : const Color(0xFF1A2B3C);
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminNotificationDropdown extends StatelessWidget {
+  final String token;
+
+  const _AdminNotificationDropdown({required this.token});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<NotificationViewModel>(
+      builder: (context, vm, _) {
+        return SizedBox(
+          height: 520,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Thông báo',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Tải lại',
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 18,
+                      onPressed: vm.isLoading
+                          ? null
+                          : () => vm.loadUnreadNotifications(token),
+                      icon: const Icon(Icons.refresh_outlined),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: _AdminNotificationBody(vm: vm, token: token),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AdminNotificationBody extends StatelessWidget {
+  final NotificationViewModel vm;
+  final String token;
+
+  const _AdminNotificationBody({required this.vm, required this.token});
+
+  @override
+  Widget build(BuildContext context) {
+    if (vm.isLoading && vm.notifications.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+    if (vm.errorMessage != null && vm.notifications.isEmpty) {
+      return _AdminNotificationEmpty(
+        icon: Icons.error_outline,
+        message: vm.errorMessage!,
+      );
+    }
+    if (vm.notifications.isEmpty) {
+      return const _AdminNotificationEmpty(
+        icon: Icons.notifications_none_outlined,
+        message: 'Chưa có thông báo mới.',
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: vm.visibleNotifications.length + (vm.canShowMore ? 1 : 0),
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        if (index >= vm.visibleNotifications.length) {
+          return TextButton(
+            onPressed: vm.showMore,
+            child: const Text('Xem thêm'),
+          );
+        }
+        final notification = vm.visibleNotifications[index];
+        return _AdminNotificationTile(
+          notification: notification,
+          onTap: notification.id <= 0
+              ? null
+              : () => vm.markAsRead(id: notification.id, token: token),
+        );
+      },
+    );
+  }
+}
+
+class _AdminNotificationTile extends StatelessWidget {
+  final NotificationEntity notification;
+  final VoidCallback? onTap;
+
+  const _AdminNotificationTile({
+    required this.notification,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE6F4F1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications_outlined,
+                size: 18,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification.title.isEmpty
+                        ? 'Thông báo'
+                        : notification.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    notification.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminNotificationEmpty extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const _AdminNotificationEmpty({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 30, color: AppColors.textSecondary),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

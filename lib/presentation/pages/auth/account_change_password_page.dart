@@ -5,17 +5,17 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/services/toast_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
-class DoctorChangePasswordPage extends StatefulWidget {
+class AccountChangePasswordPage extends StatefulWidget {
   final VoidCallback onCancel;
 
-  const DoctorChangePasswordPage({super.key, required this.onCancel});
+  const AccountChangePasswordPage({super.key, required this.onCancel});
 
   @override
-  State<DoctorChangePasswordPage> createState() =>
-      _DoctorChangePasswordPageState();
+  State<AccountChangePasswordPage> createState() =>
+      _AccountChangePasswordPageState();
 }
 
-class _DoctorChangePasswordPageState extends State<DoctorChangePasswordPage> {
+class _AccountChangePasswordPageState extends State<AccountChangePasswordPage> {
   final _formKey = GlobalKey<FormState>();
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();

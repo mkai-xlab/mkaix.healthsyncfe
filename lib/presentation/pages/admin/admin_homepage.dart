@@ -12,6 +12,7 @@ import 'package:fe/data/datasources/permission_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 import 'package:fe/presentation/pages/admin/permission_page.dart';
 import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart';
+import 'package:fe/presentation/pages/admin/audit_log_page.dart';
 import 'package:fe/presentation/pages/auth/account_change_password_page.dart';
 import 'package:fe/presentation/widgets/pagination_bar.dart';
 import 'package:http/http.dart' as http;
@@ -374,6 +375,18 @@ class _AdminHomepageState extends State<AdminHomepage> {
     }
 
     // Mặc định hiển thị Dashboard (index 0)
+    if (_selectedNavIndex == 3) {
+      return Container(
+        color: const Color(0xFFF0F4F3),
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            const Expanded(child: AuditLogPage()),
+          ],
+        ),
+      );
+    }
+
     return Container(
       color: const Color(0xFFF5F5F5),
       child: Column(
@@ -539,9 +552,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
           ),
           const SizedBox(height: 20),
 
-          // Stat cards
-          _buildUserStatCards(viewModel),
-          const SizedBox(height: 20),
+          // Stat cards are temporarily hidden.
+          // _buildUserStatCards(viewModel),
+          // const SizedBox(height: 20),
 
           // Filter bar
           _buildFilterBar(context, viewModel),

@@ -17,10 +17,12 @@ import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/doctor_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/examination_viewmodel.dart';
 import 'package:fe/data/datasources/admin_remote_datasource.dart';
+import 'package:fe/data/datasources/audit_log_remote_datasource.dart';
 import 'package:fe/data/datasources/dicom_remote_datasource.dart';
 import 'package:fe/data/datasources/doctor_profile_remote_datasource.dart';
 import 'package:fe/data/datasources/notification_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/audit_log_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/dicom_upload_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/doctor_profile_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
@@ -56,6 +58,10 @@ Future<void> main() async {
   // Admin
   final adminRemoteDataSource = AdminRemoteDataSourceImpl(httpClient);
   final adminAccountViewModel = AdminAccountViewModel(adminRemoteDataSource);
+
+  // Audit logs
+  final auditLogRemoteDataSource = AuditLogRemoteDataSource(httpClient);
+  final auditLogViewModel = AuditLogViewModel(auditLogRemoteDataSource);
 
   // DICOM upload
   final dicomRemoteDataSource = DicomRemoteDataSourceImpl(httpClient);
@@ -97,6 +103,7 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: doctorViewModel),
         ChangeNotifierProvider.value(value: examinationViewModel),
         ChangeNotifierProvider.value(value: adminAccountViewModel),
+        ChangeNotifierProvider.value(value: auditLogViewModel),
         ChangeNotifierProvider.value(value: dicomUploadViewModel),
         ChangeNotifierProvider.value(value: doctorProfileViewModel),
         ChangeNotifierProvider.value(value: notificationViewModel),

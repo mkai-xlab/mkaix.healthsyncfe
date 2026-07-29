@@ -238,7 +238,6 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     required String errorMessage,
   }) async {
     final uri = Uri.parse(endpoint);
-    _logRequest('GET', uri, token);
     final response = await client
         .get(
           uri,
@@ -294,7 +293,6 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
           'sort': 'asc',
         },
       );
-      _logRequest('GET', uri, token);
       final response = await client
           .get(
             uri,
@@ -364,7 +362,6 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         if (includeSort) 'sort': 'asc',
       },
     );
-    _logRequest('GET', uri, token);
     final response = await client
         .get(
           uri,
@@ -455,13 +452,5 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       return 'Chưa nhận được phản hồi từ sever ($statusCode)';
     }
     return '$fallbackMessage ($statusCode)';
-  }
-
-  void _logRequest(String method, Uri uri, String token) {
-    debugPrint(
-      '[Examination API request] $method $uri, '
-      'Authorization=${token.trim().isEmpty ? 'missing' : 'Bearer ***'}',
-      wrapWidth: 1024,
-    );
   }
 }

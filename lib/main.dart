@@ -126,7 +126,9 @@ class MyApp extends StatelessWidget {
           data: mediaQuery.copyWith(
             textScaler: TextScaler.linear(currentTextScale * _compactTextScale),
           ),
-          child: child ?? const SizedBox.shrink(),
+          child: _RealtimeNotificationConnector(
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
       },
       theme: ThemeData(
@@ -192,4 +194,44 @@ class MyApp extends StatelessWidget {
       ),
     );
   }
+}
+
+class _RealtimeNotificationConnector extends StatefulWidget {
+  final Widget child;
+
+  const _RealtimeNotificationConnector({required this.child});
+
+  @override
+  State<_RealtimeNotificationConnector> createState() =>
+      _RealtimeNotificationConnectorState();
+}
+
+class _RealtimeNotificationConnectorState
+    extends State<_RealtimeNotificationConnector> {
+  String? _connectedToken;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final token = context.watch<AuthViewModel>().currentUser?.token ?? '';
+    final notificationVm = context.read<NotificationViewModel>();
+
+    if (token.trim().isEmpty) {
+      if (_connectedToken != null) {
+        notificationVm.disconnectRealtime();
+        _connectedToken = null;
+      }
+      return;
+    }
+
+    if (_connectedToken == token) return;
+    _connectedToken = token;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _connectedToken != token) return;
+      notificationVm.connectRealtime(token);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

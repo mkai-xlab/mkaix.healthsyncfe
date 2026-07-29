@@ -1634,7 +1634,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             isSubmitting = true;
                             submitError = null;
                           });
-                          final success = await viewModel.createDoctor(
+                          final success = await viewModel.createDoctorSilently(
                             doctorData: {
                               'fullName': nameController.text.trim(),
                               'email': emailController.text.trim(),
@@ -1642,13 +1642,17 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             },
                             token: token,
                           );
-                          if (!mounted || !dialogContext.mounted) return;
+                          if (!mounted ||
+                              !context.mounted ||
+                              !dialogContext.mounted) {
+                            return;
+                          }
                           if (success) {
                             Navigator.pop(dialogContext);
                             await viewModel.fetchFirstPage(token);
                             AppToast.showSuccess('Tạo bác sĩ thành công');
                           }
-                          if (!success) {
+                          if (!success && context.mounted) {
                             setDialogState(() {
                               isSubmitting = false;
                               submitError =

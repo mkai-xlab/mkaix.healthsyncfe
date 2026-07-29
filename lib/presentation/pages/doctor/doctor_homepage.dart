@@ -11,6 +11,7 @@ import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/notification_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
+import 'doctor_change_password_page.dart';
 import 'doctor_dashboard_page.dart';
 import 'doctor_profile_page.dart';
 import 'examination_list_page.dart';
@@ -30,6 +31,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   final _searchController = TextEditingController();
   bool _showUploadExaminationList = false;
   bool _showDoctorProfile = false;
+  bool _showChangePassword = false;
   bool _isUploadMiniProgressCollapsed = false;
   final List<ExaminationEntity> _newUploadExaminations = const [];
   PatientEntity? _selectedPatientDetail;
@@ -264,6 +266,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         setState(() {
           _selectedNavIndex = index;
           _showDoctorProfile = false;
+          _showChangePassword = false;
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
         });
@@ -341,6 +344,19 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   // MAIN CONTENT ROUTER
   // ─────────────────────────────────────────────
   Widget _buildMainContent(BuildContext context) {
+    if (_showChangePassword) {
+      return DoctorChangePasswordPage(
+        onCancel: () {
+          setState(() {
+            _showChangePassword = false;
+            _showDoctorProfile = true;
+            _showUploadExaminationList = false;
+            _selectedPatientDetail = null;
+          });
+        },
+      );
+    }
+
     if (_showDoctorProfile) {
       return const DoctorProfilePage(embedded: true);
     }
@@ -436,6 +452,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     setState(() {
       _selectedNavIndex = examIndex;
       _showDoctorProfile = false;
+      _showChangePassword = false;
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
     });
@@ -637,6 +654,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     setState(() {
       _selectedNavIndex = uploadIndex;
       _showDoctorProfile = false;
+      _showChangePassword = false;
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
       _isUploadMiniProgressCollapsed = false;
@@ -732,6 +750,13 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                       ),
                     ),
                     PopupMenuItem<_DoctorUserMenuAction>(
+                      value: _DoctorUserMenuAction.changePassword,
+                      child: _UserMenuItem(
+                        icon: Icons.lock_reset_rounded,
+                        label: 'Đổi mật khẩu',
+                      ),
+                    ),
+                    PopupMenuItem<_DoctorUserMenuAction>(
                       value: _DoctorUserMenuAction.logout,
                       child: _UserMenuItem(
                         icon: Icons.logout_rounded,
@@ -756,8 +781,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                           radius: 15,
                           backgroundColor: const Color(0xFFE6F4F1),
                           child: Text(
-                            vm.currentUser?.name.isNotEmpty == true
-                                ? vm.currentUser!.name[0].toUpperCase()
+                            vm.currentUser?.displayName.isNotEmpty == true
+                                ? vm.currentUser!.displayName[0].toUpperCase()
                                 : 'B',
                             style: const TextStyle(
                               fontSize: 12,
@@ -772,7 +797,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'BS. ${vm.currentUser?.name ?? 'Bac si'}',
+                              'BS. ${vm.currentUser?.displayName ?? 'Bac si'}',
                               style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -812,6 +837,15 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       case _DoctorUserMenuAction.profile:
         setState(() {
           _showDoctorProfile = true;
+          _showChangePassword = false;
+          _showUploadExaminationList = false;
+          _selectedPatientDetail = null;
+        });
+        break;
+      case _DoctorUserMenuAction.changePassword:
+        setState(() {
+          _showChangePassword = true;
+          _showDoctorProfile = false;
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
         });
@@ -1334,7 +1368,11 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           _showPermissionDeniedToast('Không có quyền xem chi tiết bệnh nhân');
           return;
         }
-        setState(() => _selectedPatientDetail = p);
+        setState(() {
+          _showChangePassword = false;
+          _showDoctorProfile = false;
+          _selectedPatientDetail = p;
+        });
       },
       hoverColor: const Color(0xFFF0F4F3),
       child: Container(
@@ -1420,7 +1458,11 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                   );
                   return;
                 }
-                setState(() => _selectedPatientDetail = p);
+                setState(() {
+                  _showChangePassword = false;
+                  _showDoctorProfile = false;
+                  _selectedPatientDetail = p;
+                });
               },
             ),
           ],
@@ -1773,7 +1815,7 @@ class _TableHeader extends StatelessWidget {
 }
 */
 
-enum _DoctorUserMenuAction { profile, logout }
+enum _DoctorUserMenuAction { profile, changePassword, logout }
 
 class _UserMenuItem extends StatelessWidget {
   final IconData icon;

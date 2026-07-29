@@ -3,7 +3,8 @@ import '../../domain/entities/user_entity.dart';
 class UserModel extends UserEntity {
   UserModel({
     required super.id,
-    required super.name,
+    required super.username,
+    required super.fullName,
     required super.token,
     required super.roles,
     super.permissions,
@@ -121,13 +122,21 @@ class UserModel extends UserEntity {
         json['id'] ??
         json['username'] ??
         '';
+    final resolvedUsername =
+        json['username'] ??
+        userJson?['username'] ??
+        doctorJson?['username'] ??
+        '';
 
     return UserModel(
       id: resolvedId.toString(),
-      name:
-          json['fullName'] ??
-          json['username'] ??
-          '', // Uu tien ho ten day du, fallback username neu backend khong tra ve fullName
+      username: resolvedUsername.toString(),
+      fullName:
+          (json['fullName'] ??
+                  userJson?['fullName'] ??
+                  doctorJson?['fullName'] ??
+                  '')
+              .toString(),
       token:
           json['accessToken'] ??
           json['token'] ??

@@ -6,8 +6,23 @@
 - API version: `v0`
 - Base URL: `http://54.254.113.71:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
+- Last OpenAPI refresh: `2026-07-30`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
+
+## Latest OpenAPI Changes
+
+- `GET /examinations/total`, `/total-verified`, `/total-unverified`, and `/total-severe` now require query `userId`.
+- `GET /audit-logs` only documents Spring `pageable`; no `keyword`, `actor`, `action`, `status`, or `sort` filters are documented in the latest spec.
+- New/confirmed upload endpoints: `PUT /doctors/profile/avatar`, `POST /files/upload-avatar`, and `POST /s3/test-upload`.
+- New/confirmed report file endpoints: `GET /reports/{reportId}/preview` and `GET /reports/{reportId}/download`.
+- New/confirmed image endpoint: `GET /ai/image/{imageId}`.
+- New/confirmed patient date endpoint: `GET /patients/filter/upload-date`.
+- Delete endpoints are documented for permissions, features, patients, and doctors.
+- `AuditLogResponse` fields are `id`, `username`, `title`, `description`, `ipAddress`, `userAgent`, `timeStamp`.
+- `LoginResponse` includes `fullName`.
+- `CreateDoctorRequest` requires `fullName`, `email`, and `phone`.
+- `ChangePasswordRequest` requires `username`, `oldPassword`, and `newPassword`.
 
 ## Authentication
 
@@ -17,6 +32,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 | `POST` | `/auth/forgot-password` | Request reset token | `ForgotPasswordRequest` | `200 OK` |
 | `POST` | `/auth/reset-password` | Reset password | `ResetPasswordRequest` | `200 OK` |
 | `POST` | `/auth/change-password` | Change first-time/current password | `ChangePasswordRequest` | `200 OK` |
+| `POST` | `/auth/logout` | Logout session | Header `Authorization`, `LogoutRequest` with `refreshToken` | `200 OK` |
 
 Authenticated requests should send `Authorization: Bearer <accessToken>`.
 
@@ -35,6 +51,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/doctors/active` | Get active doctors | `DoctorResponse[]` |
 | `GET` | `/doctors/profile` | Get current doctor profile | `DoctorResponse` |
 | `PUT` | `/doctors/profile` | Edit current doctor profile | `DoctorResponse` |
+| `PUT` | `/doctors/profile/avatar` | Upload current doctor avatar as multipart `file` | `DoctorResponse` |
 
 ## Patients
 
@@ -45,6 +62,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `PUT` | `/patients/{id}` | Edit patient | `PatientResponse` |
 | `DELETE` | `/patients/{id}` | Delete patient | `200 OK` |
 | `GET` | `/patients/{patientId}/details` | Patient details with recent examinations/images | `PatientDetailsResponse` |
+| `GET` | `/patients/filter/upload-date` | Patients filtered by upload date. Required `date`, `pageable` | `PageResponsePatientResponse` |
 
 ## Examinations
 
@@ -63,10 +81,10 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/examinations/filter/study-date` | Filter by study date | `PageResponseExaminationDto` |
 | `GET` | `/examinations/sort/upload-date` | Sort by upload date | `PageResponseExaminationDto` |
 | `GET` | `/examinations/sort/study-date` | Sort by study date | `PageResponseExaminationDto` |
-| `GET` | `/examinations/total` | Total examinations | `number` |
-| `GET` | `/examinations/total-verified` | Total verified examinations | `number` |
-| `GET` | `/examinations/total-unverified` | Total unverified examinations | `number` |
-| `GET` | `/examinations/total-severe` | Total severe examinations | `number` |
+| `GET` | `/examinations/total` | Total examinations for required `userId` | `number` |
+| `GET` | `/examinations/total-verified` | Total verified examinations for required `userId` | `number` |
+| `GET` | `/examinations/total-unverified` | Total unverified examinations for required `userId` | `number` |
+| `GET` | `/examinations/total-severe` | Total severe examinations for required `userId` | `number` |
 | `GET` | `/examinations/my-total` | Current doctor's total examinations | `number` |
 | `GET` | `/examinations/my-total-verified` | Current doctor's verified examinations | `number` |
 | `GET` | `/examinations/my-total-unverified` | Current doctor's unverified examinations | `number` |
@@ -77,10 +95,10 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 
 | Method | Path | Purpose | Response |
 | --- | --- | --- | --- |
-| `GET` | `/examinations/total` | Total examinations | number |
-| `GET` | `/examinations/total-verified` | Total verified examinations | number |
-| `GET` | `/examinations/total-unverified` | Total unverified examinations | number |
-| `GET` | `/examinations/total-severe` | Total severe examinations | number |
+| `GET` | `/examinations/total` | Total examinations for required `userId` | number |
+| `GET` | `/examinations/total-verified` | Total verified examinations for required `userId` | number |
+| `GET` | `/examinations/total-unverified` | Total unverified examinations for required `userId` | number |
+| `GET` | `/examinations/total-severe` | Total severe examinations for required `userId` | number |
 | `GET` | `/examinations/my-total` | Current doctor's total examinations | number |
 | `GET` | `/examinations/my-total-verified` | Current doctor's verified examinations | number |
 | `GET` | `/examinations/my-total-unverified` | Current doctor's unverified examinations | number |
@@ -101,8 +119,11 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/dicom/total-studies` | Total DICOM studies | number |
 | `POST` | `/ai/predict-batch` | Run AI prediction for DICOM instances | `ExaminationDto[]` |
 | `GET` | `/ai/heatmap/{aiResultId}` | Get heatmap image | binary/image |
+| `GET` | `/ai/image/{imageId}` | Get AI image | binary/image |
 | `PUT` | `/ai/results/{aiResultId}/kl-grade` | Adjust KL grade | `DiagnosisReviewResponse` |
 | `PUT` | `/ai/results/{aiResultId}/confirm` | Confirm AI grade | `DiagnosisReviewResponse` |
+| `POST` | `/files/upload-avatar` | Upload avatar as multipart `file` | `Map<String, String>` |
+| `POST` | `/s3/test-upload` | Test S3 upload with required `folderName`, `fileName`, multipart `file` | `string` |
 
 ## Permissions And Features
 
@@ -111,10 +132,19 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/permissions/tree` | Get permission catalog tree | permission tree |
 | `POST` | `/permissions` | Create permission | `PermissionResponse` |
 | `PUT` | `/permissions/{id}` | Update permission | `PermissionResponse` |
+| `DELETE` | `/permissions/{id}` | Delete permission | `200 OK` |
 | `GET` | `/permissions/role/{roleName}` | Get permission ids for role | `int64[]` |
 | `PUT` | `/permissions/role/{roleName}` | Replace role permissions | `200 OK` |
 | `POST` | `/features` | Create feature | `FeatureResponse` |
 | `PUT` | `/features/{id}` | Update feature | `FeatureResponse` |
+| `DELETE` | `/features/{id}` | Delete feature | `200 OK` |
+
+## Reports
+
+| Method | Path | Purpose | Response |
+| --- | --- | --- | --- |
+| `GET` | `/reports/{reportId}/preview` | Preview generated report | binary |
+| `GET` | `/reports/{reportId}/download` | Download generated report | binary |
 
 ## Notifications And Audit
 
@@ -124,7 +154,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/notifications/unread` | Get unread notifications | `NotificationDto[]` |
 | `PUT` | `/notifications/{id}/read` | Mark notification as read | `string` |
 | `POST` | `/notifications/send` | Send test notification | `string` |
-| `GET` | `/audit-logs` | Get audit logs | `PageResponseAuditLogResponse` |
+| `GET` | `/audit-logs` | Get audit logs. Latest spec documents only Spring `pageable` query | `PageResponseAuditLogResponse` |
 
 ## Request Rules
 

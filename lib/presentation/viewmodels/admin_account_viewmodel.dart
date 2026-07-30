@@ -109,6 +109,21 @@ class AdminAccountViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> createDoctorSilently({
+    required Map<String, dynamic> doctorData,
+    required String token,
+  }) async {
+    _errorMessage = null;
+
+    try {
+      await dataSource.createDoctor(doctorData: doctorData, token: token);
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    }
+  }
+
   Future<bool> createUser({
     required String fullName,
     required String email,

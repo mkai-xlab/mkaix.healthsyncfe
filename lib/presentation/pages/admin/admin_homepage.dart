@@ -5,11 +5,17 @@ import 'package:fe/core/services/toast_service.dart';
 import '../../../core/constants/app_colors.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/admin_dashboard_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/audit_log_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:fe/domain/entities/doctor_account_entity.dart';
+import 'package:fe/domain/entities/notification_entity.dart';
 import 'package:fe/data/datasources/permission_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 import 'package:fe/presentation/pages/admin/permission_page.dart';
 import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart';
+import 'package:fe/presentation/pages/admin/audit_log_page.dart';
+import 'package:fe/presentation/pages/auth/account_change_password_page.dart';
 import 'package:fe/presentation/widgets/pagination_bar.dart';
 import 'package:http/http.dart' as http;
 
@@ -23,6 +29,9 @@ class AdminHomepage extends StatefulWidget {
 class _AdminHomepageState extends State<AdminHomepage> {
   int _selectedNavIndex = 0;
   DoctorAccountEntity? _selectedUser;
+  bool _showChangePassword = false;
+
+  String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
 
   @override
   void initState() {
@@ -30,6 +39,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final token = context.read<AuthViewModel>().currentUser?.token ?? '';
       context.read<AdminAccountViewModel>().fetchFirstPage(token);
+      context.read<AdminDashboardViewModel>().loadStats(token);
+      context.read<AuditLogViewModel>().fetchFirstPage(token);
     });
   }
 
@@ -167,19 +178,22 @@ class _AdminHomepageState extends State<AdminHomepage> {
           // Logout Button
           Padding(
             padding: const EdgeInsets.all(12),
-            child: ListTile(
-              leading: const Icon(
-                Icons.logout,
-                color: Colors.white70,
-                size: 20,
+            child: Material(
+              color: Colors.transparent,
+              child: ListTile(
+                leading: const Icon(
+                  Icons.logout,
+                  color: Colors.white70,
+                  size: 20,
+                ),
+                title: const Text(
+                  'Đăng xuất',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                onTap: () {
+                  context.read<AuthViewModel>().logout();
+                },
               ),
-              title: const Text(
-                'Đăng xuất',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              onTap: () {
-                context.read<AuthViewModel>().logout();
-              },
             ),
           ),
         ],
@@ -189,30 +203,35 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   Widget _buildNavItem(int index, String label, IconData icon) {
     final isSelected = _selectedNavIndex == index;
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? Colors.white : Colors.white70,
-        size: 20,
-      ),
-      title: Text(
-        label,
-        style: TextStyle(
+    final borderRadius = BorderRadius.circular(8);
+    return Material(
+      color: isSelected
+          ? Colors.white.withValues(alpha: 0.1)
+          : Colors.transparent,
+      borderRadius: borderRadius,
+      child: ListTile(
+        leading: Icon(
+          icon,
           color: isSelected ? Colors.white : Colors.white70,
-          fontSize: 14,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          size: 20,
         ),
+        title: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white70,
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+        onTap: () {
+          setState(() {
+            _selectedNavIndex = index;
+            _showChangePassword = false;
+          });
+        },
+        shape: RoundedRectangleBorder(borderRadius: borderRadius),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
-      onTap: () {
-        setState(() {
-          _selectedNavIndex = index;
-        });
-      },
-      tileColor: isSelected ? Colors.white.withOpacity(0.1) : null,
-      shape: isSelected
-          ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
-          : null,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 
@@ -308,16 +327,19 @@ class _AdminHomepageState extends State<AdminHomepage> {
             ),
             Padding(
               padding: const EdgeInsets.all(12),
-              child: ListTile(
-                leading: const Icon(Icons.logout, color: Colors.white70),
-                title: const Text(
-                  'Đăng xuất',
-                  style: TextStyle(color: Colors.white70),
+              child: Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.white70),
+                  title: const Text(
+                    'Đăng xuất',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  onTap: () {
+                    context.read<AuthViewModel>().logout();
+                    Navigator.pop(context);
+                  },
                 ),
-                onTap: () {
-                  context.read<AuthViewModel>().logout();
-                  Navigator.pop(context);
-                },
               ),
             ),
           ],
@@ -327,6 +349,22 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildMainContent(BuildContext context) {
+    if (_showChangePassword) {
+      return Container(
+        color: const Color(0xFFF0F4F3),
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            Expanded(
+              child: AccountChangePasswordPage(
+                onCancel: () => setState(() => _showChangePassword = false),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     if (_selectedNavIndex == 1) {
       return _buildUserManagementPage(context);
     }
@@ -351,6 +389,18 @@ class _AdminHomepageState extends State<AdminHomepage> {
     }
 
     // Mặc định hiển thị Dashboard (index 0)
+    if (_selectedNavIndex == 3) {
+      return Container(
+        color: const Color(0xFFF0F4F3),
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            const Expanded(child: AuditLogPage()),
+          ],
+        ),
+      );
+    }
+
     return Container(
       color: const Color(0xFFF5F5F5),
       child: Column(
@@ -420,7 +470,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             child: Consumer<AdminAccountViewModel>(
               builder: (context, viewModel, child) {
                 return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // ── LEFT: main list ──
                     Expanded(
@@ -516,9 +566,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
           ),
           const SizedBox(height: 20),
 
-          // Stat cards
-          _buildUserStatCards(viewModel),
-          const SizedBox(height: 20),
+          // Stat cards are temporarily hidden.
+          // _buildUserStatCards(viewModel),
+          // const SizedBox(height: 20),
 
           // Filter bar
           _buildFilterBar(context, viewModel),
@@ -1199,50 +1249,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
           ),
           const SizedBox(height: 16),
           _buildStaffStructure(viewModel),
-          const SizedBox(height: 24),
-
-          // ── Hoạt động gần đây ──
-          const Text(
-            'Hoạt động gần đây',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1A2B3C),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildRecentActivity(
-            Icons.login,
-            'BS. An vừa đăng nhập',
-            '2 phút trước',
-            color: const Color(0xFF2D7E6E),
-          ),
-          _buildRecentActivity(
-            Icons.lock_reset,
-            'Đổi pass: maile_rad',
-            '45 phút trước',
-            color: const Color(0xFFD97706),
-          ),
-          _buildRecentActivity(
-            Icons.person_add_outlined,
-            'Thêm mới: BS. Hùng',
-            '2 giờ trước',
-            color: const Color(0xFF3B82F6),
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF2D7E6E),
-                padding: EdgeInsets.zero,
-              ),
-              child: const Text(
-                'Toàn bộ nhật ký',
-                style: TextStyle(fontSize: 12),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -1364,53 +1370,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildRecentActivity(
-    IconData icon,
-    String text,
-    String time, {
-    Color color = const Color(0xFF718096),
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 14, color: color),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  text,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF1A2B3C),
-                  ),
-                ),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF718096),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -1634,7 +1593,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             isSubmitting = true;
                             submitError = null;
                           });
-                          final success = await viewModel.createDoctor(
+                          final success = await viewModel.createDoctorSilently(
                             doctorData: {
                               'fullName': nameController.text.trim(),
                               'email': emailController.text.trim(),
@@ -1642,13 +1601,17 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             },
                             token: token,
                           );
-                          if (!mounted || !dialogContext.mounted) return;
+                          if (!mounted ||
+                              !context.mounted ||
+                              !dialogContext.mounted) {
+                            return;
+                          }
                           if (success) {
                             Navigator.pop(dialogContext);
                             await viewModel.fetchFirstPage(token);
                             AppToast.showSuccess('Tạo bác sĩ thành công');
                           }
-                          if (!success) {
+                          if (!success && context.mounted) {
                             setDialogState(() {
                               isSubmitting = false;
                               submitError =
@@ -2350,6 +2313,123 @@ class _AdminHomepageState extends State<AdminHomepage> {
   Widget _buildTopBar(BuildContext context) {
     return Container(
       color: Colors.white,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      child: Row(
+        children: [
+          if (MediaQuery.of(context).size.width < 900)
+            Padding(
+              padding: const EdgeInsets.only(right: 10),
+              child: IconButton(
+                icon: const Icon(
+                  Icons.menu,
+                  color: AppColors.primary,
+                  size: 22,
+                ),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(),
+              ),
+            ),
+          const Spacer(),
+          _notificationButton(context),
+          const SizedBox(width: 12),
+          Consumer<AuthViewModel>(
+            builder: (context, vm, _) => PopupMenuButton<_AdminUserMenuAction>(
+              tooltip: 'Tài khoản',
+              color: Colors.white,
+              surfaceTintColor: Colors.white,
+              elevation: 10,
+              offset: const Offset(0, 46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              onSelected: (action) => _handleAdminUserMenuAction(action),
+              itemBuilder: (context) => const [
+                PopupMenuItem<_AdminUserMenuAction>(
+                  value: _AdminUserMenuAction.changePassword,
+                  child: _AdminUserMenuItem(
+                    icon: Icons.lock_reset_rounded,
+                    label: 'Đổi mật khẩu',
+                  ),
+                ),
+                PopupMenuItem<_AdminUserMenuAction>(
+                  value: _AdminUserMenuAction.logout,
+                  child: _AdminUserMenuItem(
+                    icon: Icons.logout_rounded,
+                    label: 'Đăng xuất',
+                    isDestructive: true,
+                  ),
+                ),
+              ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    CircleAvatar(
+                      radius: 15,
+                      backgroundColor: const Color(0xFFE6F4F1),
+                      child: Text(
+                        vm.currentUser?.displayName.isNotEmpty == true
+                            ? vm.currentUser!.displayName[0].toUpperCase()
+                            : 'A',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          vm.currentUser?.displayName ?? 'Admin',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1A2B3C),
+                          ),
+                        ),
+                        const Text(
+                          'Quản trị hệ thống',
+                          style: TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF718096),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: Color(0xFF718096),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildLegacyTopBar(BuildContext context) {
+    return Container(
+      color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Row(
         children: [
@@ -2435,7 +2515,97 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
+  void _handleAdminUserMenuAction(_AdminUserMenuAction action) {
+    switch (action) {
+      case _AdminUserMenuAction.changePassword:
+        setState(() => _showChangePassword = true);
+        break;
+      case _AdminUserMenuAction.logout:
+        context.read<AuthViewModel>().logout();
+        break;
+    }
+  }
+
+  Widget _notificationButton(BuildContext context) {
+    return Consumer<NotificationViewModel>(
+      builder: (context, vm, _) {
+        return PopupMenuButton<void>(
+          tooltip: 'Thông báo',
+          position: PopupMenuPosition.under,
+          offset: const Offset(0, 8),
+          color: Colors.white,
+          elevation: 12,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          constraints: const BoxConstraints.tightFor(width: 380),
+          onOpened: () => vm.loadUnreadNotifications(_token),
+          itemBuilder: (context) => [
+            PopupMenuItem<void>(
+              enabled: false,
+              padding: EdgeInsets.zero,
+              child: _AdminNotificationDropdown(token: _token),
+            ),
+          ],
+          child: SizedBox(
+            width: 34,
+            height: 34,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Center(
+                  child: Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: vm.unreadCount > 0
+                          ? const Color(0xFFEAF2FF)
+                          : Colors.transparent,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.notifications_outlined,
+                      color: Color(0xFF718096),
+                      size: 20,
+                    ),
+                  ),
+                ),
+                if (vm.unreadCount > 0)
+                  Positioned(
+                    top: -2,
+                    right: -2,
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        minWidth: 17,
+                        minHeight: 17,
+                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE53E3E),
+                        borderRadius: BorderRadius.circular(99),
+                        border: Border.all(color: Colors.white, width: 1.5),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        vm.unreadCount > 99 ? '99+' : vm.unreadCount.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Widget _buildStatisticsSection() {
+    return _buildDashboardStatsFromApi();
+
+    // ignore: dead_code
     return Row(
       children: [
         _buildStatCard(
@@ -2481,6 +2651,73 @@ class _AdminHomepageState extends State<AdminHomepage> {
           progressValue: 0.998,
         ),
       ],
+    );
+  }
+
+  Widget _buildDashboardStatsFromApi() {
+    return Consumer<AdminDashboardViewModel>(
+      builder: (context, vm, _) {
+        final stats = vm.stats;
+        final verifiedProgress = stats.totalExaminations <= 0
+            ? 0.0
+            : stats.verifiedExaminations / stats.totalExaminations;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (vm.isLoading)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 10),
+                child: LinearProgressIndicator(minHeight: 3),
+              ),
+            Row(
+              children: [
+                _buildStatCard(
+                  'Tổng số ca phân tích',
+                  _formatCount(stats.totalExaminations),
+                  '${_formatCount(stats.totalDicomStudies)} DICOM studies',
+                  Colors.blue,
+                  Icons.assessment,
+                  showProgress: true,
+                  progressValue: verifiedProgress.clamp(0.0, 1.0),
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Ca nguy cơ cao',
+                  _formatCount(stats.severeExaminations),
+                  'KL nặng cần theo dõi',
+                  Colors.orange,
+                  Icons.warning_amber,
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Chờ xác nhận',
+                  _formatCount(stats.unverifiedExaminations),
+                  '${_formatCount(stats.verifiedExaminations)} đã xác nhận',
+                  Colors.teal,
+                  Icons.fact_check_outlined,
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Bác sĩ hoạt động',
+                  _formatCount(stats.activeDoctors),
+                  '${_formatCount(stats.totalDoctors)} tổng bác sĩ',
+                  Colors.purple,
+                  Icons.people,
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Bệnh nhân',
+                  _formatCount(stats.totalPatients),
+                  'Tổng hồ sơ bệnh nhân',
+                  Colors.green,
+                  Icons.personal_injury_outlined,
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -2895,6 +3132,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildActivityLog() {
+    return _buildAuditLogFromApi();
+
+    // ignore: dead_code
     final activities = [
       {
         'time': '14:25:31, 24/05/2024',
@@ -3067,6 +3307,174 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
+  Widget _buildAuditLogFromApi() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Hoạt động hệ thống gần đây',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _selectedNavIndex = 3),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF2D7E6E),
+                  ),
+                  child: const Text(
+                    'Xem tất cả lịch sử >',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Consumer<AuditLogViewModel>(
+            builder: (context, vm, _) {
+              if (vm.isLoading && vm.logs.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 28),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (vm.errorMessage != null && vm.logs.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    vm.errorMessage!,
+                    style: const TextStyle(fontSize: 12, color: Colors.red),
+                  ),
+                );
+              }
+              if (vm.logs.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Chưa có nhật ký hoạt động.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                );
+              }
+
+              final logs = vm.logs.take(5).toList();
+              return ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: logs.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final log = logs[index];
+                  final actor = log.userDisplay;
+                  final initial = actor.characters.first.toUpperCase();
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: _getAvatarColor(initial),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Center(
+                            child: Text(
+                              initial,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _formatAuditLogTime(log.timeStamp),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                actor,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                log.titleDisplay,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                log.descriptionDisplay,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatAuditLogTime(DateTime? date) {
+    if (date == null) return '---';
+    return DateFormat('HH:mm:ss, dd/MM/yyyy').format(date);
+  }
+
   Color _getAvatarColor(String initial) {
     switch (initial) {
       case 'M':
@@ -3104,6 +3512,246 @@ class _AdminHomepageState extends State<AdminHomepage> {
       default:
         return Colors.grey.shade700;
     }
+  }
+
+  String _formatCount(int value) {
+    return NumberFormat.decimalPattern('vi_VN').format(value);
+  }
+}
+
+enum _AdminUserMenuAction { changePassword, logout }
+
+class _AdminUserMenuItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool isDestructive;
+
+  const _AdminUserMenuItem({
+    required this.icon,
+    required this.label,
+    this.isDestructive = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isDestructive
+        ? const Color(0xFFD14343)
+        : const Color(0xFF1A2B3C);
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: color),
+        const SizedBox(width: 10),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _AdminNotificationDropdown extends StatelessWidget {
+  final String token;
+
+  const _AdminNotificationDropdown({required this.token});
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<NotificationViewModel>(
+      builder: (context, vm, _) {
+        return SizedBox(
+          height: 520,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        'Thông báo',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: 'Tải lại',
+                      visualDensity: VisualDensity.compact,
+                      iconSize: 18,
+                      onPressed: vm.isLoading
+                          ? null
+                          : () => vm.loadUnreadNotifications(token),
+                      icon: const Icon(Icons.refresh_outlined),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: _AdminNotificationBody(vm: vm, token: token),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _AdminNotificationBody extends StatelessWidget {
+  final NotificationViewModel vm;
+  final String token;
+
+  const _AdminNotificationBody({required this.vm, required this.token});
+
+  @override
+  Widget build(BuildContext context) {
+    if (vm.isLoading && vm.notifications.isEmpty) {
+      return const Center(
+        child: CircularProgressIndicator(color: AppColors.primary),
+      );
+    }
+    if (vm.errorMessage != null && vm.notifications.isEmpty) {
+      return _AdminNotificationEmpty(
+        icon: Icons.error_outline,
+        message: vm.errorMessage!,
+      );
+    }
+    if (vm.notifications.isEmpty) {
+      return const _AdminNotificationEmpty(
+        icon: Icons.notifications_none_outlined,
+        message: 'Chưa có thông báo mới.',
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      itemCount: vm.visibleNotifications.length + (vm.canShowMore ? 1 : 0),
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (context, index) {
+        if (index >= vm.visibleNotifications.length) {
+          return TextButton(
+            onPressed: vm.showMore,
+            child: const Text('Xem thêm'),
+          );
+        }
+        final notification = vm.visibleNotifications[index];
+        return _AdminNotificationTile(
+          notification: notification,
+          onTap: notification.id <= 0
+              ? null
+              : () => vm.markAsRead(id: notification.id, token: token),
+        );
+      },
+    );
+  }
+}
+
+class _AdminNotificationTile extends StatelessWidget {
+  final NotificationEntity notification;
+  final VoidCallback? onTap;
+
+  const _AdminNotificationTile({
+    required this.notification,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 34,
+              height: 34,
+              decoration: const BoxDecoration(
+                color: Color(0xFFE6F4F1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.notifications_outlined,
+                size: 18,
+                color: AppColors.primary,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    notification.title.isEmpty
+                        ? 'Thông báo'
+                        : notification.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    notification.message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      height: 1.35,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminNotificationEmpty extends StatelessWidget {
+  final IconData icon;
+  final String message;
+
+  const _AdminNotificationEmpty({required this.icon, required this.message});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 30, color: AppColors.textSecondary),
+            const SizedBox(height: 10),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -1,6 +1,7 @@
 class UserEntity {
   final String id;
-  final String name;
+  final String username;
+  final String fullName;
   final String token;
   final List<String> roles;
   final List<String> permissions;
@@ -8,7 +9,8 @@ class UserEntity {
 
   UserEntity({
     required this.id,
-    required this.name,
+    required this.username,
+    required this.fullName,
     required this.token,
     required this.roles,
     this.permissions = const [],
@@ -16,6 +18,8 @@ class UserEntity {
   });
 
   // Hàm tiện ích kiểm tra quyền nhanh ở tầng UI
+  String get displayName => fullName.trim().isNotEmpty ? fullName : username;
+
   bool get isAdmin => roles.contains('ADMIN');
   bool get isDoctor => roles.contains('DOCTOR');
 }

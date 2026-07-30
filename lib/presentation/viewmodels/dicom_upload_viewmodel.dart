@@ -20,6 +20,9 @@ enum DicomUploadStage {
 }
 
 class DicomUploadViewModel extends ChangeNotifier {
+  static const int maxUploadBatchSizeBytes = 100 * 1024 * 1024;
+  static const String maxUploadBatchSizeLabel = '100MB';
+
   final DicomRemoteDataSource remoteDataSource;
   final DicomWebSocketService webSocketService;
 
@@ -73,6 +76,16 @@ class DicomUploadViewModel extends ChangeNotifier {
 
   List<DicomUploadFile> _selectedFiles = [];
   List<DicomUploadFile> get selectedFiles => List.unmodifiable(_selectedFiles);
+
+  int get selectedFilesTotalSizeBytes => _totalFileSizeBytes(_selectedFiles);
+
+  bool get isSelectedBatchOverSizeLimit =>
+      selectedFilesTotalSizeBytes > maxUploadBatchSizeBytes;
+
+  bool get canUploadSelected =>
+      _selectedFiles.isNotEmpty &&
+      !_isUploading &&
+      !isSelectedBatchOverSizeLimit;
 
   bool get hasSelectedZip =>
       _selectedFiles.any((file) => _isZipFile(file.name));
@@ -292,6 +305,13 @@ class DicomUploadViewModel extends ChangeNotifier {
         continue;
       }
       mergedFiles.add(file);
+    }
+
+    if (_totalFileSizeBytes(mergedFiles) > maxUploadBatchSizeBytes) {
+      _errorMessage =
+          'Tổng dung lượng một lần upload không được vượt quá $maxUploadBatchSizeLabel.';
+      notifyListeners();
+      return;
     }
 
     _selectedFiles = mergedFiles;
@@ -601,6 +621,10 @@ class DicomUploadViewModel extends ChangeNotifier {
       return 'Chỉ hỗ trợ file .dcm hoặc .zip.';
     }
 
+    if (_totalFileSizeBytes(_selectedFiles) > maxUploadBatchSizeBytes) {
+      return 'Tổng dung lượng một lần upload không được vượt quá $maxUploadBatchSizeLabel.';
+    }
+
     final hasZip = _selectedFiles.any((file) => _isZipFile(file.name));
     final hasDcm = _selectedFiles.any((file) => _isDcmFile(file.name));
     if (hasZip && hasDcm) {
@@ -639,6 +663,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       'errors=${_batchErrors.length}, '
       'dicomInstanceCount=${dicomInstanceIdsForVerification.length}',
     );
+    _showBatchSuccessToast();
     _showBatchErrorToast();
     if (_successfulPatients.isEmpty) {
       _uploadStatusMessage =
@@ -669,6 +694,19 @@ class DicomUploadViewModel extends ChangeNotifier {
     return result != null &&
         result.successfulPatients.isEmpty &&
         result.errors.isEmpty;
+  }
+
+  void _showBatchSuccessToast() {
+    if (_successfulPatients.isEmpty) return;
+
+    final patientCount = _successfulPatients.length;
+    final errorSuffix = _batchErrors.isEmpty
+        ? ''
+        : ', ${_batchErrors.length} file lỗi';
+    AppToast.showSuccess(
+      'Đã xử lý $patientCount bệnh nhân$errorSuffix. Vui lòng xác nhận danh sách.',
+      title: 'Upload DICOM thành công',
+    );
   }
 
   void _showBatchErrorToast() {
@@ -886,6 +924,10 @@ class DicomUploadViewModel extends ChangeNotifier {
   bool _isZipFile(String name) => name.toLowerCase().endsWith('.zip');
 
   bool _isSupportedFile(String name) => _isDcmFile(name) || _isZipFile(name);
+
+  int _totalFileSizeBytes(List<DicomUploadFile> files) {
+    return files.fold<int>(0, (sum, file) => sum + file.bytes.length);
+  }
 
   String? _firstInvalidFileName(Iterable<String> names) {
     for (final name in names) {

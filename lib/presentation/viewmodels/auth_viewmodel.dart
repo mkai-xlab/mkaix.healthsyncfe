@@ -143,8 +143,8 @@ class AuthViewModel extends ChangeNotifier {
   Map<String, dynamic> _userToJson(UserEntity user) {
     return {
       'id': user.id,
-      'username': user.name,
-      'fullName': user.name,
+      'username': user.username,
+      'fullName': user.fullName,
       'token': user.token,
       'roles': user.roles,
       'permissions': user.permissionItems.isNotEmpty

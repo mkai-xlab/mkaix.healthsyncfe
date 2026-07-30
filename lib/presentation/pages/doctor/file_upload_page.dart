@@ -483,6 +483,17 @@ class FileUploadPage extends StatelessWidget {
                           color: AppColors.textSecondary,
                         ),
                       ),
+                      const SizedBox(height: 5),
+                      const Text(
+                        'Tối đa 100MB/lần upload.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          height: 1.35,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                       const SizedBox(height: 14),
                       ElevatedButton.icon(
                         onPressed: vm.isUploading
@@ -509,6 +520,22 @@ class FileUploadPage extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(height: 14),
+                      if (vm.selectedFiles.isNotEmpty) ...[
+                        _selectedFilesSummary(vm),
+                        if (vm.isSelectedBatchOverSizeLimit) ...[
+                          const SizedBox(height: 6),
+                          const Text(
+                            'Vui lòng bỏ bớt tệp để tổng dung lượng không quá 100MB.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.error,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 8),
+                      ],
                       SizedBox(
                         height: pendingFilesHeight,
                         child: _pendingFiles(vm),
@@ -522,7 +549,7 @@ class FileUploadPage extends StatelessWidget {
                         width: double.infinity,
                         height: 46,
                         child: ElevatedButton.icon(
-                          onPressed: vm.isUploading
+                          onPressed: !vm.canUploadSelected
                               ? null
                               : () async {
                                   await vm.uploadSelected(token);
@@ -636,6 +663,52 @@ class FileUploadPage extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  Widget _selectedFilesSummary(DicomUploadViewModel vm) {
+    final totalBytes = vm.selectedFilesTotalSizeBytes;
+    final isOverLimit = vm.isSelectedBatchOverSizeLimit;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: isOverLimit
+            ? AppColors.errorLight.withValues(alpha: 0.48)
+            : AppColors.primaryXLight.withValues(alpha: 0.22),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: isOverLimit ? AppColors.error : _border),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            isOverLimit ? Icons.error_outline : Icons.storage_outlined,
+            size: 17,
+            color: isOverLimit ? AppColors.error : _primary,
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              '${vm.selectedFiles.length} tệp đã chọn',
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          Text(
+            'Tổng: ${_formatMegabytes(totalBytes)} MB',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: isOverLimit ? AppColors.error : _primary,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1124,6 +1197,10 @@ class FileUploadPage extends StatelessWidget {
     final kb = bytes / 1024;
     if (kb < 1024) return '${kb.toStringAsFixed(1)} KB';
     return '${(kb / 1024).toStringAsFixed(1)} MB';
+  }
+
+  String _formatMegabytes(int bytes) {
+    return (bytes / 1024 / 1024).toStringAsFixed(1);
   }
 
   String _formatDuration(Duration duration) {

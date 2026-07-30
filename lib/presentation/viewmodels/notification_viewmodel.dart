@@ -1,12 +1,25 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
+import '../../core/services/dicom_websocket_service.dart';
 import '../../data/datasources/notification_remote_datasource.dart';
 import '../../domain/entities/notification_entity.dart';
 
 class NotificationViewModel extends ChangeNotifier {
   final NotificationRemoteDataSource remoteDataSource;
 
-  NotificationViewModel(this.remoteDataSource);
+  NotificationViewModel(
+    this.remoteDataSource, {
+    DicomWebSocketService? webSocketService,
+  }) : webSocketService = webSocketService ?? DicomWebSocketService() {
+    _notificationSubscription = this.webSocketService.notifications.listen(
+      _handleRealtimeNotification,
+    );
+  }
+
+  final DicomWebSocketService webSocketService;
+  StreamSubscription<DicomUploadNotification>? _notificationSubscription;
 
   List<NotificationEntity> _notifications = [];
   List<NotificationEntity> get notifications =>
@@ -27,6 +40,20 @@ class NotificationViewModel extends ChangeNotifier {
       _notifications.take(_visibleCount).toList();
 
   bool get canShowMore => _visibleCount < _notifications.length;
+
+  Future<void> connectRealtime(String token) async {
+    if (token.trim().isEmpty) return;
+    try {
+      await webSocketService.connect(token);
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      notifyListeners();
+    }
+  }
+
+  void disconnectRealtime() {
+    webSocketService.disconnect();
+  }
 
   Future<void> loadUnreadNotifications(String token) async {
     if (token.trim().isEmpty || _isLoading) return;
@@ -90,5 +117,38 @@ class NotificationViewModel extends ChangeNotifier {
     if (_visibleCount > _notifications.length) {
       _visibleCount = _notifications.length;
     }
+  }
+
+  void _handleRealtimeNotification(DicomUploadNotification notification) {
+    final title = notification.title.trim();
+    final message = notification.message.trim();
+    if (title.isEmpty && message.isEmpty) return;
+
+    final item = NotificationEntity(
+      id: DateTime.now().microsecondsSinceEpoch,
+      title: title.isEmpty ? 'Thông báo' : title,
+      message: message,
+      type: notification.type,
+      isRead: false,
+      createdAt: DateTime.now(),
+    );
+
+    _notifications = [
+      item,
+      ..._notifications.where((existing) {
+        return existing.title != item.title ||
+            existing.message != item.message ||
+            existing.type != item.type;
+      }),
+    ];
+    _normalizeVisibleCount();
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    webSocketService.dispose();
+    super.dispose();
   }
 }

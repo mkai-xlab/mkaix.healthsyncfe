@@ -83,7 +83,7 @@ class _DashboardContent extends StatelessWidget {
     final now = DateTime.now();
     final greeting = _getGreeting(now.hour);
     final user = context.read<AuthViewModel>().currentUser;
-    final doctorName = user?.name ?? 'Bác sĩ';
+    final doctorName = user?.displayName ?? 'Bác sĩ';
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),

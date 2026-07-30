@@ -42,6 +42,15 @@ class ExaminationViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  ExaminationEntity? _selectedExamination;
+  ExaminationEntity? get selectedExamination => _selectedExamination;
+
+  bool _isLoadingDetail = false;
+  bool get isLoadingDetail => _isLoadingDetail;
+
+  String? _detailErrorMessage;
+  String? get detailErrorMessage => _detailErrorMessage;
+
   int _currentPage = 0;
   int get currentPage => _currentPage;
 
@@ -67,6 +76,8 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
+    _selectedExamination = null;
+    _detailErrorMessage = null;
     notifyListeners();
 
     try {
@@ -95,6 +106,8 @@ class ExaminationViewModel extends ChangeNotifier {
     _errorMessage = null;
     _examinations = [];
     _dashboardTotals = null;
+    _selectedExamination = null;
+    _detailErrorMessage = null;
     notifyListeners();
 
     try {
@@ -180,6 +193,8 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
+    _selectedExamination = null;
+    _detailErrorMessage = null;
     notifyListeners();
 
     try {
@@ -209,6 +224,8 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
+    _selectedExamination = null;
+    _detailErrorMessage = null;
     notifyListeners();
 
     try {
@@ -227,9 +244,48 @@ class ExaminationViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> openExaminationDetail({
+    required ExaminationEntity examination,
+    required String token,
+  }) async {
+    final examinationId = examination.examinationId;
+    if (examinationId <= 0) {
+      _detailErrorMessage = 'Khong tim thay examinationId hop le';
+      notifyListeners();
+      return false;
+    }
+
+    _isLoadingDetail = true;
+    _detailErrorMessage = null;
+    notifyListeners();
+
+    try {
+      _selectedExamination = await getPatientExaminationsUseCase.executeDetail(
+        examinationId: examinationId,
+        token: token,
+      );
+      return true;
+    } catch (e) {
+      _selectedExamination = null;
+      _detailErrorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _isLoadingDetail = false;
+      notifyListeners();
+    }
+  }
+
+  void closeExaminationDetail() {
+    _selectedExamination = null;
+    _detailErrorMessage = null;
+    notifyListeners();
+  }
+
   void clear() {
     _examinations = [];
     _errorMessage = null;
+    _selectedExamination = null;
+    _detailErrorMessage = null;
     _totalElements = 0;
     _totalPages = 1;
     _currentPage = 0;

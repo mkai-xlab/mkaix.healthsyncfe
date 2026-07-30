@@ -133,6 +133,11 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
     required String token,
   }) async {
     try {
+      debugPrint(
+        '[DICOM verify API request] uploadSessionId=$uploadSessionId, '
+        'acceptedPatientCodes=${acceptedPatientCodes.join(',')}',
+        wrapWidth: 1024,
+      );
       final response = await client
           .post(
             Uri.parse(ApiConstants.dicomVerifyEndpoint),
@@ -148,9 +153,13 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
           )
           .timeout(const Duration(seconds: 60));
 
+      final body = utf8.decode(response.bodyBytes);
+      debugPrint(
+        '[DICOM verify API response] status=${response.statusCode}, body=$body',
+        wrapWidth: 1024,
+      );
       if (response.statusCode >= 200 && response.statusCode < 300) return;
 
-      final body = utf8.decode(response.bodyBytes);
       String message =
           'Xác nhận upload DICOM thất bại (${response.statusCode})';
       try {

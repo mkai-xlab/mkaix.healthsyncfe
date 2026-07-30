@@ -14,6 +14,10 @@ class AiPredictionResultEntity {
   final String roiImageUrl;
   final String gradcamImageUrl;
   final String annotatedImageUrl;
+  final String reviewDecision;
+  final String reviewNote;
+  final int reviewedByDoctorId;
+  final DateTime? reviewedAt;
 
   const AiPredictionResultEntity({
     this.dicomInstanceId = 0,
@@ -29,7 +33,13 @@ class AiPredictionResultEntity {
     this.roiImageUrl = '',
     this.gradcamImageUrl = '',
     this.annotatedImageUrl = '',
+    this.reviewDecision = '',
+    this.reviewNote = '',
+    this.reviewedByDoctorId = 0,
+    this.reviewedAt,
   });
+
+  bool get isReviewed => reviewedAt != null;
 
   int get displayGrade {
     if (effectiveGrade > 0) return effectiveGrade;

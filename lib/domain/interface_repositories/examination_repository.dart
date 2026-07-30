@@ -33,4 +33,9 @@ abstract class ExaminationRepository {
     required String patientId,
     required String token,
   });
+
+  Future<ExaminationEntity> getExaminationById({
+    required int examinationId,
+    required String token,
+  });
 }

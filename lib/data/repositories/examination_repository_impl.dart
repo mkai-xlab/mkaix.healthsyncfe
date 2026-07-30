@@ -74,4 +74,15 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
       token: token,
     );
   }
+
+  @override
+  Future<ExaminationEntity> getExaminationById({
+    required int examinationId,
+    required String token,
+  }) {
+    return remoteDataSource.getExaminationById(
+      examinationId: examinationId,
+      token: token,
+    );
+  }
 }

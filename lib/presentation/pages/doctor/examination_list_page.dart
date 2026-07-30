@@ -44,7 +44,6 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
   static const Color _pageBg = AppColors.surface1;
 
   bool _didLoad = false;
-  ExaminationEntity? _selectedExamination;
 
   String get _patientDetailId {
     final patient = widget.patient;
@@ -78,11 +77,14 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final selectedExamination = _selectedExamination;
+    final selectedExamination = context
+        .watch<ExaminationViewModel>()
+        .selectedExamination;
     if (selectedExamination != null) {
       final detail = ExaminationDetailPage(
         examination: selectedExamination,
-        onBack: () => setState(() => _selectedExamination = null),
+        onBack: () =>
+            context.read<ExaminationViewModel>().closeExaminationDetail(),
         onOpenPatientDetail: widget.onOpenPatientDetail,
       );
       if (widget.embedded) return detail;
@@ -453,57 +455,85 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       return _emptyState('Chưa có ca khám mới hôm nay.');
     }
 
-    return Column(
+    return Stack(
       children: [
-        Expanded(
-          child: RefreshIndicator(
-            color: _primaryGreen,
-            onRefresh: () {
-              final currentUser = context.read<AuthViewModel>().currentUser;
-              final token = currentUser?.token ?? '';
-              if (widget.patient == null) {
-                return vm.loadExaminations(token: token);
-              }
-              return vm.loadPatientExaminations(
-                patientId: _patientDetailId,
-                token: token,
-              );
-            },
-            child: ListView.separated(
-              padding: const EdgeInsets.all(24),
-              itemCount: examinations.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) =>
-                  _examinationCard(examinations[index]),
+        Column(
+          children: [
+            Expanded(
+              child: RefreshIndicator(
+                color: _primaryGreen,
+                onRefresh: () {
+                  final currentUser = context.read<AuthViewModel>().currentUser;
+                  final token = currentUser?.token ?? '';
+                  if (widget.patient == null) {
+                    return vm.loadExaminations(token: token);
+                  }
+                  return vm.loadPatientExaminations(
+                    patientId: _patientDetailId,
+                    token: token,
+                  );
+                },
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(24),
+                  itemCount: examinations.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
+                  itemBuilder: (context, index) =>
+                      _examinationCard(examinations[index]),
+                ),
+              ),
             ),
-          ),
+            if (widget.patient == null)
+              PaginationBar(
+                currentPage: vm.currentPage,
+                totalPages: vm.totalPages,
+                totalElements: vm.totalElements,
+                pageSize: vm.pageSize,
+                isLoading: vm.isLoading,
+                itemLabel: 'ca khám',
+                onPageChanged: (page) {
+                  final token =
+                      context.read<AuthViewModel>().currentUser?.token ?? '';
+                  vm.goToPage(token: token, page: page);
+                },
+                onPageSizeChanged: (size) {
+                  final token =
+                      context.read<AuthViewModel>().currentUser?.token ?? '';
+                  vm.changePageSize(token: token, size: size);
+                },
+              ),
+          ],
         ),
-        if (widget.patient == null)
-          PaginationBar(
-            currentPage: vm.currentPage,
-            totalPages: vm.totalPages,
-            totalElements: vm.totalElements,
-            pageSize: vm.pageSize,
-            isLoading: vm.isLoading,
-            itemLabel: 'ca khám',
-            onPageChanged: (page) {
-              final token =
-                  context.read<AuthViewModel>().currentUser?.token ?? '';
-              vm.goToPage(token: token, page: page);
-            },
-            onPageSizeChanged: (size) {
-              final token =
-                  context.read<AuthViewModel>().currentUser?.token ?? '';
-              vm.changePageSize(token: token, size: size);
-            },
+        if (vm.isLoadingDetail)
+          Positioned.fill(
+            child: ColoredBox(
+              color: Colors.white.withValues(alpha: 0.42),
+              child: const Center(
+                child: CircularProgressIndicator(color: _primaryGreen),
+              ),
+            ),
           ),
       ],
     );
   }
 
+  Future<void> _openExaminationDetail(ExaminationEntity examination) async {
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    final vm = context.read<ExaminationViewModel>();
+    final opened = await vm.openExaminationDetail(
+      examination: examination,
+      token: token,
+    );
+    if (!mounted || opened) return;
+    final message = vm.detailErrorMessage ?? 'Khong the tai chi tiet ca kham';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
+  }
+
   Widget _examinationCard(ExaminationEntity examination) {
     return InkWell(
-      onTap: () => setState(() => _selectedExamination = examination),
+      onTap: () => _openExaminationDetail(examination),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),

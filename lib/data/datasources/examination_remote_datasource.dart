@@ -40,6 +40,11 @@ abstract class ExaminationRemoteDataSource {
     required String patientId,
     required String token,
   });
+
+  Future<ExaminationEntity> getExaminationById({
+    required int examinationId,
+    required String token,
+  });
 }
 
 class _DashboardTotalResult {
@@ -153,6 +158,39 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       token: token,
       errorMessage: 'Không thể tải danh sách ca khám',
     );
+  }
+
+  @override
+  Future<ExaminationEntity> getExaminationById({
+    required int examinationId,
+    required String token,
+  }) async {
+    final uri = Uri.parse(ApiConstants.examinationByIdEndpoint(examinationId));
+    final response = await client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        _httpErrorMessage(
+          response.statusCode,
+          'Khong the tai chi tiet ca kham',
+        ),
+      );
+    }
+
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is! Map) {
+      throw Exception('Dinh dang chi tiet ca kham khong hop le');
+    }
+
+    return ExaminationModel.fromJson(Map<String, dynamic>.from(data));
   }
 
   @override

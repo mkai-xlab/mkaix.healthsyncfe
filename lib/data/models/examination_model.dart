@@ -16,6 +16,10 @@ class AiPredictionResultModel extends AiPredictionResultEntity {
     super.roiImageUrl,
     super.gradcamImageUrl,
     super.annotatedImageUrl,
+    super.reviewDecision,
+    super.reviewNote,
+    super.reviewedByDoctorId,
+    super.reviewedAt,
   });
 
   factory AiPredictionResultModel.fromJson(Map<String, dynamic> json) {
@@ -54,6 +58,23 @@ class AiPredictionResultModel extends AiPredictionResultEntity {
           json['annotatedImageUrl']?.toString() ??
           json['annotated_image_url']?.toString() ??
           '',
+      reviewDecision:
+          json['reviewDecision']?.toString() ??
+          json['review_decision']?.toString() ??
+          '',
+      reviewNote:
+          json['reviewNote']?.toString() ??
+          json['review_note']?.toString() ??
+          '',
+      reviewedByDoctorId: _intAt(json, [
+        'reviewedByDoctorId',
+        'reviewed_by_doctor_id',
+      ]),
+      reviewedAt: json['reviewedAt'] != null
+          ? DateTime.tryParse(json['reviewedAt'].toString())
+          : json['reviewed_at'] != null
+          ? DateTime.tryParse(json['reviewed_at'].toString())
+          : null,
     );
   }
 }

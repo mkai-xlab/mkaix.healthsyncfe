@@ -64,4 +64,14 @@ class GetPatientExaminationsUseCase {
       token: token,
     );
   }
+
+  Future<ExaminationEntity> executeDetail({
+    required int examinationId,
+    required String token,
+  }) {
+    return repository.getExaminationById(
+      examinationId: examinationId,
+      token: token,
+    );
+  }
 }

@@ -78,6 +78,10 @@ class ApiConstants {
   static const String aiPredictBatchEndpoint = '$baseUrl/ai/predict-batch';
   static String aiHeatmapEndpoint(int aiResultId) =>
       '$baseUrl/ai/heatmap/$aiResultId';
+  static String aiResultConfirmEndpoint(int aiResultId) =>
+      '$baseUrl/ai/results/$aiResultId/confirm';
+  static String aiResultKlGradeEndpoint(int aiResultId) =>
+      '$baseUrl/ai/results/$aiResultId/kl-grade';
 
   // DICOM endpoints
   static const String notificationsUnreadEndpoint =

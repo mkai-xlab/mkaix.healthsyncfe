@@ -15,22 +15,10 @@ class AuditLogRemoteDataSource {
     required String token,
     int page = 0,
     int size = 10,
-    String? keyword,
-    String? actor,
-    String? action,
-    String? status,
-    DateTime? fromDate,
-    DateTime? toDate,
   }) async {
     final queryParams = <String, String>{
       'page': page.toString(),
       'size': size.toString(),
-      if (keyword?.trim().isNotEmpty ?? false) 'keyword': keyword!.trim(),
-      if (actor?.trim().isNotEmpty ?? false) 'actor': actor!.trim(),
-      if (action?.trim().isNotEmpty ?? false) 'action': action!.trim(),
-      if (status?.trim().isNotEmpty ?? false) 'status': status!.trim(),
-      if (fromDate != null) 'fromDate': _formatApiDate(fromDate),
-      if (toDate != null) 'toDate': _formatApiDate(toDate),
     };
 
     final uri = Uri.parse(
@@ -100,11 +88,5 @@ class AuditLogRemoteDataSource {
   static int _parseInt(Object? value, int fallback) {
     if (value is int) return value;
     return int.tryParse(value?.toString() ?? '') ?? fallback;
-  }
-
-  static String _formatApiDate(DateTime date) {
-    final month = date.month.toString().padLeft(2, '0');
-    final day = date.day.toString().padLeft(2, '0');
-    return '${date.year}-$month-$day';
   }
 }

@@ -16,10 +16,6 @@ class AuditLogPage extends StatefulWidget {
 }
 
 class _AuditLogPageState extends State<AuditLogPage> {
-  final _keywordController = TextEditingController();
-  final _actorController = TextEditingController();
-  String _status = '';
-
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
 
   @override
@@ -29,13 +25,6 @@ class _AuditLogPageState extends State<AuditLogPage> {
       if (!mounted) return;
       context.read<AuditLogViewModel>().fetchFirstPage(_token);
     });
-  }
-
-  @override
-  void dispose() {
-    _keywordController.dispose();
-    _actorController.dispose();
-    super.dispose();
   }
 
   @override
@@ -49,8 +38,6 @@ class _AuditLogPageState extends State<AuditLogPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _header(vm),
-              const SizedBox(height: 16),
-              _filters(vm),
               const SizedBox(height: 16),
               Expanded(child: _content(vm)),
             ],
@@ -77,7 +64,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
               ),
               SizedBox(height: 4),
               Text(
-                'Theo dõi và giám sát các thao tác của người dùng trên hệ thống.',
+                'Theo dõi các thao tác được ghi nhận từ hệ thống.',
                 style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
               ),
             ],
@@ -96,114 +83,6 @@ class _AuditLogPageState extends State<AuditLogPage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _filters(AuditLogViewModel vm) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _filterField(
-              controller: _keywordController,
-              label: 'Từ khóa',
-              hint: 'Thao tác, đối tượng, mô tả...',
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: _filterField(
-              controller: _actorController,
-              label: 'Người thực hiện',
-              hint: 'Username hoặc họ tên',
-            ),
-          ),
-          const SizedBox(width: 12),
-          SizedBox(
-            width: 180,
-            child: DropdownButtonFormField<String>(
-              initialValue: _status,
-              decoration: _inputDecoration('Trạng thái'),
-              items: const [
-                DropdownMenuItem(value: '', child: Text('Tất cả')),
-                DropdownMenuItem(value: 'SUCCESS', child: Text('Thành công')),
-                DropdownMenuItem(value: 'FAILED', child: Text('Thất bại')),
-              ],
-              onChanged: vm.isLoading
-                  ? null
-                  : (value) => setState(() => _status = value ?? ''),
-            ),
-          ),
-          const SizedBox(width: 12),
-          IconButton.filled(
-            tooltip: 'Áp dụng bộ lọc',
-            onPressed: vm.isLoading
-                ? null
-                : () => vm.applyFilters(
-                    token: _token,
-                    keyword: _keywordController.text,
-                    actor: _actorController.text,
-                    status: _status,
-                  ),
-            icon: const Icon(Icons.filter_alt_outlined, size: 18),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            tooltip: 'Xóa bộ lọc',
-            onPressed: vm.isLoading
-                ? null
-                : () {
-                    _keywordController.clear();
-                    _actorController.clear();
-                    setState(() => _status = '');
-                    vm.clearFilters(_token);
-                  },
-            icon: const Icon(Icons.clear_rounded, size: 18),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _filterField({
-    required TextEditingController controller,
-    required String label,
-    required String hint,
-  }) {
-    return TextField(
-      controller: controller,
-      style: const TextStyle(fontSize: 13),
-      decoration: _inputDecoration(label).copyWith(hintText: hint),
-      onSubmitted: (_) => context.read<AuditLogViewModel>().applyFilters(
-        token: _token,
-        keyword: _keywordController.text,
-        actor: _actorController.text,
-        status: _status,
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: AppColors.surface1,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppColors.borderStrong),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(8),
-        borderSide: const BorderSide(color: AppColors.primary, width: 1.4),
-      ),
     );
   }
 
@@ -281,11 +160,11 @@ class _AuditLogPageState extends State<AuditLogPage> {
       child: const Row(
         children: [
           Expanded(flex: 2, child: _HeaderText('Thời gian')),
-          Expanded(flex: 2, child: _HeaderText('Người thực hiện')),
-          Expanded(flex: 2, child: _HeaderText('Thao tác')),
-          Expanded(flex: 2, child: _HeaderText('Đối tượng')),
-          Expanded(flex: 2, child: _HeaderText('IP / Thiết bị')),
-          Expanded(flex: 1, child: _HeaderText('Trạng thái')),
+          Expanded(flex: 2, child: _HeaderText('Người dùng')),
+          Expanded(flex: 2, child: _HeaderText('Tiêu đề')),
+          Expanded(flex: 3, child: _HeaderText('Mô tả')),
+          Expanded(flex: 2, child: _HeaderText('IP')),
+          Expanded(flex: 3, child: _HeaderText('Thiết bị')),
           SizedBox(width: 42),
         ],
       ),
@@ -302,25 +181,12 @@ class _AuditLogPageState extends State<AuditLogPage> {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         child: Row(
           children: [
-            Expanded(flex: 2, child: _cell(_formatDateTime(log.createdAt))),
-            Expanded(
-              flex: 2,
-              child: _cell(
-                log.actorDisplay,
-                sub: log.actorRole.isEmpty ? log.actorUsername : log.actorRole,
-                strong: true,
-              ),
-            ),
-            Expanded(flex: 2, child: _cell(_value(log.action))),
-            Expanded(flex: 2, child: _cell(log.targetDisplay)),
-            Expanded(
-              flex: 2,
-              child: _cell(
-                _value(log.ipAddress),
-                sub: log.device.isEmpty ? null : _shortDevice(log.device),
-              ),
-            ),
-            Expanded(flex: 1, child: _statusBadge(log)),
+            Expanded(flex: 2, child: _cell(_formatDateTime(log.timeStamp))),
+            Expanded(flex: 2, child: _cell(log.userDisplay, strong: true)),
+            Expanded(flex: 2, child: _cell(log.titleDisplay)),
+            Expanded(flex: 3, child: _cell(log.descriptionDisplay)),
+            Expanded(flex: 2, child: _cell(log.ipAddressDisplay)),
+            Expanded(flex: 3, child: _cell(_shortText(log.userAgentDisplay))),
             const SizedBox(
               width: 42,
               child: Icon(Icons.visibility_outlined, size: 18),
@@ -331,65 +197,19 @@ class _AuditLogPageState extends State<AuditLogPage> {
     );
   }
 
-  Widget _cell(String text, {String? sub, bool strong = false}) {
+  Widget _cell(String text, {bool strong = false}) {
     return Padding(
       padding: const EdgeInsets.only(right: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            text,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: strong ? FontWeight.w800 : FontWeight.w500,
-              color: AppColors.textPrimary,
-            ),
-          ),
-          if (sub?.trim().isNotEmpty ?? false) ...[
-            const SizedBox(height: 2),
-            Text(
-              sub!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
-        ],
+      child: Text(
+        text,
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 13,
+          fontWeight: strong ? FontWeight.w800 : FontWeight.w500,
+          color: AppColors.textPrimary,
+        ),
       ),
-    );
-  }
-
-  Widget _statusBadge(AuditLogEntity log) {
-    final label = log.status.isEmpty
-        ? 'Không rõ'
-        : (log.isSuccess ? 'Thành công' : log.status);
-    final color = log.isSuccess ? AppColors.primary : AppColors.error;
-    return Row(
-      children: [
-        Container(
-          width: 7,
-          height: 7,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              color: color,
-            ),
-          ),
-        ),
-      ],
     );
   }
 
@@ -420,21 +240,15 @@ class _AuditLogPageState extends State<AuditLogPage> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                _detailSection('Mô tả hoạt động', _value(log.description)),
+                _detailSection('Tiêu đề', log.titleDisplay),
+                _detailSection('Mô tả hoạt động', log.descriptionDisplay),
                 _detailSection(
                   'Thời gian chi tiết',
-                  _formatDateTime(log.createdAt).replaceAll('\n', ' - '),
+                  _formatDateTime(log.timeStamp).replaceAll('\n', ' - '),
                 ),
-                _detailSection('Người thực hiện', log.actorDisplay),
-                if (log.actorUsername.isNotEmpty)
-                  _detailSection('Username', log.actorUsername),
-                _detailSection('Thao tác', _value(log.action)),
-                _detailSection('Đối tượng', log.targetDisplay),
-                if (log.ipAddress.isNotEmpty)
-                  _detailSection('Địa chỉ mạng', log.ipAddress),
-                if (log.device.isNotEmpty)
-                  _detailSection('Thiết bị', _shortDevice(log.device)),
-                _detailSection('Trạng thái', _value(log.status)),
+                _detailSection('Người dùng', log.userDisplay),
+                _detailSection('Địa chỉ IP', log.ipAddressDisplay),
+                _detailSection('Thiết bị / User Agent', log.userAgentDisplay),
               ],
             ),
           ),
@@ -496,13 +310,11 @@ class _AuditLogPageState extends State<AuditLogPage> {
     return DateFormat('dd/MM/yyyy\nHH:mm:ss').format(date);
   }
 
-  String _shortDevice(String value) {
+  String _shortText(String value) {
     final compact = value.replaceAll(RegExp(r'\s+'), ' ').trim();
     if (compact.length <= 42) return compact;
     return '${compact.substring(0, 39)}...';
   }
-
-  String _value(String value) => value.trim().isEmpty ? '---' : value.trim();
 }
 
 class _HeaderText extends StatelessWidget {

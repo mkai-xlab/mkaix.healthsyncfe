@@ -248,37 +248,41 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   Widget _buildNavItem(_DoctorNavItemData item, {bool closeDrawer = false}) {
     final index = item.index;
     final isSelected = _selectedNavIndex == index;
-    return ListTile(
-      leading: Icon(
-        item.icon,
-        color: isSelected ? Colors.white : Colors.white70,
-        size: 20,
-      ),
-      title: Text(
-        item.label,
-        style: TextStyle(
+    final borderRadius = BorderRadius.circular(8);
+    return Material(
+      color: isSelected
+          ? Colors.white.withValues(alpha: 0.1)
+          : Colors.transparent,
+      borderRadius: borderRadius,
+      child: ListTile(
+        leading: Icon(
+          item.icon,
           color: isSelected ? Colors.white : Colors.white70,
-          fontSize: 14,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          size: 20,
         ),
+        title: Text(
+          item.label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white70,
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+        onTap: () {
+          setState(() {
+            _selectedNavIndex = index;
+            _showDoctorProfile = false;
+            _showChangePassword = false;
+            _showUploadExaminationList = false;
+            _selectedPatientDetail = null;
+          });
+          if (closeDrawer) {
+            Navigator.pop(context);
+          }
+        },
+        shape: RoundedRectangleBorder(borderRadius: borderRadius),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
-      onTap: () {
-        setState(() {
-          _selectedNavIndex = index;
-          _showDoctorProfile = false;
-          _showChangePassword = false;
-          _showUploadExaminationList = false;
-          _selectedPatientDetail = null;
-        });
-        if (closeDrawer) {
-          Navigator.pop(context);
-        }
-      },
-      tileColor: isSelected ? Colors.white.withValues(alpha: 0.1) : null,
-      shape: isSelected
-          ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
-          : null,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 

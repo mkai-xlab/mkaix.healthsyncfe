@@ -5,6 +5,8 @@ import 'package:fe/core/services/toast_service.dart';
 import '../../../core/constants/app_colors.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/admin_dashboard_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/audit_log_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:fe/domain/entities/doctor_account_entity.dart';
 import 'package:fe/domain/entities/notification_entity.dart';
@@ -37,6 +39,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final token = context.read<AuthViewModel>().currentUser?.token ?? '';
       context.read<AdminAccountViewModel>().fetchFirstPage(token);
+      context.read<AdminDashboardViewModel>().loadStats(token);
+      context.read<AuditLogViewModel>().fetchFirstPage(token);
     });
   }
 
@@ -174,19 +178,22 @@ class _AdminHomepageState extends State<AdminHomepage> {
           // Logout Button
           Padding(
             padding: const EdgeInsets.all(12),
-            child: ListTile(
-              leading: const Icon(
-                Icons.logout,
-                color: Colors.white70,
-                size: 20,
+            child: Material(
+              color: Colors.transparent,
+              child: ListTile(
+                leading: const Icon(
+                  Icons.logout,
+                  color: Colors.white70,
+                  size: 20,
+                ),
+                title: const Text(
+                  'Đăng xuất',
+                  style: TextStyle(color: Colors.white70, fontSize: 14),
+                ),
+                onTap: () {
+                  context.read<AuthViewModel>().logout();
+                },
               ),
-              title: const Text(
-                'Đăng xuất',
-                style: TextStyle(color: Colors.white70, fontSize: 14),
-              ),
-              onTap: () {
-                context.read<AuthViewModel>().logout();
-              },
             ),
           ),
         ],
@@ -196,31 +203,35 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   Widget _buildNavItem(int index, String label, IconData icon) {
     final isSelected = _selectedNavIndex == index;
-    return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? Colors.white : Colors.white70,
-        size: 20,
-      ),
-      title: Text(
-        label,
-        style: TextStyle(
+    final borderRadius = BorderRadius.circular(8);
+    return Material(
+      color: isSelected
+          ? Colors.white.withValues(alpha: 0.1)
+          : Colors.transparent,
+      borderRadius: borderRadius,
+      child: ListTile(
+        leading: Icon(
+          icon,
           color: isSelected ? Colors.white : Colors.white70,
-          fontSize: 14,
-          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          size: 20,
         ),
+        title: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.white : Colors.white70,
+            fontSize: 14,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          ),
+        ),
+        onTap: () {
+          setState(() {
+            _selectedNavIndex = index;
+            _showChangePassword = false;
+          });
+        },
+        shape: RoundedRectangleBorder(borderRadius: borderRadius),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       ),
-      onTap: () {
-        setState(() {
-          _selectedNavIndex = index;
-          _showChangePassword = false;
-        });
-      },
-      tileColor: isSelected ? Colors.white.withOpacity(0.1) : null,
-      shape: isSelected
-          ? RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
-          : null,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
     );
   }
 
@@ -316,16 +327,19 @@ class _AdminHomepageState extends State<AdminHomepage> {
             ),
             Padding(
               padding: const EdgeInsets.all(12),
-              child: ListTile(
-                leading: const Icon(Icons.logout, color: Colors.white70),
-                title: const Text(
-                  'Đăng xuất',
-                  style: TextStyle(color: Colors.white70),
+              child: Material(
+                color: Colors.transparent,
+                child: ListTile(
+                  leading: const Icon(Icons.logout, color: Colors.white70),
+                  title: const Text(
+                    'Đăng xuất',
+                    style: TextStyle(color: Colors.white70),
+                  ),
+                  onTap: () {
+                    context.read<AuthViewModel>().logout();
+                    Navigator.pop(context);
+                  },
                 ),
-                onTap: () {
-                  context.read<AuthViewModel>().logout();
-                  Navigator.pop(context);
-                },
               ),
             ),
           ],
@@ -456,7 +470,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             child: Consumer<AdminAccountViewModel>(
               builder: (context, viewModel, child) {
                 return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     // ── LEFT: main list ──
                     Expanded(
@@ -1235,50 +1249,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
           ),
           const SizedBox(height: 16),
           _buildStaffStructure(viewModel),
-          const SizedBox(height: 24),
-
-          // ── Hoạt động gần đây ──
-          const Text(
-            'Hoạt động gần đây',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1A2B3C),
-            ),
-          ),
-          const SizedBox(height: 12),
-          _buildRecentActivity(
-            Icons.login,
-            'BS. An vừa đăng nhập',
-            '2 phút trước',
-            color: const Color(0xFF2D7E6E),
-          ),
-          _buildRecentActivity(
-            Icons.lock_reset,
-            'Đổi pass: maile_rad',
-            '45 phút trước',
-            color: const Color(0xFFD97706),
-          ),
-          _buildRecentActivity(
-            Icons.person_add_outlined,
-            'Thêm mới: BS. Hùng',
-            '2 giờ trước',
-            color: const Color(0xFF3B82F6),
-          ),
-          const SizedBox(height: 8),
-          Center(
-            child: TextButton(
-              onPressed: () {},
-              style: TextButton.styleFrom(
-                foregroundColor: const Color(0xFF2D7E6E),
-                padding: EdgeInsets.zero,
-              ),
-              child: const Text(
-                'Toàn bộ nhật ký',
-                style: TextStyle(fontSize: 12),
-              ),
-            ),
-          ),
         ],
       ),
     );
@@ -1400,53 +1370,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _buildRecentActivity(
-    IconData icon,
-    String text,
-    String time, {
-    Color color = const Color(0xFF718096),
-  }) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
-        children: [
-          Container(
-            width: 30,
-            height: 30,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, size: 14, color: color),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  text,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
-                    color: Color(0xFF1A2B3C),
-                  ),
-                ),
-                Text(
-                  time,
-                  style: const TextStyle(
-                    fontSize: 10,
-                    color: Color(0xFF718096),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 
@@ -2680,6 +2603,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildStatisticsSection() {
+    return _buildDashboardStatsFromApi();
+
+    // ignore: dead_code
     return Row(
       children: [
         _buildStatCard(
@@ -2725,6 +2651,73 @@ class _AdminHomepageState extends State<AdminHomepage> {
           progressValue: 0.998,
         ),
       ],
+    );
+  }
+
+  Widget _buildDashboardStatsFromApi() {
+    return Consumer<AdminDashboardViewModel>(
+      builder: (context, vm, _) {
+        final stats = vm.stats;
+        final verifiedProgress = stats.totalExaminations <= 0
+            ? 0.0
+            : stats.verifiedExaminations / stats.totalExaminations;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (vm.isLoading)
+              const Padding(
+                padding: EdgeInsets.only(bottom: 10),
+                child: LinearProgressIndicator(minHeight: 3),
+              ),
+            Row(
+              children: [
+                _buildStatCard(
+                  'Tổng số ca phân tích',
+                  _formatCount(stats.totalExaminations),
+                  '${_formatCount(stats.totalDicomStudies)} DICOM studies',
+                  Colors.blue,
+                  Icons.assessment,
+                  showProgress: true,
+                  progressValue: verifiedProgress.clamp(0.0, 1.0),
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Ca nguy cơ cao',
+                  _formatCount(stats.severeExaminations),
+                  'KL nặng cần theo dõi',
+                  Colors.orange,
+                  Icons.warning_amber,
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Chờ xác nhận',
+                  _formatCount(stats.unverifiedExaminations),
+                  '${_formatCount(stats.verifiedExaminations)} đã xác nhận',
+                  Colors.teal,
+                  Icons.fact_check_outlined,
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Bác sĩ hoạt động',
+                  _formatCount(stats.activeDoctors),
+                  '${_formatCount(stats.totalDoctors)} tổng bác sĩ',
+                  Colors.purple,
+                  Icons.people,
+                ),
+                const SizedBox(width: 16),
+                _buildStatCard(
+                  'Bệnh nhân',
+                  _formatCount(stats.totalPatients),
+                  'Tổng hồ sơ bệnh nhân',
+                  Colors.green,
+                  Icons.personal_injury_outlined,
+                ),
+              ],
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -3139,6 +3132,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildActivityLog() {
+    return _buildAuditLogFromApi();
+
+    // ignore: dead_code
     final activities = [
       {
         'time': '14:25:31, 24/05/2024',
@@ -3311,6 +3307,174 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
+  Widget _buildAuditLogFromApi() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Hoạt động hệ thống gần đây',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.black87,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => setState(() => _selectedNavIndex = 3),
+                  style: TextButton.styleFrom(
+                    foregroundColor: const Color(0xFF2D7E6E),
+                  ),
+                  child: const Text(
+                    'Xem tất cả lịch sử >',
+                    style: TextStyle(fontSize: 12),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          Consumer<AuditLogViewModel>(
+            builder: (context, vm, _) {
+              if (vm.isLoading && vm.logs.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 28),
+                  child: Center(child: CircularProgressIndicator()),
+                );
+              }
+              if (vm.errorMessage != null && vm.logs.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Text(
+                    vm.errorMessage!,
+                    style: const TextStyle(fontSize: 12, color: Colors.red),
+                  ),
+                );
+              }
+              if (vm.logs.isEmpty) {
+                return const Padding(
+                  padding: EdgeInsets.all(16),
+                  child: Text(
+                    'Chưa có nhật ký hoạt động.',
+                    style: TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                );
+              }
+
+              final logs = vm.logs.take(5).toList();
+              return ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: logs.length,
+                separatorBuilder: (_, __) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final log = logs[index];
+                  final actor = log.userDisplay;
+                  final initial = actor.characters.first.toUpperCase();
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: _getAvatarColor(initial),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Center(
+                            child: Text(
+                              initial,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                _formatAuditLogTime(log.timeStamp),
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                actor,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                log.titleDisplay,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                log.descriptionDisplay,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatAuditLogTime(DateTime? date) {
+    if (date == null) return '---';
+    return DateFormat('HH:mm:ss, dd/MM/yyyy').format(date);
+  }
+
   Color _getAvatarColor(String initial) {
     switch (initial) {
       case 'M':
@@ -3348,6 +3512,10 @@ class _AdminHomepageState extends State<AdminHomepage> {
       default:
         return Colors.grey.shade700;
     }
+  }
+
+  String _formatCount(int value) {
+    return NumberFormat.decimalPattern('vi_VN').format(value);
   }
 }
 

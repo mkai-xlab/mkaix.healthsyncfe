@@ -32,24 +32,6 @@ class AuditLogViewModel extends ChangeNotifier {
   int _totalPages = 1;
   int get totalPages => _totalPages;
 
-  String _keyword = '';
-  String get keyword => _keyword;
-
-  String _actor = '';
-  String get actor => _actor;
-
-  String _action = '';
-  String get action => _action;
-
-  String _status = '';
-  String get status => _status;
-
-  DateTime? _fromDate;
-  DateTime? get fromDate => _fromDate;
-
-  DateTime? _toDate;
-  DateTime? get toDate => _toDate;
-
   Future<void> fetchFirstPage(String token) async {
     _currentPage = 0;
     await loadAuditLogs(token);
@@ -66,12 +48,6 @@ class AuditLogViewModel extends ChangeNotifier {
         token: token,
         page: _currentPage,
         size: _pageSize,
-        keyword: _keyword,
-        actor: _actor,
-        action: _action,
-        status: _status,
-        fromDate: _fromDate,
-        toDate: _toDate,
       );
       _logs = result.content;
       _totalElements = result.totalElements;
@@ -106,36 +82,6 @@ class AuditLogViewModel extends ChangeNotifier {
     await loadAuditLogs(token);
   }
 
-  Future<void> applyFilters({
-    required String token,
-    String? keyword,
-    String? actor,
-    String? action,
-    String? status,
-    DateTime? fromDate,
-    DateTime? toDate,
-  }) async {
-    _keyword = keyword?.trim() ?? _keyword;
-    _actor = actor?.trim() ?? _actor;
-    _action = action?.trim() ?? _action;
-    _status = status?.trim() ?? _status;
-    _fromDate = fromDate;
-    _toDate = toDate;
-    _currentPage = 0;
-    await loadAuditLogs(token);
-  }
-
-  Future<void> clearFilters(String token) async {
-    _keyword = '';
-    _actor = '';
-    _action = '';
-    _status = '';
-    _fromDate = null;
-    _toDate = null;
-    _currentPage = 0;
-    await loadAuditLogs(token);
-  }
-
   void selectLog(AuditLogEntity log) {
     _selectedLog = log;
     notifyListeners();
@@ -143,6 +89,6 @@ class AuditLogViewModel extends ChangeNotifier {
 
   String _logKey(AuditLogEntity log) {
     if (log.id > 0) return 'id:${log.id}';
-    return '${log.createdAt?.toIso8601String()}|${log.actorDisplay}|${log.action}';
+    return '${log.timeStamp?.toIso8601String()}|${log.username}|${log.title}';
   }
 }

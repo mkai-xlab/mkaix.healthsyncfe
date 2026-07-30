@@ -7,9 +7,9 @@ class AiPredictionResultEntity {
   final int aiAnalysisId;
   final int aiResultId;
   final String kneeSide;
-  final int predictedGrade;
-  final int confirmedGrade;
-  final int effectiveGrade;
+  final int? predictedGrade;
+  final int? confirmedGrade;
+  final int? effectiveGrade;
   final double confidence;
   final String description;
   final Map<String, double> details;
@@ -26,9 +26,9 @@ class AiPredictionResultEntity {
     this.aiAnalysisId = 0,
     this.aiResultId = 0,
     this.kneeSide = '',
-    this.predictedGrade = 0,
-    this.confirmedGrade = 0,
-    this.effectiveGrade = 0,
+    this.predictedGrade,
+    this.confirmedGrade,
+    this.effectiveGrade,
     this.confidence = 0,
     this.description = '',
     this.details = const {},
@@ -43,14 +43,14 @@ class AiPredictionResultEntity {
 
   bool get isReviewed => reviewedAt != null;
 
-  int get displayGrade {
-    if (effectiveGrade > 0) return effectiveGrade;
-    if (confirmedGrade > 0) return confirmedGrade;
+  int? get displayGrade {
+    if (effectiveGrade != null) return effectiveGrade;
+    if (confirmedGrade != null) return confirmedGrade;
     return predictedGrade;
   }
 
   String get predictedGradeDisplay =>
-      displayGrade > 0 ? 'Grade $displayGrade' : '---';
+      displayGrade == null ? '---' : 'Grade $displayGrade';
 
   String get kneeSideDisplay {
     switch (kneeSide.toUpperCase()) {

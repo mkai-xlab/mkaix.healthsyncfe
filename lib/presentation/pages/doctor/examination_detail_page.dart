@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -6,10 +7,14 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/report_file_service.dart';
+import '../../../core/services/report_pdf_preview.dart';
+import '../../../core/services/toast_service.dart';
 import '../../../core/utils/examination_status_utils.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/examination_viewmodel.dart';
 import 'patient_detail_page.dart';
 
 enum _ImageMode { original, annotated, roi, gradcam }
@@ -55,6 +60,9 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   _ImageMode _imageMode = _ImageMode.original;
   bool _isReviewSubmitting = false;
   bool _isReportGenerating = false;
+  bool _isReportPreviewing = false;
+  bool _isReportDownloading = false;
+  bool _isReportAvailable = false;
   final Set<int> _locallyReviewedAiResultIds = {};
 
   ExaminationEntity get examination => widget.examination;
@@ -143,20 +151,23 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   }
 
   bool get _canViewOrDownloadReport {
+    if (_isReportAvailable) return true;
     final normalizedStatus = examination.status.trim().toUpperCase();
     final normalizedGroup = examination.statusGroup.trim().toUpperCase();
-    return normalizedStatus == ExaminationStatusUtils.reportExported ||
+    return normalizedStatus == ExaminationStatusUtils.reportGenerated ||
+        normalizedGroup == ExaminationStatusUtils.reportGenerated ||
+        normalizedStatus == ExaminationStatusUtils.reportExported ||
         normalizedGroup == ExaminationStatusUtils.reportExported;
   }
 
   String get _imageModeLabel {
     switch (_imageMode) {
       case _ImageMode.original:
-        return 'Ảnh gốc';
+        return 'áº¢nh gá»‘c';
       case _ImageMode.annotated:
-        return 'Ảnh khoanh vùng';
+        return 'áº¢nh khoanh vĂ¹ng';
       case _ImageMode.roi:
-        return 'Ảnh cắt gối';
+        return 'áº¢nh cáº¯t gá»‘i';
       case _ImageMode.gradcam:
         return 'Grad-CAM';
     }
@@ -178,13 +189,13 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   String _modeMissingMessage(_ImageMode mode) {
     switch (mode) {
       case _ImageMode.original:
-        return 'Chưa có ảnh gốc';
+        return 'ChÆ°a cĂ³ áº£nh gá»‘c';
       case _ImageMode.annotated:
-        return 'Chưa có ảnh khoanh vùng';
+        return 'ChÆ°a cĂ³ áº£nh khoanh vĂ¹ng';
       case _ImageMode.roi:
-        return 'Chưa có ảnh cắt gối';
+        return 'ChÆ°a cĂ³ áº£nh cáº¯t gá»‘i';
       case _ImageMode.gradcam:
-        return 'Chưa có Grad-CAM';
+        return 'ChÆ°a cĂ³ Grad-CAM';
     }
   }
 
@@ -277,7 +288,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
           IconButton(
             onPressed: widget.onBack,
             icon: const Icon(Icons.arrow_back, color: _primaryGreen, size: 20),
-            tooltip: 'Quay lại',
+            tooltip: 'Quay láº¡i',
             style: IconButton.styleFrom(
               backgroundColor: const Color(0xFFEAF8F4),
               shape: RoundedRectangleBorder(
@@ -300,26 +311,29 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                     crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
                       _headerField(
-                        'ID ca khám',
+                        'ID ca khĂ¡m',
                         examination.examinationId > 0
                             ? examination.examinationId.toString()
                             : '---',
                       ),
                       _headerField(
-                        'Tên bệnh nhân',
+                        'TĂªn bá»‡nh nhĂ¢n',
                         examination.patientName.isEmpty
                             ? '---'
                             : examination.patientName,
                       ),
                       _headerField(
-                        'Ngày sinh',
+                        'NgĂ y sinh',
                         examination.patientDateOfBirthDisplay,
                       ),
                       _headerField(
-                        'Giới tính',
+                        'Giá»›i tĂ­nh',
                         examination.patientGenderDisplay,
                       ),
-                      _headerField('Ngày chụp', examination.studyDateDisplay),
+                      _headerField(
+                        'NgĂ y chá»¥p',
+                        examination.studyDateDisplay,
+                      ),
                     ],
                   ),
                 ),
@@ -404,9 +418,9 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
             padding: const EdgeInsets.symmetric(horizontal: 14),
             child: Row(
               children: [
-                _viewerModeButton('Ảnh gốc', _ImageMode.original),
+                _viewerModeButton('áº¢nh gá»‘c', _ImageMode.original),
                 const SizedBox(width: 8),
-                _viewerModeButton('Khoanh vùng', _ImageMode.annotated),
+                _viewerModeButton('Khoanh vĂ¹ng', _ImageMode.annotated),
                 const SizedBox(width: 8),
                 _viewerModeButton('ROI', _ImageMode.roi),
                 const SizedBox(width: 8),
@@ -427,7 +441,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                       ? null
                       : () => _showFullscreenImage(context, token),
                   icon: const Icon(Icons.fullscreen, color: Colors.white70),
-                  tooltip: 'Toàn màn hình',
+                  tooltip: 'ToĂ n mĂ n hĂ¬nh',
                   iconSize: 18,
                   padding: EdgeInsets.zero,
                 ),
@@ -617,7 +631,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                 child: IconButton(
                   onPressed: () => Navigator.pop(dialogContext),
                   icon: const Icon(Icons.close, color: Colors.white),
-                  tooltip: 'Đóng',
+                  tooltip: 'ÄĂ³ng',
                   style: IconButton.styleFrom(
                     backgroundColor: Colors.white.withValues(alpha: 0.12),
                   ),
@@ -636,7 +650,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(
-                    '$_imageModeLabel - Ảnh ${_selectedImageIndex + 1}/${examination.images.length}',
+                    '$_imageModeLabel - áº¢nh ${_selectedImageIndex + 1}/${examination.images.length}',
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 13,
@@ -669,7 +683,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _panelTitle(Icons.analytics_outlined, 'Kết quả phân tích'),
+        _panelTitle(Icons.analytics_outlined, 'Káº¿t quáº£ phĂ¢n tĂ­ch'),
         const SizedBox(height: 22),
         Container(
           width: double.infinity,
@@ -691,7 +705,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               ),
               SizedBox(height: 14),
               Text(
-                'Đang xử lý kết quả AI',
+                'Äang xá»­ lĂ½ káº¿t quáº£ AI',
                 style: TextStyle(
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
@@ -700,7 +714,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               ),
               SizedBox(height: 6),
               Text(
-                'Kết quả phân tích sẽ hiển thị khi backend trả aiResults.',
+                'Káº¿t quáº£ phĂ¢n tĂ­ch sáº½ hiá»ƒn thá»‹ khi backend tráº£ aiResults.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
@@ -726,7 +740,10 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _panelTitle(Icons.analytics_outlined, 'Kết quả phân tích'),
+                _panelTitle(
+                  Icons.analytics_outlined,
+                  'Káº¿t quáº£ phĂ¢n tĂ­ch',
+                ),
                 if ((_selectedImage?.aiResults.length ?? 0) > 0) ...[
                   const SizedBox(height: 12),
                   _kneeSelector(),
@@ -762,22 +779,24 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                           color: riskColor,
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        _gradeDescription(grade),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: riskColor,
+                      if (grade != null && grade > 0) ...[
+                        const SizedBox(height: 4),
+                        Text(
+                          _gradeDescription(grade),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: riskColor,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
                 ),
                 const SizedBox(height: 18),
                 _metricBar(
-                  label: 'Độ tin cậy',
+                  label: 'Äá»™ tin cáº­y',
                   value: result.confidence,
                   color: _primaryGreen,
                 ),
@@ -789,7 +808,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                       child: _metricBar(
                         label: 'KL${entry.key}',
                         value: entry.value,
-                        color: _detailColor(entry.value),
+                        color: _gradeProbabilityColor(entry.key),
                       ),
                     ),
                   ),
@@ -824,7 +843,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                 ),
               )
             : const Icon(Icons.verified_outlined, size: 18),
-        label: Text(reviewed ? 'Đã xác nhận' : 'Xác nhận'),
+        label: Text(reviewed ? 'ÄĂ£ xĂ¡c nháº­n' : 'XĂ¡c nháº­n'),
         style: ElevatedButton.styleFrom(
           backgroundColor: _primaryGreen,
           foregroundColor: Colors.white,
@@ -843,7 +862,8 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       builder: (dialogContext) => _AiReviewDialog(
         result: result,
         doctorName:
-            context.read<AuthViewModel>().currentUser?.displayName ?? 'Bác sĩ',
+            context.read<AuthViewModel>().currentUser?.displayName ??
+            'BĂ¡c sÄ©',
       ),
     );
     if (review == null || !mounted) return;
@@ -851,11 +871,11 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Xác nhận kết quả?'),
+        title: const Text('XĂ¡c nháº­n káº¿t quáº£?'),
         content: Text(
           review.agreeWithAi
-              ? 'Bạn chắc chắn muốn xác nhận kết quả AI hiện tại?'
-              : 'Bạn chắc chắn muốn lưu KL${review.confirmedGrade} thay cho kết quả AI?',
+              ? 'Báº¡n cháº¯c cháº¯n muá»‘n xĂ¡c nháº­n káº¿t quáº£ AI hiá»‡n táº¡i?'
+              : 'Báº¡n cháº¯c cháº¯n muá»‘n lÆ°u KL${review.confirmedGrade} thay cho káº¿t quáº£ AI?',
         ),
         actions: [
           TextButton(
@@ -909,18 +929,15 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
 
       if (!mounted) return;
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        setState(() => _locallyReviewedAiResultIds.add(result.aiResultId));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Đã xác nhận kết quả AI.'),
-            backgroundColor: AppColors.success,
-          ),
-        );
+        _locallyReviewedAiResultIds.add(result.aiResultId);
+        AppToast.showSuccess('Đã xác nhận kết quả AI.');
+        await _refreshExaminationDetail(token);
         return;
       }
 
       final body = utf8.decode(response.bodyBytes);
-      var message = 'Không thể xác nhận kết quả AI (${response.statusCode})';
+      var message =
+          'KhĂ´ng thá»ƒ xĂ¡c nháº­n káº¿t quáº£ AI (${response.statusCode})';
       try {
         final data = jsonDecode(body);
         if (data is Map && data['message'] != null) {
@@ -929,20 +946,27 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       } catch (_) {
         if (body.trim().isNotEmpty) message = body;
       }
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.error),
-      );
+      AppToast.showError(message);
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
-          backgroundColor: AppColors.error,
-        ),
-      );
+      AppToast.showError(e.toString().replaceAll('Exception: ', ''));
     } finally {
       if (mounted) setState(() => _isReviewSubmitting = false);
     }
+  }
+
+  Future<void> _refreshExaminationDetail(String token) async {
+    final refreshed = await context
+        .read<ExaminationViewModel>()
+        .openExaminationDetail(examination: examination, token: token);
+    if (!mounted || refreshed) return;
+
+    final message = context.read<ExaminationViewModel>().detailErrorMessage;
+    AppToast.showError(
+      message == null || message.isEmpty
+          ? 'Không thể tải lại chi tiết ca khám.'
+          : message,
+    );
   }
 
   Widget _kneeSelector() {
@@ -1092,7 +1116,10 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _panelTitle(Icons.assignment_outlined, 'Thông tin chi tiết ca khám'),
+          _panelTitle(
+            Icons.assignment_outlined,
+            'ThĂ´ng tin chi tiáº¿t ca khĂ¡m',
+          ),
           const SizedBox(height: 16),
           LayoutBuilder(
             builder: (context, constraints) {
@@ -1107,92 +1134,92 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                     runSpacing: 14,
                     children: [
                       _infoTile(
-                        'ID ca khám',
+                        'ID ca khĂ¡m',
                         examination.examinationId > 0
                             ? examination.examinationId.toString()
                             : '---',
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Trạng thái',
+                        'Tráº¡ng thĂ¡i',
                         examination.statusDisplay,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Vùng chụp',
+                        'VĂ¹ng chá»¥p',
                         examination.bodyPart.isEmpty
                             ? '---'
                             : examination.bodyPart,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Ngày chụp',
+                        'NgĂ y chá»¥p',
                         examination.studyDateDisplay,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Giờ chụp',
+                        'Giá» chá»¥p',
                         examination.studyTime.isEmpty
                             ? '---'
                             : examination.studyTime,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Thời gian khám',
+                        'Thá»i gian khĂ¡m',
                         examination.visitTimeDisplay,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Bác sĩ chỉ định',
+                        'BĂ¡c sÄ© chá»‰ Ä‘á»‹nh',
                         examination.referringPhysician.isEmpty
                             ? '---'
                             : examination.referringPhysician,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Bác sĩ phụ trách',
+                        'BĂ¡c sÄ© phá»¥ trĂ¡ch',
                         examination.doctorName.isEmpty
                             ? '---'
                             : examination.doctorName,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Mức ưu tiên',
+                        'Má»©c Æ°u tiĂªn',
                         examination.priority.isEmpty
                             ? '---'
                             : examination.priority,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Lý do khám',
+                        'LĂ½ do khĂ¡m',
                         examination.chiefComplaint.isEmpty
                             ? '---'
                             : examination.chiefComplaint,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Ghi chú lâm sàng',
+                        'Ghi chĂº lĂ¢m sĂ ng',
                         examination.clinicalNotes.isEmpty
                             ? '---'
                             : examination.clinicalNotes,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Chẩn đoán cuối',
+                        'Cháº©n Ä‘oĂ¡n cuá»‘i',
                         examination.finalDiagnosis.isEmpty
                             ? '---'
                             : examination.finalDiagnosis,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Mô tả',
+                        'MĂ´ táº£',
                         examination.description.isEmpty
                             ? '---'
                             : examination.description,
                         width: columnWidth,
                       ),
                       _infoTile(
-                        'Số ảnh',
+                        'Sá»‘ áº£nh',
                         examination.images.length.toString(),
                         width: columnWidth,
                       ),
@@ -1219,27 +1246,29 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       _ReportAction(
         icon: Icons.task_alt_outlined,
         label: _isReportGenerating
-            ? 'Đang tạo báo cáo'
-            : 'Hoàn thành ca khám, tạo báo cáo',
+            ? 'Äang táº¡o bĂ¡o cĂ¡o'
+            : 'HoĂ n thĂ nh ca khĂ¡m, táº¡o bĂ¡o cĂ¡o',
         enabled: _canGenerateReport && !_isReportGenerating,
-        disabledTooltip: 'Chỉ khả dụng khi ca khám đã xác nhận',
+        disabledTooltip: 'Chá»‰ kháº£ dá»¥ng khi ca khĂ¡m Ä‘Ă£ xĂ¡c nháº­n',
         onPressed: _confirmAndGenerateReport,
       ),
       _ReportAction(
-        icon: Icons.visibility_outlined,
-        label: 'Xem báo cáo',
-        enabled: _canViewOrDownloadReport,
-        disabledTooltip: 'Chỉ khả dụng khi báo cáo đã được xuất',
-        onPressed: _showReportIntegrationPending,
+        icon: Icons.description_outlined,
+        label: 'Xem bĂ¡o cĂ¡o',
+        enabled: _canViewOrDownloadReport && !_isReportPreviewing,
+        disabledTooltip:
+            'Chá»‰ kháº£ dá»¥ng khi bĂ¡o cĂ¡o Ä‘Ă£ Ä‘Æ°á»£c xuáº¥t',
+        onPressed: _previewReport,
       ),
       _ReportAction(
         icon: Icons.download_outlined,
-        label: 'Tải báo cáo',
-        enabled: _canViewOrDownloadReport,
-        disabledTooltip: 'Chỉ khả dụng khi báo cáo đã được xuất',
-        onPressed: _showReportIntegrationPending,
+        label: 'Táº£i bĂ¡o cĂ¡o',
+        enabled: _canViewOrDownloadReport && !_isReportDownloading,
+        disabledTooltip:
+            'Chá»‰ kháº£ dá»¥ng khi bĂ¡o cĂ¡o Ä‘Ă£ Ä‘Æ°á»£c xuáº¥t',
+        onPressed: _downloadReport,
       ),
-    ];
+    ]..removeWhere((action) => action.icon == Icons.download_outlined);
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1255,6 +1284,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                   enabled: actions[index].enabled,
                   disabledTooltip: actions[index].disabledTooltip,
                   onPressed: actions[index].onPressed,
+                  highlighted: index == 1,
                 ),
               ],
             ],
@@ -1262,16 +1292,19 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
         }
 
         return Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
             for (var index = 0; index < actions.length; index++) ...[
               if (index > 0) const SizedBox(width: 12),
-              Expanded(
+              SizedBox(
+                width: index == 0 ? 320 : 150,
                 child: _reportActionButton(
                   icon: actions[index].icon,
                   label: actions[index].label,
                   enabled: actions[index].enabled,
                   disabledTooltip: actions[index].disabledTooltip,
                   onPressed: actions[index].onPressed,
+                  highlighted: index == 1,
                 ),
               ),
             ],
@@ -1287,7 +1320,14 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     required bool enabled,
     required String disabledTooltip,
     required VoidCallback onPressed,
+    bool highlighted = false,
   }) {
+    final backgroundColor = highlighted
+        ? const Color(0xFF0EA5E9)
+        : _primaryGreen;
+    final shadowColor = highlighted
+        ? const Color(0xFF0EA5E9).withValues(alpha: 0.3)
+        : _primaryGreen.withValues(alpha: 0.25);
     return Tooltip(
       message: enabled ? label : disabledTooltip,
       child: SizedBox(
@@ -1295,7 +1335,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
         height: 52,
         child: ElevatedButton.icon(
           onPressed: enabled ? onPressed : null,
-          icon: Icon(icon, size: 21),
+          icon: Icon(icon, size: highlighted ? 23 : 21),
           label: Text(
             label,
             maxLines: 1,
@@ -1303,12 +1343,12 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
             style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
           ),
           style: ElevatedButton.styleFrom(
-            backgroundColor: _primaryGreen,
+            backgroundColor: backgroundColor,
             foregroundColor: Colors.white,
             disabledBackgroundColor: const Color(0xFFE5E7EB),
             disabledForegroundColor: const Color(0xFF94A3B8),
             elevation: enabled ? 2 : 0,
-            shadowColor: _primaryGreen.withValues(alpha: 0.25),
+            shadowColor: shadowColor,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),
@@ -1323,14 +1363,14 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Tạo báo cáo?'),
+        title: const Text('Táº¡o bĂ¡o cĂ¡o?'),
         content: const Text(
-          'Bạn có chắc chắn muốn hoàn thành ca khám và tạo báo cáo không?',
+          'Báº¡n cĂ³ cháº¯c cháº¯n muá»‘n hoĂ n thĂ nh ca khĂ¡m vĂ  táº¡o bĂ¡o cĂ¡o khĂ´ng?',
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Từ chối'),
+            child: const Text('Tá»« chá»‘i'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(dialogContext).pop(true),
@@ -1338,7 +1378,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               backgroundColor: _primaryGreen,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Đồng ý'),
+            child: const Text('Äá»“ng Ă½'),
           ),
         ],
       ),
@@ -1351,13 +1391,19 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   Future<void> _generateReport() async {
     final examinationId = examination.examinationId;
     if (examinationId <= 0) {
-      _showReportMessage('Không tìm thấy ID ca khám hợp lệ.', isError: true);
+      _showReportMessage(
+        'KhĂ´ng tĂ¬m tháº¥y ID ca khĂ¡m há»£p lá»‡.',
+        isError: true,
+      );
       return;
     }
 
     final token = context.read<AuthViewModel>().currentUser?.token ?? '';
     if (token.trim().isEmpty) {
-      _showReportMessage('Phiên đăng nhập không hợp lệ.', isError: true);
+      _showReportMessage(
+        'PhiĂªn Ä‘Äƒng nháº­p khĂ´ng há»£p lá»‡.',
+        isError: true,
+      );
       return;
     }
 
@@ -1367,7 +1413,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
         ApiConstants.examinationReportEndpoint(examinationId),
       );
       final response = await http
-          .get(
+          .post(
             uri,
             headers: {
               'Accept': 'application/json',
@@ -1378,9 +1424,9 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
 
       if (!mounted) return;
       if (response.statusCode >= 200 && response.statusCode < 300) {
-        final body = utf8.decode(response.bodyBytes).trim();
-        final detail = body.isEmpty ? '' : ' $body';
-        _showReportMessage('Đã tạo báo cáo thành công.$detail');
+        setState(() => _isReportAvailable = true);
+        _showReportMessage('Đã tạo báo cáo thành công.');
+        await _refreshExaminationDetail(token);
         return;
       }
 
@@ -1388,7 +1434,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     } catch (e) {
       if (!mounted) return;
       _showReportMessage(
-        'Không thể tạo báo cáo: ${e.toString().replaceAll('Exception: ', '')}',
+        'KhĂ´ng thá»ƒ táº¡o bĂ¡o cĂ¡o: ${e.toString().replaceAll('Exception: ', '')}',
         isError: true,
       );
     } finally {
@@ -1396,10 +1442,125 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     }
   }
 
+  Future<void> _previewReport() async {
+    await _handleReportFileAction(
+      endpoint: ApiConstants.reportPreviewEndpoint(examination.examinationId),
+      fallbackFileName:
+          'examination_${examination.examinationId}_report_preview.pdf',
+      setLoading: (loading) => setState(() => _isReportPreviewing = loading),
+      onBytes: (bytes, fileName) => showReportPdfPreviewDialog(
+        context,
+        bytes: bytes,
+        fileName: fileName,
+        onDownload: _downloadReport,
+      ),
+      successMessage: 'ÄĂ£ má»Ÿ bĂ¡o cĂ¡o.',
+      failurePrefix: 'KhĂ´ng thá»ƒ xem bĂ¡o cĂ¡o',
+    );
+  }
+
+  Future<void> _downloadReport() async {
+    await _handleReportFileAction(
+      endpoint: ApiConstants.reportDownloadEndpoint(examination.examinationId),
+      fallbackFileName: 'examination_${examination.examinationId}_report.pdf',
+      setLoading: (loading) => setState(() => _isReportDownloading = loading),
+      onBytes: (bytes, fileName) =>
+          ReportFileService().downloadPdf(bytes, fileName: fileName),
+      successMessage: 'ÄĂ£ táº£i bĂ¡o cĂ¡o.',
+      failurePrefix: 'KhĂ´ng thá»ƒ táº£i bĂ¡o cĂ¡o',
+    );
+  }
+
+  Future<void> _handleReportFileAction({
+    required String endpoint,
+    required String fallbackFileName,
+    required ValueChanged<bool> setLoading,
+    required Future<void> Function(Uint8List bytes, String fileName) onBytes,
+    required String? successMessage,
+    required String failurePrefix,
+  }) async {
+    if (examination.examinationId <= 0) {
+      _showReportMessage(
+        'KhĂ´ng tĂ¬m tháº¥y ID ca khĂ¡m há»£p lá»‡.',
+        isError: true,
+      );
+      return;
+    }
+
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    if (token.trim().isEmpty) {
+      _showReportMessage(
+        'PhiĂªn Ä‘Äƒng nháº­p khĂ´ng há»£p lá»‡.',
+        isError: true,
+      );
+      return;
+    }
+
+    setLoading(true);
+    try {
+      final response = await http
+          .get(
+            Uri.parse(endpoint),
+            headers: {
+              'Accept': 'application/pdf',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (!mounted) return;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final fileName = _reportFileName(response, fallbackFileName);
+        await onBytes(response.bodyBytes, fileName);
+        if (!mounted) return;
+        if (successMessage != null &&
+            endpoint !=
+                ApiConstants.reportPreviewEndpoint(examination.examinationId)) {
+          _showReportMessage(successMessage);
+        }
+        return;
+      }
+
+      _showReportMessage(
+        '$failurePrefix: ${_reportErrorMessage(response)}',
+        isError: true,
+      );
+    } catch (e) {
+      if (!mounted) return;
+      _showReportMessage(
+        '$failurePrefix: ${e.toString().replaceAll('Exception: ', '')}',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setLoading(false);
+    }
+  }
+
+  String _reportFileName(http.Response response, String fallback) {
+    final disposition = response.headers['content-disposition'];
+    if (disposition == null || disposition.trim().isEmpty) return fallback;
+
+    final encodedMatch = RegExp(
+      "filename\\*=UTF-8''([^;]+)",
+      caseSensitive: false,
+    ).firstMatch(disposition);
+    if (encodedMatch != null) {
+      final value = Uri.decodeFull(encodedMatch.group(1)!.trim());
+      if (value.isNotEmpty) return value;
+    }
+
+    final quotedMatch = RegExp(
+      'filename="?([^";]+)"?',
+      caseSensitive: false,
+    ).firstMatch(disposition);
+    final value = quotedMatch?.group(1)?.trim();
+    return value == null || value.isEmpty ? fallback : value;
+  }
+
   String _reportErrorMessage(http.Response response) {
     final body = utf8.decode(response.bodyBytes).trim();
     if (body.isEmpty) {
-      return 'Không thể tạo báo cáo (${response.statusCode}).';
+      return 'KhĂ´ng thá»ƒ táº¡o bĂ¡o cĂ¡o (${response.statusCode}).';
     }
 
     try {
@@ -1414,24 +1575,15 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       return body;
     }
 
-    return 'Không thể tạo báo cáo (${response.statusCode}).';
+    return 'KhĂ´ng thá»ƒ táº¡o bĂ¡o cĂ¡o (${response.statusCode}).';
   }
 
   void _showReportMessage(String message, {bool isError = false}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: isError ? AppColors.error : AppColors.success,
-      ),
-    );
-  }
-
-  void _showReportIntegrationPending() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Chức năng báo cáo sẽ được nối API ở bước tiếp theo.'),
-      ),
-    );
+    if (isError) {
+      AppToast.showError(message);
+      return;
+    }
+    AppToast.showSuccess(message);
   }
 
   Widget _infoTile(String label, String value, {required double width}) {
@@ -1485,17 +1637,26 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     );
   }
 
-  Color _riskColor(int grade) {
+  Color _riskColor(int? grade) {
+    if (grade == null) return _primaryGreen;
     if (grade >= 4) return AppColors.error;
     if (grade >= 2) return const Color(0xFFD97706);
     return _primaryGreen;
   }
 
-  Color _detailColor(double value) {
-    final normalized = value > 1 ? value / 100 : value;
-    if (normalized >= 0.75) return AppColors.error;
-    if (normalized >= 0.45) return const Color(0xFFD97706);
-    return _primaryGreen;
+  Color _gradeProbabilityColor(int grade) {
+    switch (grade) {
+      case 4:
+        return AppColors.error;
+      case 3:
+        return const Color(0xFFEA580C);
+      case 2:
+        return const Color(0xFFD97706);
+      case 1:
+        return const Color(0xFF65A30D);
+      default:
+        return _primaryGreen;
+    }
   }
 
   List<MapEntry<int, double>> _sortedKlDetails(Map<String, double> details) {
@@ -1518,18 +1679,19 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     return match == null ? null : int.tryParse(match.group(0)!);
   }
 
-  String _gradeDescription(int grade) {
+  String _gradeDescription(int? grade) {
+    if (grade == null) return '---';
     switch (grade) {
       case 1:
-        return 'Nghi ngờ thoái hóa nhẹ';
+        return 'Nghi ngá» thoĂ¡i hĂ³a nháº¹';
       case 2:
-        return 'Thoái hóa nhẹ';
+        return 'ThoĂ¡i hĂ³a nháº¹';
       case 3:
-        return 'Thoái hóa trung bình';
+        return 'ThoĂ¡i hĂ³a trung bĂ¬nh';
       case 4:
-        return 'Giai đoạn cuối (Nghiêm trọng)';
+        return 'Giai Ä‘oáº¡n cuá»‘i (NghiĂªm trá»ng)';
       default:
-        return grade > 0 ? 'Grade $grade' : 'Chưa xác định';
+        return grade > 0 ? 'Grade $grade' : 'ChÆ°a xĂ¡c Ä‘á»‹nh';
     }
   }
 
@@ -1580,7 +1742,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
   void initState() {
     super.initState();
     _agreeWithAi = true;
-    _selectedGrade = widget.result.displayGrade.clamp(0, 4).toInt();
+    _selectedGrade = (widget.result.displayGrade ?? 0).clamp(0, 4).toInt();
     _noteController = TextEditingController(text: widget.result.reviewNote);
   }
 
@@ -1611,7 +1773,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
             Icon(Icons.rate_review_outlined, color: Colors.white, size: 22),
             SizedBox(width: 10),
             Text(
-              'Nhận xét của bác sĩ',
+              'Nháº­n xĂ©t cá»§a bĂ¡c sÄ©',
               style: TextStyle(
                 color: Colors.white,
                 fontWeight: FontWeight.w900,
@@ -1630,10 +1792,12 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
             children: [
               Row(
                 children: [
-                  Expanded(child: _infoField('Tên bác sĩ', widget.doctorName)),
+                  Expanded(
+                    child: _infoField('TĂªn bĂ¡c sÄ©', widget.doctorName),
+                  ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: _infoField('Ngày đánh giá', _formatDate(now)),
+                    child: _infoField('NgĂ y Ä‘Ă¡nh giĂ¡', _formatDate(now)),
                   ),
                 ],
               ),
@@ -1641,7 +1805,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
               _aiResultCard(widget.result),
               const SizedBox(height: 18),
               const Text(
-                'Nhận định của bác sĩ',
+                'Nháº­n Ä‘á»‹nh cá»§a bĂ¡c sÄ©',
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
@@ -1653,7 +1817,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
                 children: [
                   Expanded(
                     child: _decisionTile(
-                      label: 'Đồng ý với AI',
+                      label: 'Äá»“ng Ă½ vá»›i AI',
                       selected: _agreeWithAi,
                       onTap: () => setState(() => _agreeWithAi = true),
                     ),
@@ -1661,7 +1825,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
                   const SizedBox(width: 12),
                   Expanded(
                     child: _decisionTile(
-                      label: 'Không đồng ý',
+                      label: 'KhĂ´ng Ä‘á»“ng Ă½',
                       selected: !_agreeWithAi,
                       onTap: () => setState(() => _agreeWithAi = false),
                     ),
@@ -1671,7 +1835,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
               if (!_agreeWithAi) ...[
                 const SizedBox(height: 16),
                 const Text(
-                  'KL Grade (theo bác sĩ)',
+                  'KL Grade (theo bĂ¡c sÄ©)',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
@@ -1692,7 +1856,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
                 ),
                 const SizedBox(height: 14),
                 const Text(
-                  'Mô tả',
+                  'MĂ´ táº£',
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w900,
@@ -1709,7 +1873,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
                   maxLines: 5,
                   maxLength: 2000,
                   decoration: InputDecoration(
-                    hintText: 'Nhập nhận xét, diễn giải lâm sàng...',
+                    hintText: 'Nháº­p nháº­n xĂ©t, diá»…n giáº£i lĂ¢m sĂ ng...',
                     errorText: _noteError,
                     alignLabelWithHint: true,
                     border: OutlineInputBorder(
@@ -1725,14 +1889,14 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Hủy'),
+          child: const Text('Há»§y'),
         ),
         ElevatedButton.icon(
           onPressed: () {
             if (!_agreeWithAi && _noteController.text.trim().isEmpty) {
               setState(
-                () =>
-                    _noteError = 'Vui lòng nhập mô tả khi không đồng ý với AI.',
+                () => _noteError =
+                    'Vui lĂ²ng nháº­p mĂ´ táº£ khi khĂ´ng Ä‘á»“ng Ă½ vá»›i AI.',
               );
               return;
             }
@@ -1745,7 +1909,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
             );
           },
           icon: const Icon(Icons.verified_outlined, size: 18),
-          label: const Text('Xác nhận'),
+          label: const Text('XĂ¡c nháº­n'),
           style: ElevatedButton.styleFrom(
             backgroundColor: AppColors.primary,
             foregroundColor: Colors.white,
@@ -1850,7 +2014,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  'Kết quả AI',
+                  'Káº¿t quáº£ AI',
                   style: TextStyle(
                     fontSize: 11,
                     fontWeight: FontWeight.w900,
@@ -1859,7 +2023,9 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'KL ${result.displayGrade}',
+                  result.displayGrade == null
+                      ? 'KL ---'
+                      : 'KL ${result.displayGrade}',
                   style: const TextStyle(
                     fontSize: 28,
                     fontWeight: FontWeight.w900,
@@ -1876,7 +2042,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
               borderRadius: BorderRadius.circular(999),
             ),
             child: Text(
-              'Độ tin cậy: ${result.confidenceDisplay}',
+              'Äá»™ tin cáº­y: ${result.confidenceDisplay}',
               style: const TextStyle(
                 fontSize: 12,
                 fontWeight: FontWeight.w800,

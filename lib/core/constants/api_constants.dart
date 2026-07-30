@@ -14,9 +14,12 @@ class ApiConstants {
   static const String examinationsEndpoint = '$baseUrl/examinations';
   static String examinationByIdEndpoint(int id) => '$examinationsEndpoint/$id';
   static String examinationReportEndpoint(int id) =>
-      '$examinationsEndpoint/$id/report';
-  static String examinationGenerateReportEndpoint(int id) =>
       '$examinationsEndpoint/$id/generate-report';
+  static const String reportsEndpoint = '$baseUrl/reports';
+  static String reportPreviewEndpoint(int examinationId) =>
+      '$reportsEndpoint/$examinationId/preview';
+  static String reportDownloadEndpoint(int examinationId) =>
+      '$reportsEndpoint/$examinationId/download';
   static String markExaminationViewedEndpoint(int id) =>
       '$examinationsEndpoint/$id/view';
   static String examinationsByPatientEndpoint(String patientId) =>

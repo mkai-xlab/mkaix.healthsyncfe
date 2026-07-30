@@ -1,5 +1,7 @@
 import 'package:intl/intl.dart';
 
+import '../../core/utils/examination_status_utils.dart';
+
 class AiPredictionResultEntity {
   final int dicomInstanceId;
   final int aiAnalysisId;
@@ -147,13 +149,21 @@ class ExaminationEntity {
 
   String get statusGroup {
     final normalized = status.toUpperCase();
-    if (normalized == 'PENDING_REVIEW') return 'PENDING';
-    if (normalized == 'NEED_VERIFY') return 'NEED_VERIFY';
-    if (normalized == 'NEED_REVERIFY') return 'NEED_REVERIFY';
-    if (normalized == 'AI_COMPLETED') return 'AI_COMPLETED';
-    if (normalized == 'AWAITING_REVIEW') return 'AWAITING_REVIEW';
-    if (normalized == 'ANALYZING') return 'ANALYZING';
-    if (normalized == 'COMPLETED') return 'COMPLETED';
+    if (normalized == ExaminationStatusUtils.aiProcessing) {
+      return ExaminationStatusUtils.aiProcessing;
+    }
+    if (normalized == ExaminationStatusUtils.needVerify) {
+      return ExaminationStatusUtils.needVerify;
+    }
+    if (normalized == ExaminationStatusUtils.verified) {
+      return ExaminationStatusUtils.verified;
+    }
+    if (normalized == ExaminationStatusUtils.reportGenerated) {
+      return ExaminationStatusUtils.reportGenerated;
+    }
+    if (normalized == ExaminationStatusUtils.reportExported) {
+      return ExaminationStatusUtils.reportExported;
+    }
     return normalized;
   }
 
@@ -190,24 +200,7 @@ class ExaminationEntity {
   }
 
   String get statusDisplay {
-    switch (statusGroup) {
-      case 'PENDING':
-        return 'Đang chờ';
-      case 'ANALYZING':
-        return 'Đang phân tích';
-      case 'AWAITING_REVIEW':
-        return 'Chờ nhận xét';
-      case 'NEED_VERIFY':
-        return 'Cần xác nhận';
-      case 'NEED_REVERIFY':
-        return 'Cần xác nhận lại';
-      case 'AI_COMPLETED':
-        return 'AI hoàn tất';
-      case 'COMPLETED':
-        return 'Hoàn thành';
-      default:
-        return status.isEmpty ? 'Không rõ' : status;
-    }
+    return ExaminationStatusUtils.display(statusGroup);
   }
 
   String get studyDateDisplay {

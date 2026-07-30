@@ -143,8 +143,15 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 
 | Method | Path | Purpose | Response |
 | --- | --- | --- | --- |
-| `GET` | `/reports/{reportId}/preview` | Preview generated report | binary |
-| `GET` | `/reports/{reportId}/download` | Download generated report | binary |
+| `POST` | `/examinations/{id}/generate-report` | Generate/export PDF report for an examination | `string` report id or file reference |
+| `GET` | `/reports/{reportId}/preview` | Preview generated PDF report | binary PDF |
+| `GET` | `/reports/{reportId}/download` | Download generated PDF report | binary PDF |
+
+Export report flow:
+
+1. Call `POST /examinations/{id}/generate-report` with the examination id.
+2. Use the returned report id/file reference as `{reportId}`.
+3. Call `GET /reports/{reportId}/preview` for in-app preview, or `GET /reports/{reportId}/download` for file download.
 
 ## Notifications And Audit
 

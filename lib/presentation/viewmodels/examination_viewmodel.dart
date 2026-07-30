@@ -17,6 +17,10 @@ enum ExaminationListMode {
   grade2,
   grade3,
   grade4,
+  statusAiProcessing,
+  statusNeedVerify,
+  statusVerified,
+  statusReportGenerated,
 }
 
 class ExaminationViewModel extends ChangeNotifier {

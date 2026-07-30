@@ -6,12 +6,29 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/api_constants.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/examination_status_utils.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import 'patient_detail_page.dart';
 
 enum _ImageMode { original, annotated, roi, gradcam }
+
+class _ReportAction {
+  final IconData icon;
+  final String label;
+  final bool enabled;
+  final String disabledTooltip;
+  final VoidCallback onPressed;
+
+  const _ReportAction({
+    required this.icon,
+    required this.label,
+    required this.enabled,
+    required this.disabledTooltip,
+    required this.onPressed,
+  });
+}
 
 class ExaminationDetailPage extends StatefulWidget {
   final ExaminationEntity examination;
@@ -37,6 +54,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   int _selectedResultIndex = 0;
   _ImageMode _imageMode = _ImageMode.original;
   bool _isReviewSubmitting = false;
+  bool _isReportGenerating = false;
   final Set<int> _locallyReviewedAiResultIds = {};
 
   ExaminationEntity get examination => widget.examination;
@@ -116,6 +134,20 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   bool get _canShowAnnotated => _selectedAnnotatedUrl.isNotEmpty;
   bool get _canShowRoi => _selectedRoiUrl.isNotEmpty;
   bool get _canShowGradcam => _selectedGradcamUrl.isNotEmpty;
+
+  bool get _canGenerateReport {
+    final normalizedStatus = examination.status.trim().toUpperCase();
+    final normalizedGroup = examination.statusGroup.trim().toUpperCase();
+    return normalizedStatus == ExaminationStatusUtils.verified ||
+        normalizedGroup == ExaminationStatusUtils.verified;
+  }
+
+  bool get _canViewOrDownloadReport {
+    final normalizedStatus = examination.status.trim().toUpperCase();
+    final normalizedGroup = examination.statusGroup.trim().toUpperCase();
+    return normalizedStatus == ExaminationStatusUtils.reportExported ||
+        normalizedGroup == ExaminationStatusUtils.reportExported;
+  }
 
   String get _imageModeLabel {
     switch (_imageMode) {
@@ -218,6 +250,11 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                         ),
                       const SizedBox(height: 18),
                       _examInfoPanel(),
+                      const SizedBox(height: 14),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: _reportActions(),
+                      ),
                     ],
                   ),
                 );
@@ -681,91 +718,103 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   Widget _aiResultState(AiPredictionResultEntity result) {
     final grade = result.displayGrade;
     final riskColor = _riskColor(grade);
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _panelTitle(Icons.analytics_outlined, 'Kết quả phân tích'),
-          if ((_selectedImage?.aiResults.length ?? 0) > 0) ...[
-            const SizedBox(height: 12),
-            _kneeSelector(),
-          ],
-          const SizedBox(height: 16),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              color: riskColor.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: riskColor.withValues(alpha: 0.18)),
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'KELLGREN-LAWRENCE',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: 0,
-                    color: AppColors.error,
+                _panelTitle(Icons.analytics_outlined, 'Kết quả phân tích'),
+                if ((_selectedImage?.aiResults.length ?? 0) > 0) ...[
+                  const SizedBox(height: 12),
+                  _kneeSelector(),
+                ],
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(18),
+                  decoration: BoxDecoration(
+                    color: riskColor.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: riskColor.withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'KELLGREN-LAWRENCE',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 0,
+                          color: AppColors.error,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        result.predictedGradeDisplay.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w900,
+                          color: riskColor,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        _gradeDescription(grade),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: riskColor,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  result.predictedGradeDisplay.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w900,
-                    color: riskColor,
-                  ),
+                const SizedBox(height: 18),
+                _metricBar(
+                  label: 'Độ tin cậy',
+                  value: result.confidence,
+                  color: _primaryGreen,
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  _gradeDescription(grade),
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w800,
-                    color: riskColor,
+                if (result.details.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  ..._sortedKlDetails(result.details).map(
+                    (entry) => Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: _metricBar(
+                        label: 'KL${entry.key}',
+                        value: entry.value,
+                        color: _detailColor(entry.value),
+                      ),
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
-          const SizedBox(height: 18),
-          _metricBar(
-            label: 'Độ tin cậy',
-            value: result.confidence,
-            color: _primaryGreen,
-          ),
-          if (result.details.isNotEmpty) ...[
-            const SizedBox(height: 14),
-            ..._sortedKlDetails(result.details).map(
-              (entry) => Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _metricBar(
-                  label: 'KL${entry.key}',
-                  value: entry.value,
-                  color: _detailColor(entry.value),
-                ),
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          _aiReviewButton(result),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        _aiReviewButton(result),
+      ],
     );
   }
 
   Widget _aiReviewButton(AiPredictionResultEntity result) {
-    final disabled = result.aiResultId <= 0 || _isReviewSubmitting;
+    final reviewed = _isAiResultReviewed(result);
+    final disabled = reviewed || result.aiResultId <= 0 || _isReviewSubmitting;
     return SizedBox(
       width: double.infinity,
       height: 44,
       child: ElevatedButton.icon(
         onPressed: disabled ? null : () => _openAiReviewDialog(result),
-        icon: _isReviewSubmitting
+        icon: reviewed
+            ? const Icon(Icons.check_circle_outline, size: 18)
+            : _isReviewSubmitting
             ? const SizedBox(
                 width: 16,
                 height: 16,
@@ -775,9 +824,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                 ),
               )
             : const Icon(Icons.verified_outlined, size: 18),
-        label: Text(
-          _isAiResultReviewed(result) ? 'Cập nhật xác nhận' : 'Xác nhận',
-        ),
+        label: Text(reviewed ? 'Đã xác nhận' : 'Xác nhận'),
         style: ElevatedButton.styleFrom(
           backgroundColor: _primaryGreen,
           foregroundColor: Colors.white,
@@ -909,7 +956,20 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       children: [
         for (var index = 0; index < results.length; index++)
           ChoiceChip(
-            label: Text(results[index].kneeSideDisplay),
+            label: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_isAiResultReviewed(results[index])) ...[
+                  const Icon(
+                    Icons.check_circle,
+                    size: 15,
+                    color: AppColors.success,
+                  ),
+                  const SizedBox(width: 5),
+                ],
+                Text(results[index].kneeSideDisplay),
+              ],
+            ),
             selected: index == _selectedResultIndex,
             showCheckmark: false,
             onSelected: results.length == 1
@@ -1039,108 +1099,337 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               final columnWidth = constraints.maxWidth < 760
                   ? constraints.maxWidth
                   : (constraints.maxWidth - 32) / 3;
-              return Wrap(
-                spacing: 16,
-                runSpacing: 14,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _infoTile(
-                    'ID ca khám',
-                    examination.examinationId > 0
-                        ? examination.examinationId.toString()
-                        : '---',
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Trạng thái',
-                    examination.statusDisplay,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Vùng chụp',
-                    examination.bodyPart.isEmpty ? '---' : examination.bodyPart,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Ngày chụp',
-                    examination.studyDateDisplay,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Giờ chụp',
-                    examination.studyTime.isEmpty
-                        ? '---'
-                        : examination.studyTime,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Thời gian khám',
-                    examination.visitTimeDisplay,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Bác sĩ chỉ định',
-                    examination.referringPhysician.isEmpty
-                        ? '---'
-                        : examination.referringPhysician,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Bác sĩ phụ trách',
-                    examination.doctorName.isEmpty
-                        ? '---'
-                        : examination.doctorName,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Mức ưu tiên',
-                    examination.priority.isEmpty ? '---' : examination.priority,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Lý do khám',
-                    examination.chiefComplaint.isEmpty
-                        ? '---'
-                        : examination.chiefComplaint,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Ghi chú lâm sàng',
-                    examination.clinicalNotes.isEmpty
-                        ? '---'
-                        : examination.clinicalNotes,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Chẩn đoán cuối',
-                    examination.finalDiagnosis.isEmpty
-                        ? '---'
-                        : examination.finalDiagnosis,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Mô tả',
-                    examination.description.isEmpty
-                        ? '---'
-                        : examination.description,
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Số ảnh',
-                    examination.images.length.toString(),
-                    width: columnWidth,
-                  ),
-                  _infoTile(
-                    'Encounter code',
-                    examination.encounterCode.isEmpty
-                        ? '---'
-                        : examination.encounterCode,
-                    width: columnWidth,
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 14,
+                    children: [
+                      _infoTile(
+                        'ID ca khám',
+                        examination.examinationId > 0
+                            ? examination.examinationId.toString()
+                            : '---',
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Trạng thái',
+                        examination.statusDisplay,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Vùng chụp',
+                        examination.bodyPart.isEmpty
+                            ? '---'
+                            : examination.bodyPart,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Ngày chụp',
+                        examination.studyDateDisplay,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Giờ chụp',
+                        examination.studyTime.isEmpty
+                            ? '---'
+                            : examination.studyTime,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Thời gian khám',
+                        examination.visitTimeDisplay,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Bác sĩ chỉ định',
+                        examination.referringPhysician.isEmpty
+                            ? '---'
+                            : examination.referringPhysician,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Bác sĩ phụ trách',
+                        examination.doctorName.isEmpty
+                            ? '---'
+                            : examination.doctorName,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Mức ưu tiên',
+                        examination.priority.isEmpty
+                            ? '---'
+                            : examination.priority,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Lý do khám',
+                        examination.chiefComplaint.isEmpty
+                            ? '---'
+                            : examination.chiefComplaint,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Ghi chú lâm sàng',
+                        examination.clinicalNotes.isEmpty
+                            ? '---'
+                            : examination.clinicalNotes,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Chẩn đoán cuối',
+                        examination.finalDiagnosis.isEmpty
+                            ? '---'
+                            : examination.finalDiagnosis,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Mô tả',
+                        examination.description.isEmpty
+                            ? '---'
+                            : examination.description,
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Số ảnh',
+                        examination.images.length.toString(),
+                        width: columnWidth,
+                      ),
+                      _infoTile(
+                        'Encounter code',
+                        examination.encounterCode.isEmpty
+                            ? '---'
+                            : examination.encounterCode,
+                        width: columnWidth,
+                      ),
+                    ],
                   ),
                 ],
               );
             },
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _reportActions() {
+    final actions = [
+      _ReportAction(
+        icon: Icons.task_alt_outlined,
+        label: _isReportGenerating
+            ? 'Đang tạo báo cáo'
+            : 'Hoàn thành ca khám, tạo báo cáo',
+        enabled: _canGenerateReport && !_isReportGenerating,
+        disabledTooltip: 'Chỉ khả dụng khi ca khám đã xác nhận',
+        onPressed: _confirmAndGenerateReport,
+      ),
+      _ReportAction(
+        icon: Icons.visibility_outlined,
+        label: 'Xem báo cáo',
+        enabled: _canViewOrDownloadReport,
+        disabledTooltip: 'Chỉ khả dụng khi báo cáo đã được xuất',
+        onPressed: _showReportIntegrationPending,
+      ),
+      _ReportAction(
+        icon: Icons.download_outlined,
+        label: 'Tải báo cáo',
+        enabled: _canViewOrDownloadReport,
+        disabledTooltip: 'Chỉ khả dụng khi báo cáo đã được xuất',
+        onPressed: _showReportIntegrationPending,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isNarrow = constraints.maxWidth < 760;
+        if (isNarrow) {
+          return Column(
+            children: [
+              for (var index = 0; index < actions.length; index++) ...[
+                if (index > 0) const SizedBox(height: 10),
+                _reportActionButton(
+                  icon: actions[index].icon,
+                  label: actions[index].label,
+                  enabled: actions[index].enabled,
+                  disabledTooltip: actions[index].disabledTooltip,
+                  onPressed: actions[index].onPressed,
+                ),
+              ],
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            for (var index = 0; index < actions.length; index++) ...[
+              if (index > 0) const SizedBox(width: 12),
+              Expanded(
+                child: _reportActionButton(
+                  icon: actions[index].icon,
+                  label: actions[index].label,
+                  enabled: actions[index].enabled,
+                  disabledTooltip: actions[index].disabledTooltip,
+                  onPressed: actions[index].onPressed,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _reportActionButton({
+    required IconData icon,
+    required String label,
+    required bool enabled,
+    required String disabledTooltip,
+    required VoidCallback onPressed,
+  }) {
+    return Tooltip(
+      message: enabled ? label : disabledTooltip,
+      child: SizedBox(
+        width: double.infinity,
+        height: 52,
+        child: ElevatedButton.icon(
+          onPressed: enabled ? onPressed : null,
+          icon: Icon(icon, size: 21),
+          label: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _primaryGreen,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: const Color(0xFFE5E7EB),
+            disabledForegroundColor: const Color(0xFF94A3B8),
+            elevation: enabled ? 2 : 0,
+            shadowColor: _primaryGreen.withValues(alpha: 0.25),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmAndGenerateReport() async {
+    if (_isReportGenerating) return;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Tạo báo cáo?'),
+        content: const Text(
+          'Bạn có chắc chắn muốn hoàn thành ca khám và tạo báo cáo không?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Từ chối'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryGreen,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Đồng ý'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    await _generateReport();
+  }
+
+  Future<void> _generateReport() async {
+    final examinationId = examination.examinationId;
+    if (examinationId <= 0) {
+      _showReportMessage('Không tìm thấy ID ca khám hợp lệ.', isError: true);
+      return;
+    }
+
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    if (token.trim().isEmpty) {
+      _showReportMessage('Phiên đăng nhập không hợp lệ.', isError: true);
+      return;
+    }
+
+    setState(() => _isReportGenerating = true);
+    try {
+      final uri = Uri.parse(
+        ApiConstants.examinationReportEndpoint(examinationId),
+      );
+      final response = await http
+          .get(
+            uri,
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (!mounted) return;
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final body = utf8.decode(response.bodyBytes).trim();
+        final detail = body.isEmpty ? '' : ' $body';
+        _showReportMessage('Đã tạo báo cáo thành công.$detail');
+        return;
+      }
+
+      _showReportMessage(_reportErrorMessage(response), isError: true);
+    } catch (e) {
+      if (!mounted) return;
+      _showReportMessage(
+        'Không thể tạo báo cáo: ${e.toString().replaceAll('Exception: ', '')}',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isReportGenerating = false);
+    }
+  }
+
+  String _reportErrorMessage(http.Response response) {
+    final body = utf8.decode(response.bodyBytes).trim();
+    if (body.isEmpty) {
+      return 'Không thể tạo báo cáo (${response.statusCode}).';
+    }
+
+    try {
+      final data = jsonDecode(body);
+      if (data is Map && data['message'] != null) {
+        return data['message'].toString();
+      }
+      if (data is String && data.trim().isNotEmpty) {
+        return data.trim();
+      }
+    } catch (_) {
+      return body;
+    }
+
+    return 'Không thể tạo báo cáo (${response.statusCode}).';
+  }
+
+  void _showReportMessage(String message, {bool isError = false}) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? AppColors.error : AppColors.success,
+      ),
+    );
+  }
+
+  void _showReportIntegrationPending() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Chức năng báo cáo sẽ được nối API ở bước tiếp theo.'),
       ),
     );
   }
@@ -1176,42 +1465,24 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   }
 
   Widget _statusBadge() {
-    final color = _statusColor(examination.statusGroup);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: ExaminationStatusUtils.backgroundColor(examination.statusGroup),
         borderRadius: BorderRadius.circular(20),
+        border: ExaminationStatusUtils.border(examination.statusGroup),
       ),
       child: Text(
         examination.statusDisplay,
         style: TextStyle(
-          color: color,
+          color: ExaminationStatusUtils.foregroundColor(
+            examination.statusGroup,
+          ),
           fontSize: 12,
           fontWeight: FontWeight.w700,
         ),
       ),
     );
-  }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'PENDING':
-        return const Color(0xFFB7791F);
-      case 'ANALYZING':
-        return const Color(0xFF3182CE);
-      case 'AWAITING_REVIEW':
-        return const Color(0xFF805AD5);
-      case 'NEED_VERIFY':
-      case 'NEED_REVERIFY':
-        return const Color(0xFFD97706);
-      case 'AI_COMPLETED':
-        return const Color(0xFF2563EB);
-      case 'COMPLETED':
-        return _primaryGreen;
-      default:
-        return const Color(0xFF718096);
-    }
   }
 
   Color _riskColor(int grade) {

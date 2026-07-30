@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/examination_status_utils.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -39,9 +40,43 @@ class _SortOption {
   });
 }
 
+class _StatusOption {
+  final String label;
+  final String status;
+  final ExaminationListMode mode;
+
+  const _StatusOption({
+    required this.label,
+    required this.status,
+    required this.mode,
+  });
+}
+
 class _ExaminationListPageState extends State<ExaminationListPage> {
   static const Color _primaryGreen = AppColors.primary;
   static const Color _pageBg = AppColors.surface1;
+  static const List<_StatusOption> _statusOptions = [
+    _StatusOption(
+      label: 'Đang phân tích',
+      status: 'AI_PROCESSING',
+      mode: ExaminationListMode.statusAiProcessing,
+    ),
+    _StatusOption(
+      label: 'Cần xác nhận',
+      status: 'NEED_VERIFY',
+      mode: ExaminationListMode.statusNeedVerify,
+    ),
+    _StatusOption(
+      label: 'Đã xác nhận',
+      status: 'VERIFIED',
+      mode: ExaminationListMode.statusVerified,
+    ),
+    _StatusOption(
+      label: 'Đã tạo báo cáo',
+      status: 'REPORT_GENERATED',
+      mode: ExaminationListMode.statusReportGenerated,
+    ),
+  ];
 
   bool _didLoad = false;
 
@@ -233,6 +268,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
             ),
           ],
         ),
+        _statusDropdown(vm),
         _allChip(vm),
         for (var grade = 4; grade >= 0; grade--) _gradeChip(vm, grade),
         if (vm.listMode != ExaminationListMode.all)
@@ -264,6 +300,92 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
         mode == ExaminationListMode.studyDateDesc ||
         mode == ExaminationListMode.uploadDateAsc ||
         mode == ExaminationListMode.uploadDateDesc;
+  }
+
+  Widget _statusDropdown(ExaminationViewModel vm) {
+    final selected = _statusOptionForMode(vm.listMode);
+    return SizedBox(
+      width: 230,
+      child: DropdownButtonFormField<ExaminationListMode>(
+        initialValue: selected?.mode,
+        hint: const Text('Trạng thái'),
+        isDense: true,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: _primaryGreen, width: 1.4),
+          ),
+        ),
+        items: [
+          for (final item in _statusOptions)
+            DropdownMenuItem<ExaminationListMode>(
+              value: item.mode,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.circle_rounded,
+                    size: 10,
+                    color: _statusColor(item.status),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(item.label, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        selectedItemBuilder: (context) {
+          return [
+            for (final item in _statusOptions)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.circle_rounded,
+                    size: 10,
+                    color: _statusColor(item.status),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(item.label, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+          ];
+        },
+        onChanged: (mode) {
+          if (mode == null) return;
+          final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+          vm.applyListMode(token: token, mode: mode);
+        },
+        style: const TextStyle(
+          color: Color(0xFF1A2B3C),
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        dropdownColor: Colors.white,
+      ),
+    );
+  }
+
+  _StatusOption? _statusOptionForMode(ExaminationListMode mode) {
+    for (final item in _statusOptions) {
+      if (item.mode == mode) return item;
+    }
+    return null;
   }
 
   Widget _allChip(ExaminationViewModel vm) {
@@ -611,17 +733,19 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
   }
 
   Widget _statusBadge(ExaminationEntity examination) {
-    final color = _statusColor(examination.statusGroup);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: ExaminationStatusUtils.backgroundColor(examination.statusGroup),
         borderRadius: BorderRadius.circular(20),
+        border: ExaminationStatusUtils.border(examination.statusGroup),
       ),
       child: Text(
         examination.statusDisplay,
         style: TextStyle(
-          color: color,
+          color: ExaminationStatusUtils.foregroundColor(
+            examination.statusGroup,
+          ),
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -693,23 +817,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
   }
 
   Color _statusColor(String status) {
-    switch (status) {
-      case 'PENDING':
-        return const Color(0xFFB7791F);
-      case 'ANALYZING':
-        return const Color(0xFF3182CE);
-      case 'AWAITING_REVIEW':
-        return const Color(0xFF805AD5);
-      case 'NEED_VERIFY':
-      case 'NEED_REVERIFY':
-        return const Color(0xFFD97706);
-      case 'AI_COMPLETED':
-        return const Color(0xFF2563EB);
-      case 'COMPLETED':
-        return _primaryGreen;
-      default:
-        return const Color(0xFF718096);
-    }
+    return ExaminationStatusUtils.color(status);
   }
 
   List<ExaminationEntity> _visibleExaminations(ExaminationViewModel vm) {

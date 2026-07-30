@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/examination_status_utils.dart';
 import '../../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -971,10 +972,7 @@ class _TableRow extends StatelessWidget {
             ),
           ),
           Expanded(flex: 2, child: _RiskBadge(grade: grade)),
-          Expanded(
-            flex: 2,
-            child: _StatusBadge(text: examination.statusDisplay),
-          ),
+          Expanded(flex: 2, child: _StatusBadge(examination: examination)),
           const SizedBox(
             width: 42,
             child: Icon(Icons.visibility_outlined, color: AppColors.primary),
@@ -1020,9 +1018,9 @@ class _RiskBadge extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  final String text;
+  final ExaminationEntity examination;
 
-  const _StatusBadge({required this.text});
+  const _StatusBadge({required this.examination});
 
   @override
   Widget build(BuildContext context) {
@@ -1031,14 +1029,22 @@ class _StatusBadge extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
-          color: const Color(0xFFDDF8EF),
+          color: ExaminationStatusUtils.backgroundColor(
+            examination.statusGroup,
+          ),
           borderRadius: BorderRadius.circular(99),
+          border: ExaminationStatusUtils.border(examination.statusGroup),
         ),
         child: Text(
-          text,
+          examination.statusDisplay,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: const TextStyle(color: AppColors.primary, fontSize: 12),
+          style: TextStyle(
+            color: ExaminationStatusUtils.foregroundColor(
+              examination.statusGroup,
+            ),
+            fontSize: 12,
+          ),
         ),
       ),
     );
@@ -1117,13 +1123,12 @@ class _DashboardStats {
         final diff = day.difference(weekStart).inDays;
         if (diff >= 0 && diff < 7) weeklyCounts[diff]++;
       }
-      if (item.statusGroup == 'COMPLETED') completed++;
+      if (item.statusGroup == ExaminationStatusUtils.reportGenerated) {
+        completed++;
+      }
       if ({
-        'PENDING',
-        'NEED_VERIFY',
-        'NEED_REVERIFY',
-        'AWAITING_REVIEW',
-        'AI_COMPLETED',
+        ExaminationStatusUtils.aiProcessing,
+        ExaminationStatusUtils.needVerify,
       }.contains(item.statusGroup)) {
         pending++;
       }

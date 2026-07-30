@@ -139,6 +139,20 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       );
     }
 
+    if (mode.startsWith('status')) {
+      final status = _statusFilterForMode(mode);
+      return _getExaminationsPage(
+        endpoint: ApiConstants.examinationsStatusEndpoint,
+        token: token,
+        page: page,
+        size: size,
+        queryParameters: {'status': status, 'sort': normalizedDirection},
+        includeSort: false,
+        shouldSortLocally: false,
+        errorMessage: 'Khong the loc ca kham theo trang thai',
+      );
+    }
+
     return _getExaminationsPage(
       endpoint: ApiConstants.examinationsEndpoint,
       token: token,
@@ -149,6 +163,21 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       shouldSortLocally: false,
       errorMessage: 'Khong the tai danh sach ca kham',
     );
+  }
+
+  String _statusFilterForMode(String mode) {
+    switch (mode) {
+      case 'statusAiProcessing':
+        return 'AI_PROCESSING';
+      case 'statusNeedVerify':
+        return 'NEED_VERIFY';
+      case 'statusVerified':
+        return 'VERIFIED';
+      case 'statusReportGenerated':
+        return 'REPORT_GENERATED';
+      default:
+        return mode.replaceFirst('status', '').toUpperCase();
+    }
   }
 
   @override

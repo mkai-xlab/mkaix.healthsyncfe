@@ -14,6 +14,7 @@ class ExaminationListPage extends StatefulWidget {
   final PatientEntity? patient;
   final bool embedded;
   final List<ExaminationEntity> newExaminations;
+  final ExaminationListMode? initialMode;
   final ValueChanged<PatientEntity>? onOpenPatientDetail;
 
   const ExaminationListPage({
@@ -21,6 +22,7 @@ class ExaminationListPage extends StatefulWidget {
     this.patient,
     this.embedded = false,
     this.newExaminations = const [],
+    this.initialMode,
     this.onOpenPatientDetail,
   });
 
@@ -97,13 +99,12 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       final token = context.read<AuthViewModel>().currentUser?.token ?? '';
       final vm = context.read<ExaminationViewModel>();
       if (widget.patient == null) {
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
-        vm.applyListMode(
-          token: token,
-          mode: ExaminationListMode.uploadDateFilter,
-          date: today,
-        );
+        final initialMode = widget.initialMode;
+        if (initialMode == null || initialMode == ExaminationListMode.all) {
+          vm.clearListMode(token: token);
+        } else {
+          vm.applyListMode(token: token, mode: initialMode);
+        }
       } else {
         vm.loadPatientExaminations(patientId: _patientDetailId, token: token);
       }

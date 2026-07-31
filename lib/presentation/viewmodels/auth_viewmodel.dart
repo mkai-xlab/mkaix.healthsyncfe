@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import '../../core/services/toast_service.dart';
 import '../../core/services/session_storage_service.dart';
 import '../../core/utils/permission_utils.dart';
 import '../../data/models/user_model.dart';
@@ -10,6 +12,11 @@ import '../../domain/usecases/login_usecase.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 
 class AuthViewModel extends ChangeNotifier {
+  static const Duration _sessionDuration = Duration(minutes: 14);
+  static const Duration _firstWarningBeforeExpiry = Duration(seconds: 60);
+  static const Duration _secondWarningBeforeExpiry = Duration(seconds: 30);
+  static const String _sessionStartedAtKey = 'sessionStartedAt';
+
   final LoginUseCase loginUseCase;
   final AuthRepository authRepository;
   final SessionStorageService sessionStorage;
@@ -23,6 +30,10 @@ class AuthViewModel extends ChangeNotifier {
   UserEntity? _currentUser;
   bool _isLoading = false;
   String? _errorMessage;
+  DateTime? _sessionStartedAt;
+  Timer? _sessionExpiryTimer;
+  Timer? _sessionFirstWarningTimer;
+  Timer? _sessionSecondWarningTimer;
 
   // First-time login state
   bool _isFirstTimeLogin = false;
@@ -92,7 +103,18 @@ class AuthViewModel extends ChangeNotifier {
         return;
       }
 
+      final storedSessionStartedAt = DateTime.tryParse(
+        decoded[_sessionStartedAtKey]?.toString() ?? '',
+      );
+      final sessionStartedAt = storedSessionStartedAt ?? DateTime.now();
+      if (_isSessionExpired(sessionStartedAt)) {
+        await sessionStorage.clearUser();
+        return;
+      }
+
       _currentUser = user;
+      _sessionStartedAt = sessionStartedAt;
+      _scheduleSessionTimers(sessionStartedAt);
       notifyListeners();
     } catch (_) {
       await sessionStorage.clearUser();
@@ -109,7 +131,9 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       _currentUser = await loginUseCase.execute(email, password);
+      _sessionStartedAt = DateTime.now();
       await sessionStorage.saveUserJson(jsonEncode(_userToJson(_currentUser!)));
+      _scheduleSessionTimers(_sessionStartedAt!);
       _isLoading = false;
       notifyListeners();
       return true;
@@ -130,9 +154,13 @@ class AuthViewModel extends ChangeNotifier {
   }
 
   Future<void> logout() async {
-    await authRepository.logout();
+    _cancelSessionTimers();
+    try {
+      await authRepository.logout();
+    } catch (_) {}
     await sessionStorage.clearUser();
     _currentUser = null;
+    _sessionStartedAt = null;
     _errorMessage = null;
     _isFirstTimeLogin = false;
     _pendingUsername = null;
@@ -162,10 +190,65 @@ class AuthViewModel extends ChangeNotifier {
                 )
                 .toList()
           : user.permissions,
+      _sessionStartedAtKey: (_sessionStartedAt ?? DateTime.now())
+          .toIso8601String(),
     };
   }
 
+  bool _isSessionExpired(DateTime startedAt) {
+    return DateTime.now().difference(startedAt) >= _sessionDuration;
+  }
+
+  void _scheduleSessionTimers(DateTime startedAt) {
+    _cancelSessionTimers();
+    final expiresAt = startedAt.add(_sessionDuration);
+    _sessionFirstWarningTimer = _scheduleTimerAt(
+      expiresAt.subtract(_firstWarningBeforeExpiry),
+      () => AppToast.showWarning(
+        'Phiên đăng nhập sẽ hết hạn sau 60 giây. Vui lòng đăng nhập lại sau khi hệ thống tự thoát.',
+      ),
+    );
+    _sessionSecondWarningTimer = _scheduleTimerAt(
+      expiresAt.subtract(_secondWarningBeforeExpiry),
+      () => AppToast.showWarning(
+        'Phiên đăng nhập sẽ hết hạn sau 30 giây. Vui lòng đăng nhập lại sau khi hệ thống tự thoát.',
+      ),
+    );
+    _sessionExpiryTimer = _scheduleTimerAt(expiresAt, _logoutExpiredSession);
+  }
+
+  Timer? _scheduleTimerAt(DateTime target, VoidCallback callback) {
+    final delay = target.difference(DateTime.now());
+    if (delay <= Duration.zero) {
+      callback();
+      return null;
+    }
+    return Timer(delay, callback);
+  }
+
+  void _cancelSessionTimers() {
+    _sessionExpiryTimer?.cancel();
+    _sessionFirstWarningTimer?.cancel();
+    _sessionSecondWarningTimer?.cancel();
+    _sessionExpiryTimer = null;
+    _sessionFirstWarningTimer = null;
+    _sessionSecondWarningTimer = null;
+  }
+
+  Future<void> _logoutExpiredSession() async {
+    await logout();
+    AppToast.showWarning(
+      'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại để tiếp tục.',
+    );
+  }
+
   /// Đổi mật khẩu lần đầu đăng nhập
+  @override
+  void dispose() {
+    _cancelSessionTimers();
+    super.dispose();
+  }
+
   Future<bool> changePassword({
     required String username,
     required String oldPassword,

@@ -253,14 +253,16 @@ class ExaminationViewModel extends ChangeNotifier {
     required String token,
   }) async {
     final examinationId = examination.examinationId;
+    _selectedExamination = examination;
+    _detailErrorMessage = null;
+
     if (examinationId <= 0) {
       _detailErrorMessage = 'Khong tim thay examinationId hop le';
       notifyListeners();
-      return false;
+      return true;
     }
 
     _isLoadingDetail = true;
-    _detailErrorMessage = null;
     notifyListeners();
 
     try {
@@ -270,9 +272,8 @@ class ExaminationViewModel extends ChangeNotifier {
       );
       return true;
     } catch (e) {
-      _selectedExamination = null;
       _detailErrorMessage = e.toString().replaceAll('Exception: ', '');
-      return false;
+      return true;
     } finally {
       _isLoadingDetail = false;
       notifyListeners();

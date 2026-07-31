@@ -251,7 +251,7 @@ class FileUploadPage extends StatelessWidget {
               ),
               const SizedBox(height: 22),
               LinearProgressIndicator(
-                value: vm.progress.clamp(0, 1),
+                value: vm.progress?.clamp(0, 1).toDouble(),
                 minHeight: 9,
                 borderRadius: BorderRadius.circular(99),
                 backgroundColor: const Color(0xFFE2E8F0),
@@ -262,7 +262,7 @@ class FileUploadPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    '${(vm.progress * 100).round()}%',
+                    'Thời gian: ${_formatDuration(vm.uploadElapsed)}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
@@ -970,7 +970,7 @@ class FileUploadPage extends StatelessWidget {
               ),
               const SizedBox(height: 18),
               LinearProgressIndicator(
-                value: vm.progress.clamp(0, 1),
+                value: vm.progress?.clamp(0, 1).toDouble(),
                 minHeight: 8,
                 borderRadius: BorderRadius.circular(99),
                 backgroundColor: const Color(0xFFE2E8F0),
@@ -981,7 +981,7 @@ class FileUploadPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    '${(vm.progress * 100).round()}%',
+                    'Thời gian: ${_formatDuration(vm.uploadElapsed)}',
                     style: const TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w800,

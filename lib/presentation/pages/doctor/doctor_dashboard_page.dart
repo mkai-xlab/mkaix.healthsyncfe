@@ -8,11 +8,17 @@ import '../../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
+import 'examination_detail_page.dart';
 
 class DoctorDashboardPage extends StatefulWidget {
   final bool embedded;
+  final ValueChanged<ExaminationListMode>? onOpenExaminationList;
 
-  const DoctorDashboardPage({super.key, this.embedded = false});
+  const DoctorDashboardPage({
+    super.key,
+    this.embedded = false,
+    this.onOpenExaminationList,
+  });
 
   @override
   State<DoctorDashboardPage> createState() => _DoctorDashboardPageState();
@@ -42,6 +48,14 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
       color: _bg,
       child: Consumer<ExaminationViewModel>(
         builder: (context, vm, _) {
+          final selectedExamination = vm.selectedExamination;
+          if (selectedExamination != null) {
+            return ExaminationDetailPage(
+              examination: selectedExamination,
+              onBack: () => vm.closeExaminationDetail(),
+            );
+          }
+
           if (vm.isLoading && vm.examinations.isEmpty) {
             return const Center(
               child: CircularProgressIndicator(color: AppColors.primary),
@@ -55,6 +69,12 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
           return _DashboardContent(
             stats: stats,
             warning: vm.errorMessage,
+            onOpenExamination: (examination) {
+              final token =
+                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              vm.openExaminationDetail(examination: examination, token: token);
+            },
+            onOpenExaminationList: widget.onOpenExaminationList,
             onRetry: () {
               final token =
                   context.read<AuthViewModel>().currentUser?.token ?? '';
@@ -73,9 +93,17 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
 class _DashboardContent extends StatelessWidget {
   final _DashboardStats stats;
   final String? warning;
+  final ValueChanged<ExaminationEntity> onOpenExamination;
+  final ValueChanged<ExaminationListMode>? onOpenExaminationList;
   final VoidCallback? onRetry;
 
-  const _DashboardContent({required this.stats, this.warning, this.onRetry});
+  const _DashboardContent({
+    required this.stats,
+    required this.onOpenExamination,
+    this.onOpenExaminationList,
+    this.warning,
+    this.onRetry,
+  });
 
   static const Color _primary = AppColors.primary;
 
@@ -138,6 +166,8 @@ class _DashboardContent extends StatelessWidget {
                     trend: '+${stats.todayCount} hôm nay',
                     icon: Icons.groups_2_outlined,
                     accent: _primary,
+                    onTap: () =>
+                        onOpenExaminationList?.call(ExaminationListMode.all),
                   ),
                   _StatCard(
                     title: 'Ca khám nặng',
@@ -145,6 +175,8 @@ class _DashboardContent extends StatelessWidget {
                     trend: '${stats.severePercent}%',
                     icon: Icons.priority_high_rounded,
                     accent: AppColors.error,
+                    onTap: () =>
+                        onOpenExaminationList?.call(ExaminationListMode.grade4),
                   ),
                   _StatCard(
                     title: 'Đã hoàn thành',
@@ -152,6 +184,9 @@ class _DashboardContent extends StatelessWidget {
                     trend: '${stats.completedPercent}%',
                     icon: Icons.verified_outlined,
                     accent: AppColors.success,
+                    onTap: () => onOpenExaminationList?.call(
+                      ExaminationListMode.statusReportGenerated,
+                    ),
                   ),
                   _StatCard(
                     title: 'Chờ xác nhận',
@@ -159,6 +194,9 @@ class _DashboardContent extends StatelessWidget {
                     trend: 'cần xử lý',
                     icon: Icons.pending_actions_outlined,
                     accent: AppColors.warning,
+                    onTap: () => onOpenExaminationList?.call(
+                      ExaminationListMode.statusNeedVerify,
+                    ),
                   ),
                 ],
               );
@@ -173,7 +211,10 @@ class _DashboardContent extends StatelessWidget {
               final wide = constraints.maxWidth >= 1060;
               final left = _GradeDistributionCard(stats: stats);
               final middle = _TrendCard(stats: stats);
-              final right = _SevereAlertCard(stats: stats);
+              final right = _SevereAlertCard(
+                stats: stats,
+                onOpenExamination: onOpenExamination,
+              );
               if (!wide) {
                 return Column(
                   children: [
@@ -200,7 +241,7 @@ class _DashboardContent extends StatelessWidget {
 
           const SizedBox(height: 24),
 
-          _RecentTable(stats: stats),
+          _RecentTable(stats: stats, onOpenExamination: onOpenExamination),
         ],
       ),
     );
@@ -370,6 +411,7 @@ class _StatCard extends StatelessWidget {
   final String trend;
   final IconData icon;
   final Color accent;
+  final VoidCallback? onTap;
 
   const _StatCard({
     required this.title,
@@ -377,88 +419,96 @@ class _StatCard extends StatelessWidget {
     required this.trend,
     required this.icon,
     required this.accent,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        border: Border(left: BorderSide(color: accent, width: 4)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: accent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, color: accent, size: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border(left: BorderSide(color: accent, width: 4)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 10,
+                offset: const Offset(0, 2),
               ),
-              Flexible(
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: accent.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Text(
-                    trend,
-                    style: TextStyle(
-                      color: accent,
-                      fontWeight: FontWeight.w700,
-                      fontSize: 10,
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: accent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    child: Icon(icon, color: accent, size: 20),
                   ),
+                  Flexible(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      decoration: BoxDecoration(
+                        color: accent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        trend,
+                        style: TextStyle(
+                          color: accent,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 10,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.textPrimary,
+                  height: 1,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
-              fontWeight: FontWeight.w500,
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: AppColors.textPrimary,
-              height: 1,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -643,8 +693,12 @@ class _TrendCard extends StatelessWidget {
 
 class _SevereAlertCard extends StatelessWidget {
   final _DashboardStats stats;
+  final ValueChanged<ExaminationEntity> onOpenExamination;
 
-  const _SevereAlertCard({required this.stats});
+  const _SevereAlertCard({
+    required this.stats,
+    required this.onOpenExamination,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -681,7 +735,12 @@ class _SevereAlertCard extends StatelessWidget {
               ]
             : stats.severeExaminations
                   .take(3)
-                  .map((item) => _SevereItem(examination: item))
+                  .map(
+                    (item) => _SevereItem(
+                      examination: item,
+                      onTap: () => onOpenExamination(item),
+                    ),
+                  )
                   .toList(),
       ),
     );
@@ -690,8 +749,9 @@ class _SevereAlertCard extends StatelessWidget {
 
 class _RecentTable extends StatelessWidget {
   final _DashboardStats stats;
+  final ValueChanged<ExaminationEntity> onOpenExamination;
 
-  const _RecentTable({required this.stats});
+  const _RecentTable({required this.stats, required this.onOpenExamination});
 
   @override
   Widget build(BuildContext context) {
@@ -711,7 +771,12 @@ class _RecentTable extends StatelessWidget {
           else
             ...stats.recentExaminations
                 .take(5)
-                .map((item) => _TableRow(examination: item)),
+                .map(
+                  (item) => _TableRow(
+                    examination: item,
+                    onTap: () => onOpenExamination(item),
+                  ),
+                ),
           const Divider(height: 24),
           Align(
             alignment: Alignment.centerLeft,
@@ -828,85 +893,90 @@ class _SmallBadge extends StatelessWidget {
 
 class _SevereItem extends StatelessWidget {
   final ExaminationEntity examination;
+  final VoidCallback onTap;
 
-  const _SevereItem({required this.examination});
+  const _SevereItem({required this.examination, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final grade = examination.maxPredictedGrade;
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.errorLight.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.error.withOpacity(0.2), width: 1),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: AppColors.error.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(
-              Icons.warning_amber_rounded,
-              color: AppColors.error,
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  examination.patientName.isEmpty
-                      ? examination.patientCode
-                      : examination.patientName,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 13,
-                    color: AppColors.textPrimary,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  examination.description.isNotEmpty
-                      ? examination.description
-                      : examination.chiefComplaint.isNotEmpty
-                      ? examination.chiefComplaint
-                      : 'Không có mô tả',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: AppColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: AppColors.error,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Text(
-              grade > 0 ? 'GRADE $grade' : 'N/A',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.errorLight.withOpacity(0.15),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColors.error.withOpacity(0.2), width: 1),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: AppColors.error.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(
+                Icons.warning_amber_rounded,
+                color: AppColors.error,
+                size: 18,
               ),
             ),
-          ),
-        ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    examination.patientName.isEmpty
+                        ? examination.patientCode
+                        : examination.patientName,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 13,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    examination.description.isNotEmpty
+                        ? examination.description
+                        : examination.chiefComplaint.isNotEmpty
+                        ? examination.chiefComplaint
+                        : 'Không có mô tả',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: AppColors.error,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Text(
+                grade > 0 ? 'GRADE $grade' : 'N/A',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -931,53 +1001,57 @@ class _TableHeader extends StatelessWidget {
 
 class _TableRow extends StatelessWidget {
   final ExaminationEntity examination;
+  final VoidCallback onTap;
 
-  const _TableRow({required this.examination});
+  const _TableRow({required this.examination, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final grade = examination.maxPredictedGrade;
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: const BoxDecoration(
-        border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
-      ),
-      child: Row(
-        children: [
-          Expanded(flex: 2, child: Text(examination.patientCode)),
-          Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  examination.patientName.isEmpty
-                      ? '---'
-                      : examination.patientName,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                Text(
-                  '${examination.patientAgeDisplay} tuổi • ${examination.patientGenderDisplay}',
-                  style: const TextStyle(fontSize: 12),
-                ),
-              ],
+    return InkWell(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: const BoxDecoration(
+          border: Border(bottom: BorderSide(color: Color(0xFFE5E7EB))),
+        ),
+        child: Row(
+          children: [
+            Expanded(flex: 2, child: Text(examination.patientCode)),
+            Expanded(
+              flex: 3,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    examination.patientName.isEmpty
+                        ? '---'
+                        : examination.patientName,
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
+                  Text(
+                    '${examination.patientAgeDisplay} tuổi • ${examination.patientGenderDisplay}',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Expanded(flex: 3, child: Text(_formatDateTime(examination))),
-          Expanded(
-            flex: 2,
-            child: Text(
-              grade > 0 ? 'Grade $grade' : '---',
-              style: const TextStyle(fontWeight: FontWeight.w800),
+            Expanded(flex: 3, child: Text(_formatDateTime(examination))),
+            Expanded(
+              flex: 2,
+              child: Text(
+                grade > 0 ? 'Grade $grade' : '---',
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
             ),
-          ),
-          Expanded(flex: 2, child: _RiskBadge(grade: grade)),
-          Expanded(flex: 2, child: _StatusBadge(examination: examination)),
-          const SizedBox(
-            width: 42,
-            child: Icon(Icons.visibility_outlined, color: AppColors.primary),
-          ),
-        ],
+            Expanded(flex: 2, child: _RiskBadge(grade: grade)),
+            Expanded(flex: 2, child: _StatusBadge(examination: examination)),
+            const SizedBox(
+              width: 42,
+              child: Icon(Icons.visibility_outlined, color: AppColors.primary),
+            ),
+          ],
+        ),
       ),
     );
   }

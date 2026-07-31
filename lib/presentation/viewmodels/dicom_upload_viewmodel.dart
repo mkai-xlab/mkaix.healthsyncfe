@@ -43,8 +43,8 @@ class DicomUploadViewModel extends ChangeNotifier {
   DicomUploadStage _stage = DicomUploadStage.idle;
   DicomUploadStage get stage => _stage;
 
-  double _progress = 0;
-  double get progress => _progress;
+  double? _progress;
+  double? get progress => _progress;
 
   bool get isProcessActive =>
       _stage != DicomUploadStage.idle &&
@@ -99,6 +99,14 @@ class DicomUploadViewModel extends ChangeNotifier {
 
   List<DicomBatchErrorModel> _batchErrors = [];
   List<DicomBatchErrorModel> get batchErrors => List.unmodifiable(_batchErrors);
+
+  List<DicomVerifyResponse> _lastVerifyResponses = [];
+  List<DicomVerifyResponse> get lastVerifyResponses =>
+      List.unmodifiable(_lastVerifyResponses);
+
+  final List<DicomUploadNotification> _postCompletionNotifications = [];
+  List<DicomUploadNotification> get postCompletionNotifications =>
+      List.unmodifiable(_postCompletionNotifications);
 
   String _uploadSessionId = '';
   String get uploadSessionId => _uploadSessionId;
@@ -342,7 +350,7 @@ class DicomUploadViewModel extends ChangeNotifier {
     _isUploading = true;
     _errorMessage = null;
     _stage = DicomUploadStage.uploading;
-    _progress = 0.10;
+    _progress = null;
     _uploadStatusMessage = 'Đang kết nối kênh xử lý DICOM...';
     _lastUploadDuration = null;
     _startUploadTimer();
@@ -362,7 +370,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       _uploadStatusMessage = isZipBatch
           ? 'Đang upload ${uploadingFiles.length} file ZIP...'
           : 'Đang upload ${uploadingFiles.length} file DICOM...';
-      _progress = 0.18;
+      _progress = null;
       notifyListeners();
 
       final results = <BatchDicomUploadModel>[];
@@ -371,7 +379,7 @@ class DicomUploadViewModel extends ChangeNotifier {
           final file = uploadingFiles[index];
           _uploadStatusMessage =
               'Đang upload ZIP ${index + 1}/${uploadingFiles.length}: ${file.name}';
-          _progress = 0.18 + (index / uploadingFiles.length) * 0.18;
+          _progress = null;
           notifyListeners();
           final result = await _uploadZipAndResolve(file: file, token: token);
           results.add(result);
@@ -392,13 +400,13 @@ class DicomUploadViewModel extends ChangeNotifier {
       _selectedFiles = [];
       if (_successfulPatients.isNotEmpty) {
         _stage = DicomUploadStage.waitingVerification;
-        _progress = 0.85;
+        _progress = null;
         _uploadStatusMessage = _batchErrors.isEmpty
             ? 'Cần bác sĩ xác nhận danh sách bệnh nhân.'
             : 'Có ${_batchErrors.length} file lỗi, cần xác nhận ${_successfulPatients.length} bệnh nhân hợp lệ.';
       } else {
         _stage = DicomUploadStage.failed;
-        _progress = 0;
+        _progress = null;
         _errorMessage = _batchErrors.isEmpty
             ? 'Backend đã xử lý xong nhưng không tìm thấy bệnh nhân hoặc ảnh DICOM hợp lệ.'
             : 'Phát hiện ${_batchErrors.length} file lỗi, không có bệnh nhân hợp lệ để xác nhận.';
@@ -407,7 +415,7 @@ class DicomUploadViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _stage = DicomUploadStage.failed;
-      _progress = 0;
+      _progress = null;
     } finally {
       _stopUploadTimer();
       _isUploading = false;
@@ -466,7 +474,7 @@ class DicomUploadViewModel extends ChangeNotifier {
           ? 'Upload file thành công. $message Đang chờ WebSocket trả danh sách bệnh nhân...'
           : 'Upload file thành công. Đang chờ WebSocket trả danh sách bệnh nhân...';
       _stage = DicomUploadStage.processing;
-      _progress = _progress < 0.45 ? 0.45 : _progress;
+      _progress = null;
       _isWaitingForBatchResult = true;
       _showLongProcessingHint = false;
       notifyListeners();
@@ -475,7 +483,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       _uploadStatusMessage =
           'Upload file thành công nhưng API chưa có danh sách bệnh nhân. Đang chờ WebSocket...';
       _stage = DicomUploadStage.processing;
-      _progress = _progress < 0.55 ? 0.55 : _progress;
+      _progress = null;
       _isWaitingForBatchResult = true;
       _showLongProcessingHint = false;
       notifyListeners();
@@ -594,18 +602,25 @@ class DicomUploadViewModel extends ChangeNotifier {
     _isUploading = true;
     _errorMessage = null;
     _uploadStatusMessage = 'Đang xác nhận danh sách bệnh nhân...';
+    _lastVerifyResponses = [];
     notifyListeners();
 
     try {
+      final verifyResponses = <DicomVerifyResponse>[];
       for (final entry in groupedCodes.entries) {
-        await remoteDataSource.verifyUploadSession(
+        final response = await remoteDataSource.verifyUploadSession(
           uploadSessionId: entry.key,
           acceptedPatientCodes: entry.value,
           token: token,
         );
+        verifyResponses.add(response);
       }
+      _lastVerifyResponses = verifyResponses;
+      await _activeBatchResultWait?.cancel();
+      _activeBatchResultWait = null;
+      await webSocketService.cancelPendingBatchResultWait();
       _stage = DicomUploadStage.completed;
-      _progress = 1;
+      _progress = null;
       _uploadStatusMessage = 'Đã xác nhận $verifiedPatientCount bệnh nhân.';
       _stopUploadTimer();
     } catch (e) {
@@ -749,7 +764,7 @@ class DicomUploadViewModel extends ChangeNotifier {
     _lastUploadDuration = null;
     _uploadElapsed = Duration.zero;
     _stage = DicomUploadStage.idle;
-    _progress = 0;
+    _progress = null;
     _uploadStatusMessage = null;
     _isWaitingForBatchResult = false;
     _showLongProcessingHint = false;
@@ -813,6 +828,18 @@ class DicomUploadViewModel extends ChangeNotifier {
     final message = notification.message.trim();
     if (title.isEmpty && message.isEmpty) return;
 
+    final uploadFlowClosed =
+        _stage == DicomUploadStage.completed ||
+        _stage == DicomUploadStage.failed;
+    if (uploadFlowClosed) {
+      _postCompletionNotifications.add(notification);
+      if (message.isNotEmpty) {
+        _showWebSocketToast(notification, title, message);
+      }
+      notifyListeners();
+      return;
+    }
+
     if (message.isNotEmpty) {
       _showWebSocketToast(notification, title, message);
     }
@@ -826,7 +853,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       _errorMessage =
           'Backend báo hoàn tất upload nhưng không trả danh sách bệnh nhân. Vui lòng kiểm tra backend serialize/Redis.';
       _stage = DicomUploadStage.failed;
-      _progress = 0;
+      _progress = null;
       _activeBatchResultWait?.fail(
         'Backend báo hoàn tất upload nhưng không trả danh sách bệnh nhân. Vui lòng kiểm tra backend serialize/Redis.',
       );
@@ -836,10 +863,15 @@ class DicomUploadViewModel extends ChangeNotifier {
         if (message.isNotEmpty) message,
       ].join(': ');
     }
-    if (_stage == DicomUploadStage.uploading ||
-        _stage == DicomUploadStage.idle) {
+    final hasActiveUploadWait =
+        _isUploading ||
+        _isWaitingForBatchResult ||
+        _activeBatchResultWait != null;
+    if ((_stage == DicomUploadStage.uploading ||
+            _stage == DicomUploadStage.idle) &&
+        hasActiveUploadWait) {
       _stage = DicomUploadStage.processing;
-      _progress = _progress < 0.45 ? 0.45 : _progress;
+      _progress = null;
     }
     notifyListeners();
   }

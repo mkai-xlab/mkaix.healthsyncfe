@@ -19,6 +19,29 @@ class AuthRemoteDataSource {
 
   AuthRemoteDataSource(this.client);
 
+  Future<void> logout({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    if (accessToken.trim().isEmpty || refreshToken.trim().isEmpty) return;
+
+    final response = await client
+        .post(
+          Uri.parse(ApiConstants.logoutEndpoint),
+          headers: {
+            'Authorization': 'Bearer $accessToken',
+            'Content-Type': 'application/json; charset=UTF-8',
+            'Accept': 'application/json',
+          },
+          body: jsonEncode({'refreshToken': refreshToken}),
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Không thể đăng xuất (${response.statusCode})');
+    }
+  }
+
   /// Đăng nhập
   Future<UserModel> loginWithEmailAndPassword(
     String email,

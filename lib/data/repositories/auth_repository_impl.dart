@@ -13,8 +13,14 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> logout() async {
-    await Future.delayed(const Duration(milliseconds: 300));
+  Future<void> logout({
+    required String accessToken,
+    required String refreshToken,
+  }) async {
+    await remoteDataSource.logout(
+      accessToken: accessToken,
+      refreshToken: refreshToken,
+    );
   }
 
   @override

@@ -155,8 +155,13 @@ class AuthViewModel extends ChangeNotifier {
 
   Future<void> logout() async {
     _cancelSessionTimers();
+    final accessToken = _currentUser?.token ?? '';
+    final refreshToken = _currentUser?.refreshToken ?? '';
     try {
-      await authRepository.logout();
+      await authRepository.logout(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
     } catch (_) {}
     await sessionStorage.clearUser();
     _currentUser = null;
@@ -174,6 +179,7 @@ class AuthViewModel extends ChangeNotifier {
       'username': user.username,
       'fullName': user.fullName,
       'token': user.token,
+      'refreshToken': user.refreshToken,
       'roles': user.roles,
       'permissions': user.permissionItems.isNotEmpty
           ? user.permissionItems

@@ -3,6 +3,7 @@ class ApiConstants {
       'http://54.254.113.71:8000/api/v1/swagger-ui/index.html#/';
   static const String baseUrl = 'http://54.254.113.71:8000/api/v1';
   static const String loginEndpoint = '$baseUrl/auth/login';
+  static const String logoutEndpoint = '$baseUrl/auth/logout';
   static const String forgotPasswordEndpoint = '$baseUrl/auth/forgot-password';
   static const String resetPasswordEndpoint = '$baseUrl/auth/reset-password';
   static const String changePasswordEndpoint = '$baseUrl/auth/change-password';

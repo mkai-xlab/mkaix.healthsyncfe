@@ -655,18 +655,23 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
   }
 
   Widget _examinationCard(ExaminationEntity examination) {
+    final isNew = !examination.isViewed;
     return InkWell(
       onTap: () => _openExaminationDetail(examination),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isNew ? const Color(0xFFEAF7F3) : Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(
+            color: isNew ? _primaryGreen : const Color(0xFFE2E8F0),
+            width: isNew ? 1.4 : 1,
+          ),
         ),
         child: Row(
           children: [
+            if (isNew) ...[_newIndicator(), const SizedBox(width: 12)],
             Expanded(
               flex: 2,
               child: _cell(
@@ -675,6 +680,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
                     ? examination.examinationId.toString()
                     : '---',
                 isStrong: true,
+                isNew: isNew,
               ),
             ),
             Expanded(
@@ -685,6 +691,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
                     ? widget.patient?.fullName ?? '---'
                     : examination.patientName,
                 isStrong: true,
+                isNew: isNew,
               ),
             ),
             Expanded(
@@ -707,7 +714,12 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     );
   }
 
-  Widget _cell(String label, String value, {bool isStrong = false}) {
+  Widget _cell(
+    String label,
+    String value, {
+    bool isStrong = false,
+    bool isNew = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: Column(
@@ -724,11 +736,36 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 13,
-              fontWeight: isStrong ? FontWeight.w700 : FontWeight.w500,
+              fontWeight: isNew
+                  ? FontWeight.w800
+                  : isStrong
+                  ? FontWeight.w700
+                  : FontWeight.w500,
               color: const Color(0xFF1A2B3C),
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _newIndicator() {
+    return Container(
+      width: 38,
+      height: 26,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _primaryGreen,
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: const Text(
+        'NEW',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0,
+        ),
       ),
     );
   }

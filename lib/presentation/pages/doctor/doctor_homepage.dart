@@ -36,6 +36,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   bool _isUploadMiniProgressCollapsed = false;
   final List<ExaminationEntity> _newUploadExaminations = const [];
   ExaminationListMode? _pendingExaminationListMode;
+  int _examinationListRefreshVersion = 0;
   PatientEntity? _selectedPatientDetail;
 
   static const Color _primaryGreen = AppColors.primary;
@@ -273,6 +274,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         onTap: () {
           setState(() {
             _selectedNavIndex = index;
+            if (item.routeKey == 'examination_list_page') {
+              _examinationListRefreshVersion++;
+            }
             _showDoctorProfile = false;
             _showChangePassword = false;
             _showUploadExaminationList = false;
@@ -381,6 +385,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
     if (_showUploadExaminationList) {
       return ExaminationListPage(
+        key: ValueKey(
+          'upload-examination-list-$_examinationListRefreshVersion',
+        ),
         embedded: true,
         newExaminations: _newUploadExaminations,
       );
@@ -413,6 +420,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         );
       }
       return ExaminationListPage(
+        key: ValueKey(
+          'examination-list-${_pendingExaminationListMode?.name ?? 'all'}-$_examinationListRefreshVersion',
+        ),
         embedded: true,
         newExaminations: _newUploadExaminations,
         initialMode: _pendingExaminationListMode,
@@ -461,6 +471,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     if (examIndex < 0) return;
     setState(() {
       _selectedNavIndex = examIndex;
+      _examinationListRefreshVersion++;
       _showDoctorProfile = false;
       _showChangePassword = false;
       _showUploadExaminationList = false;

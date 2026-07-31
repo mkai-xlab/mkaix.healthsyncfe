@@ -93,4 +93,15 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
       token: token,
     );
   }
+
+  @override
+  Future<void> markExaminationViewed({
+    required int examinationId,
+    required String token,
+  }) {
+    return remoteDataSource.markExaminationViewed(
+      examinationId: examinationId,
+      token: token,
+    );
+  }
 }

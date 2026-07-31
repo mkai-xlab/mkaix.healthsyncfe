@@ -81,4 +81,14 @@ class GetPatientExaminationsUseCase {
       token: token,
     );
   }
+
+  Future<void> executeMarkViewed({
+    required int examinationId,
+    required String token,
+  }) {
+    return repository.markExaminationViewed(
+      examinationId: examinationId,
+      token: token,
+    );
+  }
 }

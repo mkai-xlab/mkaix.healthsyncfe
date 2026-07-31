@@ -147,6 +147,60 @@ class ExaminationEntity {
     required this.images,
   });
 
+  ExaminationEntity copyWith({
+    int? patientDbId,
+    String? patientCode,
+    String? patientName,
+    String? patientGender,
+    DateTime? patientDateOfBirth,
+    int? examinationId,
+    String? encounterCode,
+    String? status,
+    DateTime? studyDate,
+    DateTime? visitTime,
+    String? thumbnailUrl,
+    String? bodyPart,
+    String? referringPhysician,
+    String? studyTime,
+    String? chiefComplaint,
+    String? clinicalNotes,
+    String? priority,
+    String? finalDiagnosis,
+    String? description,
+    String? doctorName,
+    int? doctorId,
+    bool? isViewed,
+    int? maxPredictedGrade,
+    List<ExaminationImageEntity>? images,
+  }) {
+    return ExaminationEntity(
+      patientDbId: patientDbId ?? this.patientDbId,
+      patientCode: patientCode ?? this.patientCode,
+      patientName: patientName ?? this.patientName,
+      patientGender: patientGender ?? this.patientGender,
+      patientDateOfBirth: patientDateOfBirth ?? this.patientDateOfBirth,
+      examinationId: examinationId ?? this.examinationId,
+      encounterCode: encounterCode ?? this.encounterCode,
+      status: status ?? this.status,
+      studyDate: studyDate ?? this.studyDate,
+      visitTime: visitTime ?? this.visitTime,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      bodyPart: bodyPart ?? this.bodyPart,
+      referringPhysician: referringPhysician ?? this.referringPhysician,
+      studyTime: studyTime ?? this.studyTime,
+      chiefComplaint: chiefComplaint ?? this.chiefComplaint,
+      clinicalNotes: clinicalNotes ?? this.clinicalNotes,
+      priority: priority ?? this.priority,
+      finalDiagnosis: finalDiagnosis ?? this.finalDiagnosis,
+      description: description ?? this.description,
+      doctorName: doctorName ?? this.doctorName,
+      doctorId: doctorId ?? this.doctorId,
+      isViewed: isViewed ?? this.isViewed,
+      maxPredictedGrade: maxPredictedGrade ?? this.maxPredictedGrade,
+      images: images ?? this.images,
+    );
+  }
+
   String get statusGroup {
     final normalized = status.toUpperCase();
     if (normalized == ExaminationStatusUtils.aiProcessing) {

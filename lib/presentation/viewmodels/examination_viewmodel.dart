@@ -282,10 +282,24 @@ class ExaminationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _selectedExamination = await getPatientExaminationsUseCase.executeDetail(
+      if (!examination.isViewed) {
+        try {
+          await getPatientExaminationsUseCase.executeMarkViewed(
+            examinationId: examinationId,
+            token: token,
+          );
+          _markExaminationViewedLocally(examinationId);
+        } catch (e) {
+          debugPrint('[Examination mark viewed] ignored error: $e');
+        }
+      }
+
+      final detail = await getPatientExaminationsUseCase.executeDetail(
         examinationId: examinationId,
         token: token,
       );
+      _selectedExamination = detail.copyWith(isViewed: true);
+      _markExaminationViewedLocally(examinationId);
       return true;
     } catch (e) {
       _detailErrorMessage = e.toString().replaceAll('Exception: ', '');
@@ -293,6 +307,19 @@ class ExaminationViewModel extends ChangeNotifier {
     } finally {
       _isLoadingDetail = false;
       notifyListeners();
+    }
+  }
+
+  void _markExaminationViewedLocally(int examinationId) {
+    _examinations = _examinations.map((item) {
+      if (item.examinationId != examinationId || item.isViewed) return item;
+      return item.copyWith(isViewed: true);
+    }).toList();
+    final selected = _selectedExamination;
+    if (selected != null &&
+        selected.examinationId == examinationId &&
+        !selected.isViewed) {
+      _selectedExamination = selected.copyWith(isViewed: true);
     }
   }
 

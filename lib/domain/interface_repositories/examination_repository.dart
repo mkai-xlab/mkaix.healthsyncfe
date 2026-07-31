@@ -43,4 +43,9 @@ abstract class ExaminationRepository {
     required int examinationId,
     required String token,
   });
+
+  Future<void> markExaminationViewed({
+    required int examinationId,
+    required String token,
+  });
 }

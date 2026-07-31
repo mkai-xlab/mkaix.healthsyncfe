@@ -51,6 +51,11 @@ abstract class ExaminationRemoteDataSource {
     required int examinationId,
     required String token,
   });
+
+  Future<void> markExaminationViewed({
+    required int examinationId,
+    required String token,
+  });
 }
 
 class _DashboardTotalResult {
@@ -226,6 +231,34 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     }
 
     return ExaminationModel.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  @override
+  Future<void> markExaminationViewed({
+    required int examinationId,
+    required String token,
+  }) async {
+    final uri = Uri.parse(
+      ApiConstants.markExaminationViewedEndpoint(examinationId),
+    );
+    final response = await client
+        .put(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _httpErrorMessage(
+          response.statusCode,
+          'Khong the danh dau ca kham da xem',
+        ),
+      );
+    }
   }
 
   @override

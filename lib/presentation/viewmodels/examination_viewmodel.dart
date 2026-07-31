@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
+import '../../domain/entities/patient_grade_stats_entity.dart';
 import '../../domain/usecases/get_patient_examinations_usecase.dart';
 
 enum ExaminationListMode {
@@ -67,6 +68,10 @@ class ExaminationViewModel extends ChangeNotifier {
   ExaminationDashboardTotalsEntity? _dashboardTotals;
   ExaminationDashboardTotalsEntity? get dashboardTotals => _dashboardTotals;
 
+  List<PatientGradeStatsEntity> _patientGradeStats = [];
+  List<PatientGradeStatsEntity> get patientGradeStats =>
+      List.unmodifiable(_patientGradeStats);
+
   int _totalPages = 1;
   int get totalPages => _totalPages;
 
@@ -110,6 +115,7 @@ class ExaminationViewModel extends ChangeNotifier {
     _errorMessage = null;
     _examinations = [];
     _dashboardTotals = null;
+    _patientGradeStats = [];
     _selectedExamination = null;
     _detailErrorMessage = null;
     notifyListeners();
@@ -135,9 +141,19 @@ class ExaminationViewModel extends ChangeNotifier {
         _errorMessage = _appendDashboardError(_errorMessage, recentError);
         _examinations = [];
       }
+
+      try {
+        _patientGradeStats = await getPatientExaminationsUseCase
+            .executePatientGradeStatistics(token: token);
+      } catch (e) {
+        final gradeError = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = _appendDashboardError(_errorMessage, gradeError);
+        _patientGradeStats = [];
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _examinations = [];
+      _patientGradeStats = [];
       _totalElements = 0;
       _totalPages = 1;
       _currentPage = 0;
@@ -294,6 +310,8 @@ class ExaminationViewModel extends ChangeNotifier {
     _totalElements = 0;
     _totalPages = 1;
     _currentPage = 0;
+    _dashboardTotals = null;
+    _patientGradeStats = [];
     _listMode = ExaminationListMode.all;
     _filterDate = null;
     notifyListeners();

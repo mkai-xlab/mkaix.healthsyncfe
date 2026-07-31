@@ -1,6 +1,7 @@
 import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/entities/examination_page_entity.dart';
+import '../../domain/entities/patient_grade_stats_entity.dart';
 import '../../domain/interface_repositories/examination_repository.dart';
 import '../datasources/examination_remote_datasource.dart';
 
@@ -51,6 +52,13 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
       page: page,
       size: size,
     );
+  }
+
+  @override
+  Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
+    required String token,
+  }) {
+    return remoteDataSource.getPatientGradeStatistics(token: token);
   }
 
   @override

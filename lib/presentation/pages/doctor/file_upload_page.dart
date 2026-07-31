@@ -23,6 +23,16 @@ class FileUploadPage extends StatelessWidget {
 
     return Consumer<DicomUploadViewModel>(
       builder: (context, vm, _) {
+        final pendingSummary = vm.pendingAiResultSummary;
+        if (pendingSummary != null) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!context.mounted) return;
+            final summary = vm.consumePendingAiResultSummary();
+            if (summary == null) return;
+            _showAiResultSummaryDialog(context, summary);
+          });
+        }
+
         return Container(
           color: _surface,
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 18),
@@ -40,6 +50,24 @@ class FileUploadPage extends StatelessWidget {
               );
             },
           ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showAiResultSummaryDialog(
+    BuildContext context,
+    AiResultSummary summary,
+  ) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return _AiResultSummaryDialog(
+          summary: summary,
+          onOpenExaminationList: () {
+            Navigator.of(dialogContext).pop();
+            onGoToExaminationList?.call();
+          },
         );
       },
     );
@@ -1212,6 +1240,276 @@ class FileUploadPage extends StatelessWidget {
       return '$hours:$minutes:$seconds';
     }
     return '$minutes:$seconds';
+  }
+}
+
+class _AiResultSummaryDialog extends StatelessWidget {
+  final AiResultSummary summary;
+  final VoidCallback onOpenExaminationList;
+
+  const _AiResultSummaryDialog({
+    required this.summary,
+    required this.onOpenExaminationList,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: Colors.white,
+      surfaceTintColor: Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+      contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 10),
+      actionsPadding: const EdgeInsets.fromLTRB(24, 8, 24, 20),
+      title: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: const BoxDecoration(
+              color: AppColors.primaryXLight,
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(
+              Icons.analytics_outlined,
+              color: AppColors.primary,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              summary.title,
+              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+      content: SizedBox(
+        width: 460,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (summary.message.isNotEmpty) ...[
+              Text(
+                summary.message,
+                style: const TextStyle(
+                  fontSize: 13,
+                  color: AppColors.textSecondary,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 18),
+            ],
+            const Text(
+              'Thống kê số lượng bệnh nhân theo KL Grade',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+            const SizedBox(height: 12),
+            _AnimatedAiGradeBarChart(items: summary.items),
+            const SizedBox(height: 4),
+            _AiResultTotalRow(total: summary.totalPatientCount),
+          ],
+        ),
+      ),
+      actions: [
+        OutlinedButton(
+          onPressed: () => Navigator.of(context).pop(),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: AppColors.primary,
+            side: const BorderSide(color: AppColors.primary),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text('Đóng'),
+        ),
+        ElevatedButton(
+          onPressed: onOpenExaminationList,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: const Text('Đi đến danh sách ca khám'),
+        ),
+      ],
+    );
+  }
+}
+
+class _AiResultTotalRow extends StatelessWidget {
+  final int total;
+
+  const _AiResultTotalRow({required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: AppColors.border),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Tổng',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w800,
+                color: AppColors.textPrimary,
+              ),
+            ),
+          ),
+          Text(
+            '$total bệnh nhân',
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: AppColors.primary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AnimatedAiGradeBarChart extends StatefulWidget {
+  final List<AiGradeSummaryItem> items;
+
+  const _AnimatedAiGradeBarChart({required this.items});
+
+  @override
+  State<_AnimatedAiGradeBarChart> createState() =>
+      _AnimatedAiGradeBarChartState();
+}
+
+class _AnimatedAiGradeBarChartState extends State<_AnimatedAiGradeBarChart>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 2),
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeOutCubic,
+    );
+    _controller.forward();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final maxCount = widget.items.fold<int>(
+      1,
+      (max, item) => item.count > max ? item.count : max,
+    );
+
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, _) {
+        final progress = _animation.value;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final item in widget.items) ...[
+              _AiGradeBarRow(
+                item: item,
+                maxCount: maxCount,
+                progress: progress,
+              ),
+              const SizedBox(height: 10),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _AiGradeBarRow extends StatelessWidget {
+  final AiGradeSummaryItem item;
+  final int maxCount;
+  final double progress;
+
+  const _AiGradeBarRow({
+    required this.item,
+    required this.maxCount,
+    required this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final widthFactor = maxCount <= 0
+        ? 0.0
+        : (item.count / maxCount) * progress;
+    final animatedCount = (item.count * progress).round();
+
+    return Row(
+      children: [
+        SizedBox(
+          width: 96,
+          child: Text(
+            item.label,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: Container(
+              height: 16,
+              color: AppColors.surface2,
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: widthFactor.clamp(0.0, 1.0),
+                child: Container(color: item.color),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        SizedBox(
+          width: 28,
+          child: Text(
+            animatedCount.toString(),
+            textAlign: TextAlign.right,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              color: AppColors.textPrimary,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
 

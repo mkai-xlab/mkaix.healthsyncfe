@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:cross_file/cross_file.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/services/toast_service.dart';
 import '../../core/services/dicom_websocket_service.dart';
@@ -107,6 +108,9 @@ class DicomUploadViewModel extends ChangeNotifier {
   final List<DicomUploadNotification> _postCompletionNotifications = [];
   List<DicomUploadNotification> get postCompletionNotifications =>
       List.unmodifiable(_postCompletionNotifications);
+
+  AiResultSummary? _pendingAiResultSummary;
+  AiResultSummary? get pendingAiResultSummary => _pendingAiResultSummary;
 
   String _uploadSessionId = '';
   String get uploadSessionId => _uploadSessionId;
@@ -881,6 +885,11 @@ class DicomUploadViewModel extends ChangeNotifier {
     String title,
     String message,
   ) {
+    if (notification.type == 'AI_RESULT') {
+      _pendingAiResultSummary = AiResultSummary.fromNotification(notification);
+      return;
+    }
+
     final (displayTitle, displayMessage) = _cleanNotificationToast(
       title,
       message,
@@ -890,7 +899,6 @@ class DicomUploadViewModel extends ChangeNotifier {
     switch (notification.type) {
       case 'ERROR':
         AppToast.showError(displayMessage, title: displayTitle);
-      case 'AI_RESULT':
       case 'DICOM_BATCH_RESULT':
         AppToast.showSuccess(displayMessage, title: displayTitle);
       case 'SYSTEM':
@@ -898,6 +906,12 @@ class DicomUploadViewModel extends ChangeNotifier {
       default:
         AppToast.showInfo(displayMessage, title: displayTitle);
     }
+  }
+
+  AiResultSummary? consumePendingAiResultSummary() {
+    final summary = _pendingAiResultSummary;
+    _pendingAiResultSummary = null;
+    return summary;
   }
 
   (String, String) _cleanNotificationToast(String title, String message) {
@@ -976,6 +990,99 @@ class DicomUploadViewModel extends ChangeNotifier {
     webSocketService.dispose();
     super.dispose();
   }
+}
+
+class AiResultSummary {
+  final String title;
+  final String message;
+  final List<AiGradeSummaryItem> items;
+
+  const AiResultSummary({
+    required this.title,
+    required this.message,
+    required this.items,
+  });
+
+  int get totalPatientCount =>
+      items.fold<int>(0, (sum, item) => sum + item.count);
+
+  factory AiResultSummary.fromNotification(
+    DicomUploadNotification notification,
+  ) {
+    final counts = <int, int>{
+      for (var grade = 0; grade <= 4; grade++) grade: 0,
+    };
+    var unknown = 0;
+    final data = notification.data;
+    final entries = data is List ? data : const [];
+
+    for (final entry in entries) {
+      if (entry is! Map) continue;
+      final grade = _parseInt(entry['grade'], fallback: -1);
+      final count = _parseInt(entry['patientCount']);
+      final safeCount = count < 0 ? 0 : count;
+      if (grade >= 0 && grade <= 4) {
+        counts[grade] = (counts[grade] ?? 0) + safeCount;
+      } else {
+        unknown += safeCount;
+      }
+    }
+
+    return AiResultSummary(
+      title: notification.title.trim().isEmpty
+          ? 'Phân tích AI hoàn tất'
+          : notification.title.trim(),
+      message: notification.message.trim(),
+      items: [
+        for (var grade = 0; grade <= 4; grade++)
+          AiGradeSummaryItem(
+            label: 'KL $grade',
+            count: counts[grade] ?? 0,
+            color: _gradeColor(grade),
+          ),
+        AiGradeSummaryItem(
+          label: 'Chưa xác định',
+          count: unknown,
+          color: const Color(0xFFD1D5DB),
+        ),
+      ],
+    );
+  }
+
+  static int _parseInt(Object? value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  static Color _gradeColor(int grade) {
+    switch (grade) {
+      case 0:
+        return const Color(0xFF2F855A);
+      case 1:
+        return const Color(0xFF38A169);
+      case 2:
+        return const Color(0xFFD4A017);
+      case 3:
+        return const Color(0xFFE67E22);
+      case 4:
+        return const Color(0xFFD71920);
+      default:
+        return const Color(0xFFD1D5DB);
+    }
+  }
+}
+
+class AiGradeSummaryItem {
+  final String label;
+  final int count;
+  final Color color;
+
+  const AiGradeSummaryItem({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
 }
 
 class DicomUploadedFileSessionItem {

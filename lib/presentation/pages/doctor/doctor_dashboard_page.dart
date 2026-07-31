@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +8,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/examination_status_utils.dart';
 import '../../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../../domain/entities/examination_entity.dart';
+import '../../../domain/entities/patient_grade_stats_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
 import 'examination_detail_page.dart';
@@ -65,6 +68,7 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
             vm.examinations,
             totalElements: vm.totalElements,
             dashboardTotals: vm.dashboardTotals,
+            patientGradeStats: vm.patientGradeStats,
           );
           return _DashboardContent(
             stats: stats,
@@ -522,41 +526,21 @@ class _GradeDistributionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _Panel(
-      title: 'Phân bố KL Grade',
+      title: 'Phân bổ bệnh nhân theo KL Grade',
       child: Column(
         children: [
           SizedBox(
             height: 170,
             child: Center(
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  SizedBox(
-                    width: 126,
-                    height: 126,
-                    child: CircularProgressIndicator(
-                      value: stats.total == 0
-                          ? 0
-                          : stats.grade4Count / stats.total,
-                      strokeWidth: 12,
-                      color: const Color(0xFFD71920),
-                      backgroundColor: const Color(0xFFE7F5F1),
-                    ),
+              child: SizedBox(
+                width: 132,
+                height: 132,
+                child: CustomPaint(
+                  painter: _GradeDistributionPainter(
+                    segments: stats.gradeSegments,
+                    emptyColor: const Color(0xFFE7F5F1),
                   ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        stats.total.toString(),
-                        style: const TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                      const Text('Tổng số', style: TextStyle(fontSize: 12)),
-                    ],
-                  ),
-                ],
+                ),
               ),
             ),
           ),
@@ -564,23 +548,53 @@ class _GradeDistributionCard extends StatelessWidget {
             spacing: 18,
             runSpacing: 8,
             children: [
-              _Legend('Grade 0-1', stats.lowGradePercent, AppColors.primary),
-              _Legend(
-                'Grade 2-3',
-                stats.midGradePercent,
-                const Color(0xFFD4A017),
-              ),
-              _Legend('Grade 4', stats.grade4Percent, const Color(0xFFD71920)),
-              _Legend(
-                'Khác',
-                stats.unknownGradePercent,
-                const Color(0xFFD1D5DB),
-              ),
+              for (final segment in stats.gradeSegments)
+                _Legend(segment.label, segment.percent, segment.color),
             ],
           ),
         ],
       ),
     );
+  }
+}
+
+class _GradeDistributionPainter extends CustomPainter {
+  final List<_GradeSegment> segments;
+  final Color emptyColor;
+
+  const _GradeDistributionPainter({
+    required this.segments,
+    required this.emptyColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = math.min(size.width, size.height) / 2;
+    final rect = Rect.fromCircle(center: center, radius: radius);
+    final paint = Paint()..style = PaintingStyle.fill;
+    final total = segments.fold<int>(0, (sum, item) => sum + item.value);
+
+    if (total <= 0) {
+      paint.color = emptyColor;
+      canvas.drawCircle(center, radius, paint);
+      return;
+    }
+
+    var startAngle = -math.pi / 2;
+    for (final segment in segments) {
+      if (segment.value <= 0) continue;
+      final sweepAngle = (segment.value / total) * math.pi * 2;
+      paint.color = segment.color;
+      canvas.drawArc(rect, startAngle, sweepAngle, true, paint);
+      startAngle += sweepAngle;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _GradeDistributionPainter oldDelegate) {
+    return oldDelegate.segments != segments ||
+        oldDelegate.emptyColor != emptyColor;
   }
 }
 
@@ -1137,10 +1151,13 @@ class _DashboardStats {
   final int severeCount;
   final int completedCount;
   final int pendingCount;
-  final int lowGradeCount;
-  final int midGradeCount;
+  final int grade0Count;
+  final int grade1Count;
+  final int grade2Count;
+  final int grade3Count;
   final int grade4Count;
   final int unknownGradeCount;
+  final int gradeDistributionTotal;
 
   const _DashboardStats({
     required this.examinations,
@@ -1154,16 +1171,20 @@ class _DashboardStats {
     required this.severeCount,
     required this.completedCount,
     required this.pendingCount,
-    required this.lowGradeCount,
-    required this.midGradeCount,
+    required this.grade0Count,
+    required this.grade1Count,
+    required this.grade2Count,
+    required this.grade3Count,
     required this.grade4Count,
     required this.unknownGradeCount,
+    required this.gradeDistributionTotal,
   });
 
   factory _DashboardStats.from(
     List<ExaminationEntity> source, {
     int? totalElements,
     ExaminationDashboardTotalsEntity? dashboardTotals,
+    List<PatientGradeStatsEntity> patientGradeStats = const [],
   }) {
     final sorted = [...source]
       ..sort((a, b) {
@@ -1184,8 +1205,10 @@ class _DashboardStats {
     var todayCount = 0;
     var completed = 0;
     var pending = 0;
-    var low = 0;
-    var mid = 0;
+    var grade0 = 0;
+    var grade1 = 0;
+    var grade2 = 0;
+    var grade3 = 0;
     var g4 = 0;
     var unknown = 0;
 
@@ -1207,18 +1230,24 @@ class _DashboardStats {
         pending++;
       }
       final grade = item.maxPredictedGrade;
-      if (grade <= 0) {
+      if (grade < 0) {
         unknown++;
-      } else if (grade <= 1) {
-        low++;
-      } else if (grade <= 3) {
-        mid++;
+      } else if (grade == 0) {
+        grade0++;
+      } else if (grade == 1) {
+        grade1++;
+      } else if (grade == 2) {
+        grade2++;
+      } else if (grade == 3) {
+        grade3++;
       } else {
         g4++;
       }
     }
 
     final severe = sorted.where((item) => item.maxPredictedGrade >= 4).toList();
+    final gradeCounts = _gradeCountsFromPatientStats(patientGradeStats);
+    final hasPatientGradeStats = gradeCounts.total > 0;
     return _DashboardStats(
       examinations: sorted,
       recentExaminations: sorted,
@@ -1231,19 +1260,75 @@ class _DashboardStats {
       severeCount: dashboardTotals?.severe ?? severe.length,
       completedCount: dashboardTotals?.verified ?? completed,
       pendingCount: dashboardTotals?.unverified ?? pending,
-      lowGradeCount: low,
-      midGradeCount: mid,
-      grade4Count: g4,
-      unknownGradeCount: unknown,
+      grade0Count: hasPatientGradeStats ? gradeCounts.grade0 : grade0,
+      grade1Count: hasPatientGradeStats ? gradeCounts.grade1 : grade1,
+      grade2Count: hasPatientGradeStats ? gradeCounts.grade2 : grade2,
+      grade3Count: hasPatientGradeStats ? gradeCounts.grade3 : grade3,
+      grade4Count: hasPatientGradeStats ? gradeCounts.grade4 : g4,
+      unknownGradeCount: hasPatientGradeStats ? gradeCounts.unknown : unknown,
+      gradeDistributionTotal: hasPatientGradeStats
+          ? gradeCounts.total
+          : grade0 + grade1 + grade2 + grade3 + g4 + unknown,
     );
   }
 
   int get severePercent => _percentOf(severeCount, totalResults);
   int get completedPercent => _percent(completedCount);
-  int get lowGradePercent => _percent(lowGradeCount);
-  int get midGradePercent => _percent(midGradeCount);
-  int get grade4Percent => _percent(grade4Count);
-  int get unknownGradePercent => _percent(unknownGradeCount);
+  int get grade0Percent => _percentOf(grade0Count, gradeDistributionTotal);
+  int get grade1Percent => _percentOf(grade1Count, gradeDistributionTotal);
+  int get grade2Percent => _percentOf(grade2Count, gradeDistributionTotal);
+  int get grade3Percent => _percentOf(grade3Count, gradeDistributionTotal);
+  int get grade4Percent => _percentOf(grade4Count, gradeDistributionTotal);
+  int get unknownGradePercent =>
+      _percentOf(unknownGradeCount, gradeDistributionTotal);
+
+  List<_GradeSegment> get gradeSegments {
+    return [
+      _GradeSegment(
+        label: 'KL 0',
+        value: grade0Count,
+        percent: grade0Percent,
+        color: grade0Color,
+      ),
+      _GradeSegment(
+        label: 'KL 1',
+        value: grade1Count,
+        percent: grade1Percent,
+        color: grade1Color,
+      ),
+      _GradeSegment(
+        label: 'KL 2',
+        value: grade2Count,
+        percent: grade2Percent,
+        color: grade2Color,
+      ),
+      _GradeSegment(
+        label: 'KL 3',
+        value: grade3Count,
+        percent: grade3Percent,
+        color: grade3Color,
+      ),
+      _GradeSegment(
+        label: 'KL 4',
+        value: grade4Count,
+        percent: grade4Percent,
+        color: grade4Color,
+      ),
+      _GradeSegment(
+        label: 'Chưa xác định',
+        value: unknownGradeCount,
+        percent: unknownGradePercent,
+        color: unknownGradeColor,
+      ),
+    ];
+  }
+
+  static const Color grade0Color = Color(0xFF2F855A);
+  static const Color grade1Color = Color(0xFF38A169);
+  static const Color grade2Color = Color(0xFFD4A017);
+  static const Color grade3Color = Color(0xFFE67E22);
+  static const Color grade4Color = Color(0xFFD71920);
+  static const Color unknownGradeColor = Color(0xFFD1D5DB);
 
   int _percent(int value) {
     if (total <= 0) return 0;
@@ -1254,4 +1339,75 @@ class _DashboardStats {
     if (denominator <= 0) return 0;
     return ((value / denominator) * 100).round();
   }
+
+  static _GradeCounts _gradeCountsFromPatientStats(
+    List<PatientGradeStatsEntity> stats,
+  ) {
+    var grade0 = 0;
+    var grade1 = 0;
+    var grade2 = 0;
+    var grade3 = 0;
+    var grade4 = 0;
+    var unknown = 0;
+
+    for (final item in stats) {
+      final count = item.patientCount < 0 ? 0 : item.patientCount;
+      if (item.grade < 0) {
+        unknown += count;
+      } else if (item.grade == 0) {
+        grade0 += count;
+      } else if (item.grade == 1) {
+        grade1 += count;
+      } else if (item.grade == 2) {
+        grade2 += count;
+      } else if (item.grade == 3) {
+        grade3 += count;
+      } else {
+        grade4 += count;
+      }
+    }
+
+    return _GradeCounts(
+      grade0: grade0,
+      grade1: grade1,
+      grade2: grade2,
+      grade3: grade3,
+      grade4: grade4,
+      unknown: unknown,
+    );
+  }
+}
+
+class _GradeSegment {
+  final String label;
+  final int value;
+  final int percent;
+  final Color color;
+
+  const _GradeSegment({
+    required this.label,
+    required this.value,
+    required this.percent,
+    required this.color,
+  });
+}
+
+class _GradeCounts {
+  final int grade0;
+  final int grade1;
+  final int grade2;
+  final int grade3;
+  final int grade4;
+  final int unknown;
+
+  const _GradeCounts({
+    required this.grade0,
+    required this.grade1,
+    required this.grade2,
+    required this.grade3,
+    required this.grade4,
+    required this.unknown,
+  });
+
+  int get total => grade0 + grade1 + grade2 + grade3 + grade4 + unknown;
 }

@@ -7,7 +7,9 @@ import '../../core/constants/api_constants.dart';
 import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/entities/examination_page_entity.dart';
+import '../../domain/entities/patient_grade_stats_entity.dart';
 import '../models/examination_model.dart';
+import '../models/patient_grade_stats_model.dart';
 
 abstract class ExaminationRemoteDataSource {
   Future<ExaminationPageEntity> getExaminationsPage({
@@ -27,6 +29,10 @@ abstract class ExaminationRemoteDataSource {
     required String token,
     int page = 0,
     int size = 10,
+  });
+
+  Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
+    required String token,
   });
 
   Future<List<ExaminationEntity>> getExaminations({required String token});
@@ -276,6 +282,40 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
           .whereType<String>()
           .join('\n'),
     );
+  }
+
+  @override
+  Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
+    required String token,
+  }) async {
+    final uri = Uri.parse(ApiConstants.patientGradeStatisticsEndpoint);
+    final response = await client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        _httpErrorMessage(
+          response.statusCode,
+          'Khong the tai thong ke benh nhan theo KL grade',
+        ),
+      );
+    }
+
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is! List) {
+      throw Exception('Dinh dang thong ke KL grade khong hop le');
+    }
+
+    return data.whereType<Map>().map((item) {
+      return PatientGradeStatsModel.fromJson(Map<String, dynamic>.from(item));
+    }).toList();
   }
 
   Future<_DashboardTotalResult> _getTotalOrZero({

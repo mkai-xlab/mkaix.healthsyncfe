@@ -1,122 +1,257 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:provider/provider.dart';
 
-void main() {
-  runApp(const MyApp());
+import 'package:fe/core/constants/app_colors.dart';
+import 'package:fe/core/routes/app_router.dart';
+import 'package:fe/data/datasources/auth_remote_datasource.dart';
+import 'package:fe/data/repositories/auth_repository_impl.dart';
+import 'package:fe/data/datasources/patient_remote_datasource.dart';
+import 'package:fe/data/repositories/patient_repository_impl.dart';
+import 'package:fe/data/datasources/examination_remote_datasource.dart';
+import 'package:fe/data/repositories/examination_repository_impl.dart';
+import 'package:fe/domain/usecases/login_usecase.dart';
+import 'package:fe/domain/usecases/get_all_patients_usecase.dart';
+import 'package:fe/domain/usecases/get_patient_examinations_usecase.dart';
+import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/doctor_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/examination_viewmodel.dart';
+import 'package:fe/data/datasources/admin_remote_datasource.dart';
+import 'package:fe/data/datasources/admin_dashboard_remote_datasource.dart';
+import 'package:fe/data/datasources/audit_log_remote_datasource.dart';
+import 'package:fe/data/datasources/dicom_remote_datasource.dart';
+import 'package:fe/data/datasources/doctor_profile_remote_datasource.dart';
+import 'package:fe/data/datasources/notification_remote_datasource.dart';
+import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/admin_dashboard_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/audit_log_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/dicom_upload_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/doctor_profile_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  final httpClient = http.Client();
+
+  // Auth
+  final remoteDataSource = AuthRemoteDataSource(httpClient);
+  final authRepository = AuthRepositoryImpl(remoteDataSource: remoteDataSource);
+  final loginUseCase = LoginUseCase(authRepository);
+
+  // Patient
+  final patientRemoteDataSource = PatientRemoteDataSourceImpl(httpClient);
+  final patientRepository = PatientRepositoryImpl(
+    remoteDataSource: patientRemoteDataSource,
+  );
+  final getAllPatientsUseCase = GetAllPatientsUseCase(patientRepository);
+
+  // Examination
+  final examinationRemoteDataSource = ExaminationRemoteDataSourceImpl(
+    httpClient,
+  );
+  final examinationRepository = ExaminationRepositoryImpl(
+    remoteDataSource: examinationRemoteDataSource,
+  );
+  final getPatientExaminationsUseCase = GetPatientExaminationsUseCase(
+    examinationRepository,
+  );
+
+  // Admin
+  final adminRemoteDataSource = AdminRemoteDataSourceImpl(httpClient);
+  final adminAccountViewModel = AdminAccountViewModel(adminRemoteDataSource);
+  final adminDashboardRemoteDataSource = AdminDashboardRemoteDataSource(
+    httpClient,
+  );
+  final adminDashboardViewModel = AdminDashboardViewModel(
+    adminDashboardRemoteDataSource,
+  );
+
+  // Audit logs
+  final auditLogRemoteDataSource = AuditLogRemoteDataSource(httpClient);
+  final auditLogViewModel = AuditLogViewModel(auditLogRemoteDataSource);
+
+  // DICOM upload
+  final dicomRemoteDataSource = DicomRemoteDataSourceImpl(httpClient);
+  final dicomUploadViewModel = DicomUploadViewModel(dicomRemoteDataSource);
+
+  // Doctor profile
+  final doctorProfileRemoteDataSource = DoctorProfileRemoteDataSource(
+    httpClient,
+  );
+  final doctorProfileViewModel = DoctorProfileViewModel(
+    doctorProfileRemoteDataSource,
+  );
+
+  // Notifications
+  final notificationRemoteDataSource = NotificationRemoteDataSource(httpClient);
+  final notificationViewModel = NotificationViewModel(
+    notificationRemoteDataSource,
+  );
+
+  // ViewModels
+  final authViewModel = AuthViewModel(
+    loginUseCase: loginUseCase,
+    authRepository: authRepository,
+  );
+  await authViewModel.restoreSession();
+  final doctorViewModel = DoctorViewModel(
+    getAllPatientsUseCase: getAllPatientsUseCase,
+  );
+  final examinationViewModel = ExaminationViewModel(
+    getPatientExaminationsUseCase: getPatientExaminationsUseCase,
+  );
+
+  final appRouter = AppRouter(authViewModel);
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider.value(value: authViewModel),
+        ChangeNotifierProvider.value(value: doctorViewModel),
+        ChangeNotifierProvider.value(value: examinationViewModel),
+        ChangeNotifierProvider.value(value: adminAccountViewModel),
+        ChangeNotifierProvider.value(value: adminDashboardViewModel),
+        ChangeNotifierProvider.value(value: auditLogViewModel),
+        ChangeNotifierProvider.value(value: dicomUploadViewModel),
+        ChangeNotifierProvider.value(value: doctorProfileViewModel),
+        ChangeNotifierProvider.value(value: notificationViewModel),
+      ],
+      child: MyApp(appRouter: appRouter),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  static const double _compactTextScale = 0.9;
 
-  // This widget is the root of your application.
+  final AppRouter appRouter;
+
+  const MyApp({required this.appRouter, super.key});
+
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter Demo',
+    return MaterialApp.router(
+      debugShowCheckedModeBanner: false,
+      routerConfig: appRouter.router,
+      builder: (context, child) {
+        final mediaQuery = MediaQuery.of(context);
+        final currentTextScale = mediaQuery.textScaler.scale(1);
+
+        return MediaQuery(
+          data: mediaQuery.copyWith(
+            textScaler: TextScaler.linear(currentTextScale * _compactTextScale),
+          ),
+          child: _RealtimeNotificationConnector(
+            child: child ?? const SizedBox.shrink(),
+          ),
+        );
+      },
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: AppColors.primary,
+          primary: AppColors.primary,
+          secondary: AppColors.primaryLight,
+          surface: AppColors.surface1,
+          error: AppColors.error,
+        ),
+        scaffoldBackgroundColor: AppColors.surface1,
+        appBarTheme: const AppBarTheme(
+          backgroundColor: AppColors.surface3,
+          foregroundColor: AppColors.white,
+          elevation: 0,
+        ),
+        dialogTheme: const DialogThemeData(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          isDense: true,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 10,
+          ),
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+        ),
+        filledButtonTheme: FilledButtonThemeData(
+          style: FilledButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+        ),
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(0, 36),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          ),
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(0, 34),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          ),
+        ),
+        iconButtonTheme: IconButtonThemeData(
+          style: IconButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            minimumSize: const Size(34, 34),
+            padding: const EdgeInsets.all(6),
+          ),
+        ),
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
     );
   }
 }
 
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
+class _RealtimeNotificationConnector extends StatefulWidget {
+  final Widget child;
 
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
+  const _RealtimeNotificationConnector({required this.child});
 
   @override
-  State<MyHomePage> createState() => _MyHomePageState();
+  State<_RealtimeNotificationConnector> createState() =>
+      _RealtimeNotificationConnectorState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class _RealtimeNotificationConnectorState
+    extends State<_RealtimeNotificationConnector> {
+  String? _connectedToken;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final token = context.watch<AuthViewModel>().currentUser?.token ?? '';
+    final notificationVm = context.read<NotificationViewModel>();
+
+    if (token.trim().isEmpty) {
+      if (_connectedToken != null) {
+        notificationVm.disconnectRealtime();
+        _connectedToken = null;
+      }
+      return;
+    }
+
+    if (_connectedToken == token) return;
+    _connectedToken = token;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _connectedToken != token) return;
+      notificationVm.connectRealtime(token);
     });
   }
 
   @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => widget.child;
 }

@@ -164,6 +164,10 @@ class MyApp extends StatelessWidget {
           foregroundColor: AppColors.white,
           elevation: 0,
         ),
+        dialogTheme: const DialogThemeData(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
+        ),
         inputDecorationTheme: InputDecorationTheme(
           isDense: true,
           contentPadding: const EdgeInsets.symmetric(

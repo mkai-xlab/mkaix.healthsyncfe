@@ -1,6 +1,7 @@
 import '../entities/examination_dashboard_totals_entity.dart';
 import '../entities/examination_entity.dart';
 import '../entities/examination_page_entity.dart';
+import '../entities/patient_grade_stats_entity.dart';
 import '../interface_repositories/examination_repository.dart';
 
 class GetPatientExaminationsUseCase {
@@ -48,6 +49,12 @@ class GetPatientExaminationsUseCase {
     );
   }
 
+  Future<List<PatientGradeStatsEntity>> executePatientGradeStatistics({
+    required String token,
+  }) {
+    return repository.getPatientGradeStatistics(token: token);
+  }
+
   Future<List<ExaminationEntity>> executeDoctor({
     required int doctorId,
     required String token,
@@ -61,6 +68,26 @@ class GetPatientExaminationsUseCase {
   }) {
     return repository.getPatientExaminations(
       patientId: patientId,
+      token: token,
+    );
+  }
+
+  Future<ExaminationEntity> executeDetail({
+    required int examinationId,
+    required String token,
+  }) {
+    return repository.getExaminationById(
+      examinationId: examinationId,
+      token: token,
+    );
+  }
+
+  Future<void> executeMarkViewed({
+    required int examinationId,
+    required String token,
+  }) {
+    return repository.markExaminationViewed(
+      examinationId: examinationId,
       token: token,
     );
   }

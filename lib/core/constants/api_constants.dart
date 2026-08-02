@@ -3,6 +3,7 @@ class ApiConstants {
       'http://54.254.113.71:8000/api/v1/swagger-ui/index.html#/';
   static const String baseUrl = 'http://54.254.113.71:8000/api/v1';
   static const String loginEndpoint = '$baseUrl/auth/login';
+  static const String logoutEndpoint = '$baseUrl/auth/logout';
   static const String forgotPasswordEndpoint = '$baseUrl/auth/forgot-password';
   static const String resetPasswordEndpoint = '$baseUrl/auth/reset-password';
   static const String changePasswordEndpoint = '$baseUrl/auth/change-password';
@@ -15,6 +16,11 @@ class ApiConstants {
   static String examinationByIdEndpoint(int id) => '$examinationsEndpoint/$id';
   static String examinationReportEndpoint(int id) =>
       '$examinationsEndpoint/$id/generate-report';
+  static const String reportsEndpoint = '$baseUrl/reports';
+  static String reportPreviewEndpoint(int examinationId) =>
+      '$reportsEndpoint/$examinationId/preview';
+  static String reportDownloadEndpoint(int examinationId) =>
+      '$reportsEndpoint/$examinationId/download';
   static String markExaminationViewedEndpoint(int id) =>
       '$examinationsEndpoint/$id/view';
   static String examinationsByPatientEndpoint(String patientId) =>
@@ -78,6 +84,10 @@ class ApiConstants {
   static const String aiPredictBatchEndpoint = '$baseUrl/ai/predict-batch';
   static String aiHeatmapEndpoint(int aiResultId) =>
       '$baseUrl/ai/heatmap/$aiResultId';
+  static String aiResultConfirmEndpoint(int aiResultId) =>
+      '$baseUrl/ai/results/$aiResultId/confirm';
+  static String aiResultKlGradeEndpoint(int aiResultId) =>
+      '$baseUrl/ai/results/$aiResultId/kl-grade';
 
   // DICOM endpoints
   static const String notificationsUnreadEndpoint =

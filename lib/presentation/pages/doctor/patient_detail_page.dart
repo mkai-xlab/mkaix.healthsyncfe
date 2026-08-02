@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/examination_status_utils.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -477,37 +478,24 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
   }
 
   Widget _statusBadge(ExaminationEntity examination) {
-    final color = _statusColor(examination.statusGroup);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: ExaminationStatusUtils.backgroundColor(examination.statusGroup),
         borderRadius: BorderRadius.circular(20),
+        border: ExaminationStatusUtils.border(examination.statusGroup),
       ),
       child: Text(
         examination.statusDisplay,
         style: TextStyle(
-          color: color,
+          color: ExaminationStatusUtils.foregroundColor(
+            examination.statusGroup,
+          ),
           fontSize: 11,
           fontWeight: FontWeight.w800,
         ),
       ),
     );
-  }
-
-  Color _statusColor(String status) {
-    switch (status) {
-      case 'PENDING':
-        return const Color(0xFFB7791F);
-      case 'ANALYZING':
-        return const Color(0xFF3182CE);
-      case 'AWAITING_REVIEW':
-        return const Color(0xFF805AD5);
-      case 'COMPLETED':
-        return _primaryGreen;
-      default:
-        return const Color(0xFF718096);
-    }
   }
 }
 

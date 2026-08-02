@@ -32,7 +32,7 @@ abstract class DicomRemoteDataSource {
     required String token,
   });
 
-  Future<void> verifyUploadSession({
+  Future<DicomVerifyResponse> verifyUploadSession({
     required String uploadSessionId,
     required List<String> acceptedPatientCodes,
     required String token,
@@ -127,12 +127,17 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
   }
 
   @override
-  Future<void> verifyUploadSession({
+  Future<DicomVerifyResponse> verifyUploadSession({
     required String uploadSessionId,
     required List<String> acceptedPatientCodes,
     required String token,
   }) async {
     try {
+      debugPrint(
+        '[DICOM verify API request] uploadSessionId=$uploadSessionId, '
+        'acceptedPatientCodes=${acceptedPatientCodes.join(',')}',
+        wrapWidth: 1024,
+      );
       final response = await client
           .post(
             Uri.parse(ApiConstants.dicomVerifyEndpoint),
@@ -148,9 +153,18 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
           )
           .timeout(const Duration(seconds: 60));
 
-      if (response.statusCode >= 200 && response.statusCode < 300) return;
-
       final body = utf8.decode(response.bodyBytes);
+      debugPrint(
+        '[DICOM verify API response] status=${response.statusCode}, body=$body',
+        wrapWidth: 1024,
+      );
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return DicomVerifyResponse.fromHttp(
+          statusCode: response.statusCode,
+          body: body,
+        );
+      }
+
       String message =
           'Xác nhận upload DICOM thất bại (${response.statusCode})';
       try {
@@ -356,6 +370,52 @@ class DicomUploadSubmission {
 
   const DicomUploadSubmission.accepted({String? message})
     : this._(accepted: true, result: null, message: message);
+}
+
+class DicomVerifyResponse {
+  final int statusCode;
+  final String body;
+  final Object? data;
+  final String message;
+
+  const DicomVerifyResponse({
+    required this.statusCode,
+    required this.body,
+    this.data,
+    this.message = '',
+  });
+
+  factory DicomVerifyResponse.fromHttp({
+    required int statusCode,
+    required String body,
+  }) {
+    final trimmedBody = body.trim();
+    if (trimmedBody.isEmpty) {
+      return DicomVerifyResponse(statusCode: statusCode, body: body);
+    }
+
+    try {
+      final decoded = jsonDecode(trimmedBody);
+      var message = '';
+      if (decoded is Map && decoded['message'] != null) {
+        message = decoded['message'].toString();
+      } else if (decoded is String) {
+        message = decoded;
+      }
+      return DicomVerifyResponse(
+        statusCode: statusCode,
+        body: body,
+        data: decoded,
+        message: message,
+      );
+    } catch (_) {
+      return DicomVerifyResponse(
+        statusCode: statusCode,
+        body: body,
+        message: trimmedBody,
+      );
+    }
+  }
 }
 
 class DicomUploadNotificationSnapshot {

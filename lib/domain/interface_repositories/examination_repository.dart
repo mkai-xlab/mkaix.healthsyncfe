@@ -1,6 +1,7 @@
 import '../entities/examination_dashboard_totals_entity.dart';
 import '../entities/examination_entity.dart';
 import '../entities/examination_page_entity.dart';
+import '../entities/patient_grade_stats_entity.dart';
 
 abstract class ExaminationRepository {
   Future<ExaminationPageEntity> getExaminationsPage({
@@ -22,6 +23,10 @@ abstract class ExaminationRepository {
     int size = 10,
   });
 
+  Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
+    required String token,
+  });
+
   Future<List<ExaminationEntity>> getExaminations({required String token});
 
   Future<List<ExaminationEntity>> getDoctorExaminations({
@@ -31,6 +36,16 @@ abstract class ExaminationRepository {
 
   Future<List<ExaminationEntity>> getPatientExaminations({
     required String patientId,
+    required String token,
+  });
+
+  Future<ExaminationEntity> getExaminationById({
+    required int examinationId,
+    required String token,
+  });
+
+  Future<void> markExaminationViewed({
+    required int examinationId,
     required String token,
   });
 }

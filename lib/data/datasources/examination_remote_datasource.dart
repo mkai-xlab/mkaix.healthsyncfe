@@ -7,7 +7,9 @@ import '../../core/constants/api_constants.dart';
 import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/entities/examination_page_entity.dart';
+import '../../domain/entities/patient_grade_stats_entity.dart';
 import '../models/examination_model.dart';
+import '../models/patient_grade_stats_model.dart';
 
 abstract class ExaminationRemoteDataSource {
   Future<ExaminationPageEntity> getExaminationsPage({
@@ -29,6 +31,10 @@ abstract class ExaminationRemoteDataSource {
     int size = 10,
   });
 
+  Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
+    required String token,
+  });
+
   Future<List<ExaminationEntity>> getExaminations({required String token});
 
   Future<List<ExaminationEntity>> getDoctorExaminations({
@@ -38,6 +44,16 @@ abstract class ExaminationRemoteDataSource {
 
   Future<List<ExaminationEntity>> getPatientExaminations({
     required String patientId,
+    required String token,
+  });
+
+  Future<ExaminationEntity> getExaminationById({
+    required int examinationId,
+    required String token,
+  });
+
+  Future<void> markExaminationViewed({
+    required int examinationId,
     required String token,
   });
 }
@@ -134,6 +150,20 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       );
     }
 
+    if (mode.startsWith('status')) {
+      final status = _statusFilterForMode(mode);
+      return _getExaminationsPage(
+        endpoint: ApiConstants.examinationsStatusEndpoint,
+        token: token,
+        page: page,
+        size: size,
+        queryParameters: {'status': status, 'sort': normalizedDirection},
+        includeSort: false,
+        shouldSortLocally: false,
+        errorMessage: 'Khong the loc ca kham theo trang thai',
+      );
+    }
+
     return _getExaminationsPage(
       endpoint: ApiConstants.examinationsEndpoint,
       token: token,
@@ -146,6 +176,21 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     );
   }
 
+  String _statusFilterForMode(String mode) {
+    switch (mode) {
+      case 'statusAiProcessing':
+        return 'AI_PROCESSING';
+      case 'statusNeedVerify':
+        return 'NEED_VERIFY';
+      case 'statusVerified':
+        return 'VERIFIED';
+      case 'statusReportGenerated':
+        return 'REPORT_GENERATED';
+      default:
+        return mode.replaceFirst('status', '').toUpperCase();
+    }
+  }
+
   @override
   Future<List<ExaminationEntity>> getExaminations({required String token}) {
     return _getPagedExaminations(
@@ -153,6 +198,67 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       token: token,
       errorMessage: 'Không thể tải danh sách ca khám',
     );
+  }
+
+  @override
+  Future<ExaminationEntity> getExaminationById({
+    required int examinationId,
+    required String token,
+  }) async {
+    final uri = Uri.parse(ApiConstants.examinationByIdEndpoint(examinationId));
+    final response = await client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        _httpErrorMessage(
+          response.statusCode,
+          'Khong the tai chi tiet ca kham',
+        ),
+      );
+    }
+
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is! Map) {
+      throw Exception('Dinh dang chi tiet ca kham khong hop le');
+    }
+
+    return ExaminationModel.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  @override
+  Future<void> markExaminationViewed({
+    required int examinationId,
+    required String token,
+  }) async {
+    final uri = Uri.parse(
+      ApiConstants.markExaminationViewedEndpoint(examinationId),
+    );
+    final response = await client
+        .put(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(
+        _httpErrorMessage(
+          response.statusCode,
+          'Khong the danh dau ca kham da xem',
+        ),
+      );
+    }
   }
 
   @override
@@ -209,6 +315,40 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
           .whereType<String>()
           .join('\n'),
     );
+  }
+
+  @override
+  Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
+    required String token,
+  }) async {
+    final uri = Uri.parse(ApiConstants.patientGradeStatisticsEndpoint);
+    final response = await client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        _httpErrorMessage(
+          response.statusCode,
+          'Khong the tai thong ke benh nhan theo KL grade',
+        ),
+      );
+    }
+
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is! List) {
+      throw Exception('Dinh dang thong ke KL grade khong hop le');
+    }
+
+    return data.whereType<Map>().map((item) {
+      return PatientGradeStatsModel.fromJson(Map<String, dynamic>.from(item));
+    }).toList();
   }
 
   Future<_DashboardTotalResult> _getTotalOrZero({

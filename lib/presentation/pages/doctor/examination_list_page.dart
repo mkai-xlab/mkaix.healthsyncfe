@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/examination_status_utils.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -13,6 +14,7 @@ class ExaminationListPage extends StatefulWidget {
   final PatientEntity? patient;
   final bool embedded;
   final List<ExaminationEntity> newExaminations;
+  final ExaminationListMode? initialMode;
   final ValueChanged<PatientEntity>? onOpenPatientDetail;
 
   const ExaminationListPage({
@@ -20,6 +22,7 @@ class ExaminationListPage extends StatefulWidget {
     this.patient,
     this.embedded = false,
     this.newExaminations = const [],
+    this.initialMode,
     this.onOpenPatientDetail,
   });
 
@@ -39,12 +42,45 @@ class _SortOption {
   });
 }
 
+class _StatusOption {
+  final String label;
+  final String status;
+  final ExaminationListMode mode;
+
+  const _StatusOption({
+    required this.label,
+    required this.status,
+    required this.mode,
+  });
+}
+
 class _ExaminationListPageState extends State<ExaminationListPage> {
   static const Color _primaryGreen = AppColors.primary;
   static const Color _pageBg = AppColors.surface1;
+  static const List<_StatusOption> _statusOptions = [
+    _StatusOption(
+      label: 'Đang phân tích',
+      status: 'AI_PROCESSING',
+      mode: ExaminationListMode.statusAiProcessing,
+    ),
+    _StatusOption(
+      label: 'Cần xác nhận',
+      status: 'NEED_VERIFY',
+      mode: ExaminationListMode.statusNeedVerify,
+    ),
+    _StatusOption(
+      label: 'Đã xác nhận',
+      status: 'VERIFIED',
+      mode: ExaminationListMode.statusVerified,
+    ),
+    _StatusOption(
+      label: 'Đã tạo báo cáo',
+      status: 'REPORT_GENERATED',
+      mode: ExaminationListMode.statusReportGenerated,
+    ),
+  ];
 
   bool _didLoad = false;
-  ExaminationEntity? _selectedExamination;
 
   String get _patientDetailId {
     final patient = widget.patient;
@@ -63,13 +99,12 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       final token = context.read<AuthViewModel>().currentUser?.token ?? '';
       final vm = context.read<ExaminationViewModel>();
       if (widget.patient == null) {
-        final now = DateTime.now();
-        final today = DateTime(now.year, now.month, now.day);
-        vm.applyListMode(
-          token: token,
-          mode: ExaminationListMode.uploadDateFilter,
-          date: today,
-        );
+        final initialMode = widget.initialMode;
+        if (initialMode == null || initialMode == ExaminationListMode.all) {
+          vm.clearListMode(token: token);
+        } else {
+          vm.applyListMode(token: token, mode: initialMode);
+        }
       } else {
         vm.loadPatientExaminations(patientId: _patientDetailId, token: token);
       }
@@ -78,11 +113,14 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final selectedExamination = _selectedExamination;
+    final selectedExamination = context
+        .watch<ExaminationViewModel>()
+        .selectedExamination;
     if (selectedExamination != null) {
       final detail = ExaminationDetailPage(
         examination: selectedExamination,
-        onBack: () => setState(() => _selectedExamination = null),
+        onBack: () =>
+            context.read<ExaminationViewModel>().closeExaminationDetail(),
         onOpenPatientDetail: widget.onOpenPatientDetail,
       );
       if (widget.embedded) return detail;
@@ -231,6 +269,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
             ),
           ],
         ),
+        _statusDropdown(vm),
         _allChip(vm),
         for (var grade = 4; grade >= 0; grade--) _gradeChip(vm, grade),
         if (vm.listMode != ExaminationListMode.all)
@@ -262,6 +301,92 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
         mode == ExaminationListMode.studyDateDesc ||
         mode == ExaminationListMode.uploadDateAsc ||
         mode == ExaminationListMode.uploadDateDesc;
+  }
+
+  Widget _statusDropdown(ExaminationViewModel vm) {
+    final selected = _statusOptionForMode(vm.listMode);
+    return SizedBox(
+      width: 230,
+      child: DropdownButtonFormField<ExaminationListMode>(
+        initialValue: selected?.mode,
+        hint: const Text('Trạng thái'),
+        isDense: true,
+        icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 18),
+        decoration: InputDecoration(
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 10,
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(8),
+            borderSide: const BorderSide(color: _primaryGreen, width: 1.4),
+          ),
+        ),
+        items: [
+          for (final item in _statusOptions)
+            DropdownMenuItem<ExaminationListMode>(
+              value: item.mode,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.circle_rounded,
+                    size: 10,
+                    color: _statusColor(item.status),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(item.label, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+            ),
+        ],
+        selectedItemBuilder: (context) {
+          return [
+            for (final item in _statusOptions)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.circle_rounded,
+                    size: 10,
+                    color: _statusColor(item.status),
+                  ),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text(item.label, overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+          ];
+        },
+        onChanged: (mode) {
+          if (mode == null) return;
+          final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+          vm.applyListMode(token: token, mode: mode);
+        },
+        style: const TextStyle(
+          color: Color(0xFF1A2B3C),
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+        ),
+        dropdownColor: Colors.white,
+      ),
+    );
+  }
+
+  _StatusOption? _statusOptionForMode(ExaminationListMode mode) {
+    for (final item in _statusOptions) {
+      if (item.mode == mode) return item;
+    }
+    return null;
   }
 
   Widget _allChip(ExaminationViewModel vm) {
@@ -453,67 +578,100 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       return _emptyState('Chưa có ca khám mới hôm nay.');
     }
 
-    return Column(
+    return Stack(
       children: [
-        Expanded(
-          child: RefreshIndicator(
-            color: _primaryGreen,
-            onRefresh: () {
-              final currentUser = context.read<AuthViewModel>().currentUser;
-              final token = currentUser?.token ?? '';
-              if (widget.patient == null) {
-                return vm.loadExaminations(token: token);
-              }
-              return vm.loadPatientExaminations(
-                patientId: _patientDetailId,
-                token: token,
-              );
-            },
-            child: ListView.separated(
-              padding: const EdgeInsets.all(24),
-              itemCount: examinations.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 12),
-              itemBuilder: (context, index) =>
-                  _examinationCard(examinations[index]),
+        Column(
+          children: [
+            Expanded(
+              child: RefreshIndicator(
+                color: _primaryGreen,
+                onRefresh: () {
+                  final currentUser = context.read<AuthViewModel>().currentUser;
+                  final token = currentUser?.token ?? '';
+                  if (widget.patient == null) {
+                    return vm.loadExaminations(token: token);
+                  }
+                  return vm.loadPatientExaminations(
+                    patientId: _patientDetailId,
+                    token: token,
+                  );
+                },
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(24),
+                  itemCount: examinations.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(height: 12),
+                  itemBuilder: (context, index) =>
+                      _examinationCard(examinations[index]),
+                ),
+              ),
             ),
-          ),
+            if (widget.patient == null)
+              PaginationBar(
+                currentPage: vm.currentPage,
+                totalPages: vm.totalPages,
+                totalElements: vm.totalElements,
+                pageSize: vm.pageSize,
+                isLoading: vm.isLoading,
+                itemLabel: 'ca khám',
+                onPageChanged: (page) {
+                  final token =
+                      context.read<AuthViewModel>().currentUser?.token ?? '';
+                  vm.goToPage(token: token, page: page);
+                },
+                onPageSizeChanged: (size) {
+                  final token =
+                      context.read<AuthViewModel>().currentUser?.token ?? '';
+                  vm.changePageSize(token: token, size: size);
+                },
+              ),
+          ],
         ),
-        if (widget.patient == null)
-          PaginationBar(
-            currentPage: vm.currentPage,
-            totalPages: vm.totalPages,
-            totalElements: vm.totalElements,
-            pageSize: vm.pageSize,
-            isLoading: vm.isLoading,
-            itemLabel: 'ca khám',
-            onPageChanged: (page) {
-              final token =
-                  context.read<AuthViewModel>().currentUser?.token ?? '';
-              vm.goToPage(token: token, page: page);
-            },
-            onPageSizeChanged: (size) {
-              final token =
-                  context.read<AuthViewModel>().currentUser?.token ?? '';
-              vm.changePageSize(token: token, size: size);
-            },
+        if (vm.isLoadingDetail)
+          Positioned.fill(
+            child: ColoredBox(
+              color: Colors.white.withValues(alpha: 0.42),
+              child: const Center(
+                child: CircularProgressIndicator(color: _primaryGreen),
+              ),
+            ),
           ),
       ],
     );
   }
 
+  Future<void> _openExaminationDetail(ExaminationEntity examination) async {
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    final vm = context.read<ExaminationViewModel>();
+    final opened = await vm.openExaminationDetail(
+      examination: examination,
+      token: token,
+    );
+    if (!mounted || opened) return;
+    final message = vm.detailErrorMessage ?? 'Khong the tai chi tiet ca kham';
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
+  }
+
   Widget _examinationCard(ExaminationEntity examination) {
+    final isNew = !examination.isViewed;
     return InkWell(
-      onTap: () => setState(() => _selectedExamination = examination),
+      onTap: () => _openExaminationDetail(examination),
       borderRadius: BorderRadius.circular(10),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isNew ? const Color(0xFFEAF7F3) : Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(
+            color: isNew ? _primaryGreen : const Color(0xFFE2E8F0),
+            width: isNew ? 1.4 : 1,
+          ),
         ),
         child: Row(
           children: [
+            if (isNew) ...[_newIndicator(), const SizedBox(width: 12)],
             Expanded(
               flex: 2,
               child: _cell(
@@ -522,6 +680,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
                     ? examination.examinationId.toString()
                     : '---',
                 isStrong: true,
+                isNew: isNew,
               ),
             ),
             Expanded(
@@ -532,6 +691,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
                     ? widget.patient?.fullName ?? '---'
                     : examination.patientName,
                 isStrong: true,
+                isNew: isNew,
               ),
             ),
             Expanded(
@@ -554,7 +714,12 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     );
   }
 
-  Widget _cell(String label, String value, {bool isStrong = false}) {
+  Widget _cell(
+    String label,
+    String value, {
+    bool isStrong = false,
+    bool isNew = false,
+  }) {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: Column(
@@ -571,7 +736,11 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               fontSize: 13,
-              fontWeight: isStrong ? FontWeight.w700 : FontWeight.w500,
+              fontWeight: isNew
+                  ? FontWeight.w800
+                  : isStrong
+                  ? FontWeight.w700
+                  : FontWeight.w500,
               color: const Color(0xFF1A2B3C),
             ),
           ),
@@ -580,18 +749,41 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     );
   }
 
+  Widget _newIndicator() {
+    return Container(
+      width: 38,
+      height: 26,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: _primaryGreen,
+        borderRadius: BorderRadius.circular(7),
+      ),
+      child: const Text(
+        'NEW',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 10,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0,
+        ),
+      ),
+    );
+  }
+
   Widget _statusBadge(ExaminationEntity examination) {
-    final color = _statusColor(examination.statusGroup);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: ExaminationStatusUtils.backgroundColor(examination.statusGroup),
         borderRadius: BorderRadius.circular(20),
+        border: ExaminationStatusUtils.border(examination.statusGroup),
       ),
       child: Text(
         examination.statusDisplay,
         style: TextStyle(
-          color: color,
+          color: ExaminationStatusUtils.foregroundColor(
+            examination.statusGroup,
+          ),
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
@@ -663,23 +855,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
   }
 
   Color _statusColor(String status) {
-    switch (status) {
-      case 'PENDING':
-        return const Color(0xFFB7791F);
-      case 'ANALYZING':
-        return const Color(0xFF3182CE);
-      case 'AWAITING_REVIEW':
-        return const Color(0xFF805AD5);
-      case 'NEED_VERIFY':
-      case 'NEED_REVERIFY':
-        return const Color(0xFFD97706);
-      case 'AI_COMPLETED':
-        return const Color(0xFF2563EB);
-      case 'COMPLETED':
-        return _primaryGreen;
-      default:
-        return const Color(0xFF718096);
-    }
+    return ExaminationStatusUtils.color(status);
   }
 
   List<ExaminationEntity> _visibleExaminations(ExaminationViewModel vm) {

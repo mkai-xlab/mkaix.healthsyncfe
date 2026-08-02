@@ -11,11 +11,13 @@ class DicomUploadNotification {
   final String type;
   final String title;
   final String message;
+  final Object? data;
 
   const DicomUploadNotification({
     required this.type,
     required this.title,
     required this.message,
+    this.data,
   });
 }
 
@@ -157,7 +159,12 @@ class DicomWebSocketService {
       );
 
       _notificationController.add(
-        DicomUploadNotification(type: type, title: title, message: message),
+        DicomUploadNotification(
+          type: type,
+          title: title,
+          message: message,
+          data: payload['data'],
+        ),
       );
 
       final isUploadCompleteNotification = title.startsWith(

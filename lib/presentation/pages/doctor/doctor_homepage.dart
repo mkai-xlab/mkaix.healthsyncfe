@@ -6,6 +6,7 @@ import '../../../core/utils/permission_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/dicom_upload_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
+import '../../viewmodels/examination_viewmodel.dart';
 import '../../viewmodels/notification_viewmodel.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/notification_entity.dart';
@@ -34,6 +35,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   bool _showChangePassword = false;
   bool _isUploadMiniProgressCollapsed = false;
   final List<ExaminationEntity> _newUploadExaminations = const [];
+  ExaminationListMode? _pendingExaminationListMode;
+  int _examinationListRefreshVersion = 0;
   PatientEntity? _selectedPatientDetail;
 
   static const Color _primaryGreen = AppColors.primary;
@@ -271,6 +274,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         onTap: () {
           setState(() {
             _selectedNavIndex = index;
+            if (item.routeKey == 'examination_list_page') {
+              _examinationListRefreshVersion++;
+            }
             _showDoctorProfile = false;
             _showChangePassword = false;
             _showUploadExaminationList = false;
@@ -379,6 +385,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
     if (_showUploadExaminationList) {
       return ExaminationListPage(
+        key: ValueKey(
+          'upload-examination-list-$_examinationListRefreshVersion',
+        ),
         embedded: true,
         newExaminations: _newUploadExaminations,
       );
@@ -397,7 +406,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         selectedPermission == 'dashboard' ||
         selectedPermission == 'home_page' ||
         selectedPermission == 'trang_chu') {
-      return const DoctorDashboardPage(embedded: true);
+      return DoctorDashboardPage(
+        embedded: true,
+        onOpenExaminationList: _openExaminationListTab,
+      );
     }
     if (selectedPermission == 'examination_list_page') {
       if (!_hasPermission(context, 'examination_list_page')) {
@@ -408,8 +420,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         );
       }
       return ExaminationListPage(
+        key: ValueKey(
+          'examination-list-${_pendingExaminationListMode?.name ?? 'all'}-$_examinationListRefreshVersion',
+        ),
         embedded: true,
         newExaminations: _newUploadExaminations,
+        initialMode: _pendingExaminationListMode,
         onOpenPatientDetail: (patient) =>
             setState(() => _selectedPatientDetail = patient),
       );
@@ -447,7 +463,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     );
   }
 
-  void _openExaminationListTab() {
+  void _openExaminationListTab([ExaminationListMode? mode]) {
     final navItems = _visibleNavItems(context, listen: false);
     final examIndex = navItems.indexWhere((item) {
       return item.routeKey == 'examination_list_page';
@@ -455,9 +471,11 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     if (examIndex < 0) return;
     setState(() {
       _selectedNavIndex = examIndex;
+      _examinationListRefreshVersion++;
       _showDoctorProfile = false;
       _showChangePassword = false;
       _showUploadExaminationList = false;
+      _pendingExaminationListMode = mode;
       _selectedPatientDetail = null;
     });
   }
@@ -535,7 +553,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        '${(vm.progress * 100).round()}% · ${_formatUploadDuration(vm.uploadElapsed)}',
+                        _formatUploadDuration(vm.uploadElapsed),
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w800,
@@ -544,7 +562,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                       ),
                       const SizedBox(height: 8),
                       LinearProgressIndicator(
-                        value: vm.progress.clamp(0, 1),
+                        value: vm.progress?.clamp(0, 1).toDouble(),
                         minHeight: 6,
                         borderRadius: BorderRadius.circular(99),
                         backgroundColor: const Color(0xFFE2E8F0),
@@ -608,7 +626,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    '${(vm.progress * 100).round()}% · ${_formatUploadDuration(vm.uploadElapsed)}',
+                    _formatUploadDuration(vm.uploadElapsed),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(

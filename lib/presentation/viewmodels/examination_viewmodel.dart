@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
+import '../../domain/entities/patient_grade_stats_entity.dart';
 import '../../domain/usecases/get_patient_examinations_usecase.dart';
 
 enum ExaminationListMode {
@@ -17,6 +18,10 @@ enum ExaminationListMode {
   grade2,
   grade3,
   grade4,
+  statusAiProcessing,
+  statusNeedVerify,
+  statusVerified,
+  statusReportGenerated,
 }
 
 class ExaminationViewModel extends ChangeNotifier {
@@ -42,6 +47,15 @@ class ExaminationViewModel extends ChangeNotifier {
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
+  ExaminationEntity? _selectedExamination;
+  ExaminationEntity? get selectedExamination => _selectedExamination;
+
+  bool _isLoadingDetail = false;
+  bool get isLoadingDetail => _isLoadingDetail;
+
+  String? _detailErrorMessage;
+  String? get detailErrorMessage => _detailErrorMessage;
+
   int _currentPage = 0;
   int get currentPage => _currentPage;
 
@@ -53,6 +67,10 @@ class ExaminationViewModel extends ChangeNotifier {
 
   ExaminationDashboardTotalsEntity? _dashboardTotals;
   ExaminationDashboardTotalsEntity? get dashboardTotals => _dashboardTotals;
+
+  List<PatientGradeStatsEntity> _patientGradeStats = [];
+  List<PatientGradeStatsEntity> get patientGradeStats =>
+      List.unmodifiable(_patientGradeStats);
 
   int _totalPages = 1;
   int get totalPages => _totalPages;
@@ -67,6 +85,8 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
+    _selectedExamination = null;
+    _detailErrorMessage = null;
     notifyListeners();
 
     try {
@@ -95,6 +115,9 @@ class ExaminationViewModel extends ChangeNotifier {
     _errorMessage = null;
     _examinations = [];
     _dashboardTotals = null;
+    _patientGradeStats = [];
+    _selectedExamination = null;
+    _detailErrorMessage = null;
     notifyListeners();
 
     try {
@@ -118,9 +141,19 @@ class ExaminationViewModel extends ChangeNotifier {
         _errorMessage = _appendDashboardError(_errorMessage, recentError);
         _examinations = [];
       }
+
+      try {
+        _patientGradeStats = await getPatientExaminationsUseCase
+            .executePatientGradeStatistics(token: token);
+      } catch (e) {
+        final gradeError = e.toString().replaceAll('Exception: ', '');
+        _errorMessage = _appendDashboardError(_errorMessage, gradeError);
+        _patientGradeStats = [];
+      }
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _examinations = [];
+      _patientGradeStats = [];
       _totalElements = 0;
       _totalPages = 1;
       _currentPage = 0;
@@ -180,6 +213,8 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
+    _selectedExamination = null;
+    _detailErrorMessage = null;
     notifyListeners();
 
     try {
@@ -209,6 +244,8 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
+    _selectedExamination = null;
+    _detailErrorMessage = null;
     notifyListeners();
 
     try {
@@ -227,12 +264,81 @@ class ExaminationViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> openExaminationDetail({
+    required ExaminationEntity examination,
+    required String token,
+  }) async {
+    final examinationId = examination.examinationId;
+    _selectedExamination = examination;
+    _detailErrorMessage = null;
+
+    if (examinationId <= 0) {
+      _detailErrorMessage = 'Khong tim thay examinationId hop le';
+      notifyListeners();
+      return true;
+    }
+
+    _isLoadingDetail = true;
+    notifyListeners();
+
+    try {
+      if (!examination.isViewed) {
+        try {
+          await getPatientExaminationsUseCase.executeMarkViewed(
+            examinationId: examinationId,
+            token: token,
+          );
+          _markExaminationViewedLocally(examinationId);
+        } catch (e) {
+          debugPrint('[Examination mark viewed] ignored error: $e');
+        }
+      }
+
+      final detail = await getPatientExaminationsUseCase.executeDetail(
+        examinationId: examinationId,
+        token: token,
+      );
+      _selectedExamination = detail.copyWith(isViewed: true);
+      _markExaminationViewedLocally(examinationId);
+      return true;
+    } catch (e) {
+      _detailErrorMessage = e.toString().replaceAll('Exception: ', '');
+      return true;
+    } finally {
+      _isLoadingDetail = false;
+      notifyListeners();
+    }
+  }
+
+  void _markExaminationViewedLocally(int examinationId) {
+    _examinations = _examinations.map((item) {
+      if (item.examinationId != examinationId || item.isViewed) return item;
+      return item.copyWith(isViewed: true);
+    }).toList();
+    final selected = _selectedExamination;
+    if (selected != null &&
+        selected.examinationId == examinationId &&
+        !selected.isViewed) {
+      _selectedExamination = selected.copyWith(isViewed: true);
+    }
+  }
+
+  void closeExaminationDetail() {
+    _selectedExamination = null;
+    _detailErrorMessage = null;
+    notifyListeners();
+  }
+
   void clear() {
     _examinations = [];
     _errorMessage = null;
+    _selectedExamination = null;
+    _detailErrorMessage = null;
     _totalElements = 0;
     _totalPages = 1;
     _currentPage = 0;
+    _dashboardTotals = null;
+    _patientGradeStats = [];
     _listMode = ExaminationListMode.all;
     _filterDate = null;
     notifyListeners();

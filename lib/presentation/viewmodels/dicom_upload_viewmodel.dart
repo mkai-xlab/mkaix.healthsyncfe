@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:cross_file/cross_file.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 
 import '../../core/services/toast_service.dart';
 import '../../core/services/dicom_websocket_service.dart';
@@ -43,8 +44,8 @@ class DicomUploadViewModel extends ChangeNotifier {
   DicomUploadStage _stage = DicomUploadStage.idle;
   DicomUploadStage get stage => _stage;
 
-  double _progress = 0;
-  double get progress => _progress;
+  double? _progress;
+  double? get progress => _progress;
 
   bool get isProcessActive =>
       _stage != DicomUploadStage.idle &&
@@ -99,6 +100,17 @@ class DicomUploadViewModel extends ChangeNotifier {
 
   List<DicomBatchErrorModel> _batchErrors = [];
   List<DicomBatchErrorModel> get batchErrors => List.unmodifiable(_batchErrors);
+
+  List<DicomVerifyResponse> _lastVerifyResponses = [];
+  List<DicomVerifyResponse> get lastVerifyResponses =>
+      List.unmodifiable(_lastVerifyResponses);
+
+  final List<DicomUploadNotification> _postCompletionNotifications = [];
+  List<DicomUploadNotification> get postCompletionNotifications =>
+      List.unmodifiable(_postCompletionNotifications);
+
+  AiResultSummary? _pendingAiResultSummary;
+  AiResultSummary? get pendingAiResultSummary => _pendingAiResultSummary;
 
   String _uploadSessionId = '';
   String get uploadSessionId => _uploadSessionId;
@@ -342,7 +354,7 @@ class DicomUploadViewModel extends ChangeNotifier {
     _isUploading = true;
     _errorMessage = null;
     _stage = DicomUploadStage.uploading;
-    _progress = 0.10;
+    _progress = null;
     _uploadStatusMessage = 'Đang kết nối kênh xử lý DICOM...';
     _lastUploadDuration = null;
     _startUploadTimer();
@@ -362,7 +374,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       _uploadStatusMessage = isZipBatch
           ? 'Đang upload ${uploadingFiles.length} file ZIP...'
           : 'Đang upload ${uploadingFiles.length} file DICOM...';
-      _progress = 0.18;
+      _progress = null;
       notifyListeners();
 
       final results = <BatchDicomUploadModel>[];
@@ -371,7 +383,7 @@ class DicomUploadViewModel extends ChangeNotifier {
           final file = uploadingFiles[index];
           _uploadStatusMessage =
               'Đang upload ZIP ${index + 1}/${uploadingFiles.length}: ${file.name}';
-          _progress = 0.18 + (index / uploadingFiles.length) * 0.18;
+          _progress = null;
           notifyListeners();
           final result = await _uploadZipAndResolve(file: file, token: token);
           results.add(result);
@@ -392,13 +404,13 @@ class DicomUploadViewModel extends ChangeNotifier {
       _selectedFiles = [];
       if (_successfulPatients.isNotEmpty) {
         _stage = DicomUploadStage.waitingVerification;
-        _progress = 0.85;
+        _progress = null;
         _uploadStatusMessage = _batchErrors.isEmpty
             ? 'Cần bác sĩ xác nhận danh sách bệnh nhân.'
             : 'Có ${_batchErrors.length} file lỗi, cần xác nhận ${_successfulPatients.length} bệnh nhân hợp lệ.';
       } else {
         _stage = DicomUploadStage.failed;
-        _progress = 0;
+        _progress = null;
         _errorMessage = _batchErrors.isEmpty
             ? 'Backend đã xử lý xong nhưng không tìm thấy bệnh nhân hoặc ảnh DICOM hợp lệ.'
             : 'Phát hiện ${_batchErrors.length} file lỗi, không có bệnh nhân hợp lệ để xác nhận.';
@@ -407,7 +419,7 @@ class DicomUploadViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString().replaceAll('Exception: ', '');
       _stage = DicomUploadStage.failed;
-      _progress = 0;
+      _progress = null;
     } finally {
       _stopUploadTimer();
       _isUploading = false;
@@ -466,7 +478,7 @@ class DicomUploadViewModel extends ChangeNotifier {
           ? 'Upload file thành công. $message Đang chờ WebSocket trả danh sách bệnh nhân...'
           : 'Upload file thành công. Đang chờ WebSocket trả danh sách bệnh nhân...';
       _stage = DicomUploadStage.processing;
-      _progress = _progress < 0.45 ? 0.45 : _progress;
+      _progress = null;
       _isWaitingForBatchResult = true;
       _showLongProcessingHint = false;
       notifyListeners();
@@ -475,7 +487,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       _uploadStatusMessage =
           'Upload file thành công nhưng API chưa có danh sách bệnh nhân. Đang chờ WebSocket...';
       _stage = DicomUploadStage.processing;
-      _progress = _progress < 0.55 ? 0.55 : _progress;
+      _progress = null;
       _isWaitingForBatchResult = true;
       _showLongProcessingHint = false;
       notifyListeners();
@@ -594,18 +606,25 @@ class DicomUploadViewModel extends ChangeNotifier {
     _isUploading = true;
     _errorMessage = null;
     _uploadStatusMessage = 'Đang xác nhận danh sách bệnh nhân...';
+    _lastVerifyResponses = [];
     notifyListeners();
 
     try {
+      final verifyResponses = <DicomVerifyResponse>[];
       for (final entry in groupedCodes.entries) {
-        await remoteDataSource.verifyUploadSession(
+        final response = await remoteDataSource.verifyUploadSession(
           uploadSessionId: entry.key,
           acceptedPatientCodes: entry.value,
           token: token,
         );
+        verifyResponses.add(response);
       }
+      _lastVerifyResponses = verifyResponses;
+      await _activeBatchResultWait?.cancel();
+      _activeBatchResultWait = null;
+      await webSocketService.cancelPendingBatchResultWait();
       _stage = DicomUploadStage.completed;
-      _progress = 1;
+      _progress = null;
       _uploadStatusMessage = 'Đã xác nhận $verifiedPatientCount bệnh nhân.';
       _stopUploadTimer();
     } catch (e) {
@@ -749,7 +768,7 @@ class DicomUploadViewModel extends ChangeNotifier {
     _lastUploadDuration = null;
     _uploadElapsed = Duration.zero;
     _stage = DicomUploadStage.idle;
-    _progress = 0;
+    _progress = null;
     _uploadStatusMessage = null;
     _isWaitingForBatchResult = false;
     _showLongProcessingHint = false;
@@ -813,6 +832,18 @@ class DicomUploadViewModel extends ChangeNotifier {
     final message = notification.message.trim();
     if (title.isEmpty && message.isEmpty) return;
 
+    final uploadFlowClosed =
+        _stage == DicomUploadStage.completed ||
+        _stage == DicomUploadStage.failed;
+    if (uploadFlowClosed) {
+      _postCompletionNotifications.add(notification);
+      if (message.isNotEmpty) {
+        _showWebSocketToast(notification, title, message);
+      }
+      notifyListeners();
+      return;
+    }
+
     if (message.isNotEmpty) {
       _showWebSocketToast(notification, title, message);
     }
@@ -826,7 +857,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       _errorMessage =
           'Backend báo hoàn tất upload nhưng không trả danh sách bệnh nhân. Vui lòng kiểm tra backend serialize/Redis.';
       _stage = DicomUploadStage.failed;
-      _progress = 0;
+      _progress = null;
       _activeBatchResultWait?.fail(
         'Backend báo hoàn tất upload nhưng không trả danh sách bệnh nhân. Vui lòng kiểm tra backend serialize/Redis.',
       );
@@ -836,10 +867,15 @@ class DicomUploadViewModel extends ChangeNotifier {
         if (message.isNotEmpty) message,
       ].join(': ');
     }
-    if (_stage == DicomUploadStage.uploading ||
-        _stage == DicomUploadStage.idle) {
+    final hasActiveUploadWait =
+        _isUploading ||
+        _isWaitingForBatchResult ||
+        _activeBatchResultWait != null;
+    if ((_stage == DicomUploadStage.uploading ||
+            _stage == DicomUploadStage.idle) &&
+        hasActiveUploadWait) {
       _stage = DicomUploadStage.processing;
-      _progress = _progress < 0.45 ? 0.45 : _progress;
+      _progress = null;
     }
     notifyListeners();
   }
@@ -849,6 +885,11 @@ class DicomUploadViewModel extends ChangeNotifier {
     String title,
     String message,
   ) {
+    if (notification.type == 'AI_RESULT') {
+      _pendingAiResultSummary = AiResultSummary.fromNotification(notification);
+      return;
+    }
+
     final (displayTitle, displayMessage) = _cleanNotificationToast(
       title,
       message,
@@ -858,7 +899,6 @@ class DicomUploadViewModel extends ChangeNotifier {
     switch (notification.type) {
       case 'ERROR':
         AppToast.showError(displayMessage, title: displayTitle);
-      case 'AI_RESULT':
       case 'DICOM_BATCH_RESULT':
         AppToast.showSuccess(displayMessage, title: displayTitle);
       case 'SYSTEM':
@@ -866,6 +906,12 @@ class DicomUploadViewModel extends ChangeNotifier {
       default:
         AppToast.showInfo(displayMessage, title: displayTitle);
     }
+  }
+
+  AiResultSummary? consumePendingAiResultSummary() {
+    final summary = _pendingAiResultSummary;
+    _pendingAiResultSummary = null;
+    return summary;
   }
 
   (String, String) _cleanNotificationToast(String title, String message) {
@@ -944,6 +990,99 @@ class DicomUploadViewModel extends ChangeNotifier {
     webSocketService.dispose();
     super.dispose();
   }
+}
+
+class AiResultSummary {
+  final String title;
+  final String message;
+  final List<AiGradeSummaryItem> items;
+
+  const AiResultSummary({
+    required this.title,
+    required this.message,
+    required this.items,
+  });
+
+  int get totalPatientCount =>
+      items.fold<int>(0, (sum, item) => sum + item.count);
+
+  factory AiResultSummary.fromNotification(
+    DicomUploadNotification notification,
+  ) {
+    final counts = <int, int>{
+      for (var grade = 0; grade <= 4; grade++) grade: 0,
+    };
+    var unknown = 0;
+    final data = notification.data;
+    final entries = data is List ? data : const [];
+
+    for (final entry in entries) {
+      if (entry is! Map) continue;
+      final grade = _parseInt(entry['grade'], fallback: -1);
+      final count = _parseInt(entry['patientCount']);
+      final safeCount = count < 0 ? 0 : count;
+      if (grade >= 0 && grade <= 4) {
+        counts[grade] = (counts[grade] ?? 0) + safeCount;
+      } else {
+        unknown += safeCount;
+      }
+    }
+
+    return AiResultSummary(
+      title: notification.title.trim().isEmpty
+          ? 'Phân tích AI hoàn tất'
+          : notification.title.trim(),
+      message: notification.message.trim(),
+      items: [
+        for (var grade = 0; grade <= 4; grade++)
+          AiGradeSummaryItem(
+            label: 'KL $grade',
+            count: counts[grade] ?? 0,
+            color: _gradeColor(grade),
+          ),
+        AiGradeSummaryItem(
+          label: 'Chưa xác định',
+          count: unknown,
+          color: const Color(0xFFD1D5DB),
+        ),
+      ],
+    );
+  }
+
+  static int _parseInt(Object? value, {int fallback = 0}) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  static Color _gradeColor(int grade) {
+    switch (grade) {
+      case 0:
+        return const Color(0xFF2F855A);
+      case 1:
+        return const Color(0xFF38A169);
+      case 2:
+        return const Color(0xFFD4A017);
+      case 3:
+        return const Color(0xFFE67E22);
+      case 4:
+        return const Color(0xFFD71920);
+      default:
+        return const Color(0xFFD1D5DB);
+    }
+  }
+}
+
+class AiGradeSummaryItem {
+  final String label;
+  final int count;
+  final Color color;
+
+  const AiGradeSummaryItem({
+    required this.label,
+    required this.count,
+    required this.color,
+  });
 }
 
 class DicomUploadedFileSessionItem {

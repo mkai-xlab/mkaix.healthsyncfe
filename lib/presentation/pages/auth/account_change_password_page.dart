@@ -57,8 +57,6 @@ class _AccountChangePasswordPageState extends State<AccountChangePasswordPage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _breadcrumb(),
-                    const SizedBox(height: 24),
                     _passwordCard(),
                     const SizedBox(height: 48),
                     _footer(),
@@ -72,6 +70,7 @@ class _AccountChangePasswordPageState extends State<AccountChangePasswordPage> {
     );
   }
 
+  // ignore: unused_element
   Widget _breadcrumb() {
     return const Row(
       mainAxisSize: MainAxisSize.min,

@@ -3,6 +3,7 @@ class UserEntity {
   final String username;
   final String fullName;
   final String token;
+  final String refreshToken;
   final List<String> roles;
   final List<String> permissions;
   final List<UserPermissionEntity> permissionItems;
@@ -12,6 +13,7 @@ class UserEntity {
     required this.username,
     required this.fullName,
     required this.token,
+    this.refreshToken = '',
     required this.roles,
     this.permissions = const [],
     this.permissionItems = const [],

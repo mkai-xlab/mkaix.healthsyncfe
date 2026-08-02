@@ -16,6 +16,10 @@ class AiPredictionResultModel extends AiPredictionResultEntity {
     super.roiImageUrl,
     super.gradcamImageUrl,
     super.annotatedImageUrl,
+    super.reviewDecision,
+    super.reviewNote,
+    super.reviewedByDoctorId,
+    super.reviewedAt,
   });
 
   factory AiPredictionResultModel.fromJson(Map<String, dynamic> json) {
@@ -36,9 +40,18 @@ class AiPredictionResultModel extends AiPredictionResultEntity {
       aiResultId: _intAt(json, ['aiResultId', 'ai_result_id', 'id']),
       kneeSide:
           json['kneeSide']?.toString() ?? json['knee_side']?.toString() ?? '',
-      predictedGrade: _intAt(json, ['predictedGrade', 'predicted_grade']),
-      confirmedGrade: _intAt(json, ['confirmedGrade', 'confirmed_grade']),
-      effectiveGrade: _intAt(json, ['effectiveGrade', 'effective_grade']),
+      predictedGrade: _nullableIntAt(json, [
+        'predictedGrade',
+        'predicted_grade',
+      ]),
+      confirmedGrade: _nullableIntAt(json, [
+        'confirmedGrade',
+        'confirmed_grade',
+      ]),
+      effectiveGrade: _nullableIntAt(json, [
+        'effectiveGrade',
+        'effective_grade',
+      ]),
       confidence: _doubleAt(json, ['confidence']),
       description: json['description']?.toString() ?? '',
       details: details,
@@ -54,6 +67,23 @@ class AiPredictionResultModel extends AiPredictionResultEntity {
           json['annotatedImageUrl']?.toString() ??
           json['annotated_image_url']?.toString() ??
           '',
+      reviewDecision:
+          json['reviewDecision']?.toString() ??
+          json['review_decision']?.toString() ??
+          '',
+      reviewNote:
+          json['reviewNote']?.toString() ??
+          json['review_note']?.toString() ??
+          '',
+      reviewedByDoctorId: _intAt(json, [
+        'reviewedByDoctorId',
+        'reviewed_by_doctor_id',
+      ]),
+      reviewedAt: json['reviewedAt'] != null
+          ? DateTime.tryParse(json['reviewedAt'].toString())
+          : json['reviewed_at'] != null
+          ? DateTime.tryParse(json['reviewed_at'].toString())
+          : null,
     );
   }
 }
@@ -207,13 +237,18 @@ class ExaminationModel extends ExaminationEntity {
 }
 
 int _intAt(Map<String, dynamic> json, List<String> keys) {
+  return _nullableIntAt(json, keys) ?? 0;
+}
+
+int? _nullableIntAt(Map<String, dynamic> json, List<String> keys) {
   for (final key in keys) {
+    if (!json.containsKey(key) || json[key] == null) continue;
     final value = json[key];
     if (value is int) return value;
     final parsed = int.tryParse(value?.toString() ?? '');
     if (parsed != null) return parsed;
   }
-  return 0;
+  return null;
 }
 
 double _doubleAt(Map<String, dynamic> json, List<String> keys) {

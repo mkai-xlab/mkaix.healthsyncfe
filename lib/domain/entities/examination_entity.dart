@@ -1,44 +1,56 @@
 import 'package:intl/intl.dart';
 
+import '../../core/utils/examination_status_utils.dart';
+
 class AiPredictionResultEntity {
   final int dicomInstanceId;
   final int aiAnalysisId;
   final int aiResultId;
   final String kneeSide;
-  final int predictedGrade;
-  final int confirmedGrade;
-  final int effectiveGrade;
+  final int? predictedGrade;
+  final int? confirmedGrade;
+  final int? effectiveGrade;
   final double confidence;
   final String description;
   final Map<String, double> details;
   final String roiImageUrl;
   final String gradcamImageUrl;
   final String annotatedImageUrl;
+  final String reviewDecision;
+  final String reviewNote;
+  final int reviewedByDoctorId;
+  final DateTime? reviewedAt;
 
   const AiPredictionResultEntity({
     this.dicomInstanceId = 0,
     this.aiAnalysisId = 0,
     this.aiResultId = 0,
     this.kneeSide = '',
-    this.predictedGrade = 0,
-    this.confirmedGrade = 0,
-    this.effectiveGrade = 0,
+    this.predictedGrade,
+    this.confirmedGrade,
+    this.effectiveGrade,
     this.confidence = 0,
     this.description = '',
     this.details = const {},
     this.roiImageUrl = '',
     this.gradcamImageUrl = '',
     this.annotatedImageUrl = '',
+    this.reviewDecision = '',
+    this.reviewNote = '',
+    this.reviewedByDoctorId = 0,
+    this.reviewedAt,
   });
 
-  int get displayGrade {
-    if (effectiveGrade > 0) return effectiveGrade;
-    if (confirmedGrade > 0) return confirmedGrade;
+  bool get isReviewed => reviewedAt != null;
+
+  int? get displayGrade {
+    if (effectiveGrade != null) return effectiveGrade;
+    if (confirmedGrade != null) return confirmedGrade;
     return predictedGrade;
   }
 
   String get predictedGradeDisplay =>
-      displayGrade > 0 ? 'Grade $displayGrade' : '---';
+      displayGrade == null ? '---' : 'Grade $displayGrade';
 
   String get kneeSideDisplay {
     switch (kneeSide.toUpperCase()) {
@@ -135,15 +147,77 @@ class ExaminationEntity {
     required this.images,
   });
 
+  ExaminationEntity copyWith({
+    int? patientDbId,
+    String? patientCode,
+    String? patientName,
+    String? patientGender,
+    DateTime? patientDateOfBirth,
+    int? examinationId,
+    String? encounterCode,
+    String? status,
+    DateTime? studyDate,
+    DateTime? visitTime,
+    String? thumbnailUrl,
+    String? bodyPart,
+    String? referringPhysician,
+    String? studyTime,
+    String? chiefComplaint,
+    String? clinicalNotes,
+    String? priority,
+    String? finalDiagnosis,
+    String? description,
+    String? doctorName,
+    int? doctorId,
+    bool? isViewed,
+    int? maxPredictedGrade,
+    List<ExaminationImageEntity>? images,
+  }) {
+    return ExaminationEntity(
+      patientDbId: patientDbId ?? this.patientDbId,
+      patientCode: patientCode ?? this.patientCode,
+      patientName: patientName ?? this.patientName,
+      patientGender: patientGender ?? this.patientGender,
+      patientDateOfBirth: patientDateOfBirth ?? this.patientDateOfBirth,
+      examinationId: examinationId ?? this.examinationId,
+      encounterCode: encounterCode ?? this.encounterCode,
+      status: status ?? this.status,
+      studyDate: studyDate ?? this.studyDate,
+      visitTime: visitTime ?? this.visitTime,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      bodyPart: bodyPart ?? this.bodyPart,
+      referringPhysician: referringPhysician ?? this.referringPhysician,
+      studyTime: studyTime ?? this.studyTime,
+      chiefComplaint: chiefComplaint ?? this.chiefComplaint,
+      clinicalNotes: clinicalNotes ?? this.clinicalNotes,
+      priority: priority ?? this.priority,
+      finalDiagnosis: finalDiagnosis ?? this.finalDiagnosis,
+      description: description ?? this.description,
+      doctorName: doctorName ?? this.doctorName,
+      doctorId: doctorId ?? this.doctorId,
+      isViewed: isViewed ?? this.isViewed,
+      maxPredictedGrade: maxPredictedGrade ?? this.maxPredictedGrade,
+      images: images ?? this.images,
+    );
+  }
+
   String get statusGroup {
     final normalized = status.toUpperCase();
-    if (normalized == 'PENDING_REVIEW') return 'PENDING';
-    if (normalized == 'NEED_VERIFY') return 'NEED_VERIFY';
-    if (normalized == 'NEED_REVERIFY') return 'NEED_REVERIFY';
-    if (normalized == 'AI_COMPLETED') return 'AI_COMPLETED';
-    if (normalized == 'AWAITING_REVIEW') return 'AWAITING_REVIEW';
-    if (normalized == 'ANALYZING') return 'ANALYZING';
-    if (normalized == 'COMPLETED') return 'COMPLETED';
+    if (normalized == ExaminationStatusUtils.aiProcessing) {
+      return ExaminationStatusUtils.aiProcessing;
+    }
+    if (normalized == ExaminationStatusUtils.needVerify) {
+      return ExaminationStatusUtils.needVerify;
+    }
+    if (normalized == ExaminationStatusUtils.verified) {
+      return ExaminationStatusUtils.verified;
+    }
+    if (normalized == ExaminationStatusUtils.reportGenerated) {
+      return ExaminationStatusUtils.reportGenerated;
+    }
+    if (normalized == ExaminationStatusUtils.reportExported) {
+      return ExaminationStatusUtils.reportExported;
+    }
     return normalized;
   }
 
@@ -180,24 +254,7 @@ class ExaminationEntity {
   }
 
   String get statusDisplay {
-    switch (statusGroup) {
-      case 'PENDING':
-        return 'Đang chờ';
-      case 'ANALYZING':
-        return 'Đang phân tích';
-      case 'AWAITING_REVIEW':
-        return 'Chờ nhận xét';
-      case 'NEED_VERIFY':
-        return 'Cần xác nhận';
-      case 'NEED_REVERIFY':
-        return 'Cần xác nhận lại';
-      case 'AI_COMPLETED':
-        return 'AI hoàn tất';
-      case 'COMPLETED':
-        return 'Hoàn thành';
-      default:
-        return status.isEmpty ? 'Không rõ' : status;
-    }
+    return ExaminationStatusUtils.display(statusGroup);
   }
 
   String get studyDateDisplay {

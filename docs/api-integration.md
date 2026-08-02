@@ -15,9 +15,12 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - `GET /examinations/total`, `/total-verified`, `/total-unverified`, and `/total-severe` now require query `userId`.
 - `GET /audit-logs` only documents Spring `pageable`; no `keyword`, `actor`, `action`, `status`, or `sort` filters are documented in the latest spec.
 - New/confirmed upload endpoints: `PUT /doctors/profile/avatar`, `POST /files/upload-avatar`, and `POST /s3/test-upload`.
-- New/confirmed report file endpoints: `GET /reports/{reportId}/preview` and `GET /reports/{reportId}/download`.
+- Report generation returns `ReportResponse`: `POST /examinations/{id}/generate-report`.
+- Report file endpoints use examination id: `GET /reports/{examinationId}/preview` and `GET /reports/{examinationId}/download`.
+- Examination status filter enum is `AI_PROCESSING`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`.
 - New/confirmed image endpoint: `GET /ai/image/{imageId}`.
 - New/confirmed patient date endpoint: `GET /patients/filter/upload-date`.
+- New/confirmed mail test endpoint: `GET /mail-test/send`.
 - Delete endpoints are documented for permissions, features, patients, and doctors.
 - `AuditLogResponse` fields are `id`, `username`, `title`, `description`, `ipAddress`, `userAgent`, `timeStamp`.
 - `LoginResponse` includes `fullName`.
@@ -71,11 +74,11 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/examinations` | Paginated examination list | `PageResponseExaminationDto` |
 | `GET` | `/examinations/{id}` | Get examination by id | `ExaminationDto` |
 | `PUT` | `/examinations/{id}/view` | Mark examination as viewed | `200 OK` |
-| `POST` | `/examinations/{id}/generate-report` | Generate PDF report | `string` |
+| `POST` | `/examinations/{id}/generate-report` | Generate PDF report | `ReportResponse` |
 | `GET` | `/examinations/patient/{patientId}` | Get examinations by patient | `ExaminationDto[]` or paged response |
 | `GET` | `/examinations/patient/{patientId}/filter/study-month` | Filter patient examinations by study month | `PageResponseExaminationDto` |
 | `GET` | `/examinations/doctor/{doctorId}` | Get examinations by doctor | `PageResponseExaminationDto` |
-| `GET` | `/examinations/status` | Filter by status | `PageResponseExaminationDto` |
+| `GET` | `/examinations/status` | Filter by status. Required `status` enum: `AI_PROCESSING`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`; required `pageable` | `PageResponseExaminationDto` |
 | `GET` | `/examinations/grade` | Filter by AI grade | `PageResponseExaminationDto` |
 | `GET` | `/examinations/filter/upload-date` | Filter by upload date | `PageResponseExaminationDto` |
 | `GET` | `/examinations/filter/study-date` | Filter by study date | `PageResponseExaminationDto` |
@@ -143,8 +146,17 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 
 | Method | Path | Purpose | Response |
 | --- | --- | --- | --- |
-| `GET` | `/reports/{reportId}/preview` | Preview generated report | binary |
-| `GET` | `/reports/{reportId}/download` | Download generated report | binary |
+| `POST` | `/examinations/{id}/generate-report` | Generate/export PDF report for an examination | `ReportResponse` |
+| `GET` | `/reports/{examinationId}/preview` | Preview generated PDF report for an examination | binary PDF |
+| `GET` | `/reports/{examinationId}/download` | Download generated PDF report for an examination | binary PDF |
+
+`ReportResponse` fields: `reportId`, `examinationId`, `fileName`, `fileSize`, `contentType`, `generatedAt`, `previewUrl`, `downloadUrl`.
+
+Export report flow:
+
+1. Call `POST /examinations/{id}/generate-report` with the examination id.
+2. Store or use the returned `ReportResponse`.
+3. Call `GET /reports/{examinationId}/preview` for in-app preview, or `GET /reports/{examinationId}/download` for file download.
 
 ## Notifications And Audit
 
@@ -154,6 +166,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/notifications/unread` | Get unread notifications | `NotificationDto[]` |
 | `PUT` | `/notifications/{id}/read` | Mark notification as read | `string` |
 | `POST` | `/notifications/send` | Send test notification | `string` |
+| `GET` | `/mail-test/send` | Send test email. Required query: `to`, `title`, `message` | `string` |
 | `GET` | `/audit-logs` | Get audit logs. Latest spec documents only Spring `pageable` query | `PageResponseAuditLogResponse` |
 
 ## Request Rules

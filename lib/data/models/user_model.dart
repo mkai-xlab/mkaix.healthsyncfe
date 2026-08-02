@@ -6,6 +6,7 @@ class UserModel extends UserEntity {
     required super.username,
     required super.fullName,
     required super.token,
+    super.refreshToken,
     required super.roles,
     super.permissions,
     super.permissionItems,
@@ -141,6 +142,7 @@ class UserModel extends UserEntity {
           json['accessToken'] ??
           json['token'] ??
           '', // Dự phòng cả accessToken và token
+      refreshToken: json['refreshToken']?.toString() ?? '',
       roles: parsedRoles,
       permissions: parsedPermissions,
       permissionItems: parsedPermissionItems,

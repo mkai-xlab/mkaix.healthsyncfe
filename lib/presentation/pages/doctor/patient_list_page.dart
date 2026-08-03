@@ -29,6 +29,7 @@ class _PatientListPageState extends State<PatientListPage> {
 
   bool _hasRequestedPatientList = false;
   String _filterGender = '';
+  String? _hoveredPatientKey;
 
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
 
@@ -222,12 +223,38 @@ class _PatientListPageState extends State<PatientListPage> {
   }
 
   Widget _buildPatientRow(BuildContext context, PatientEntity p) {
+    final patientKey = p.id.toString();
+    final isHovered = _hoveredPatientKey == patientKey;
     return InkWell(
       onTap: () => _openPatientDetail(p),
-      hoverColor: const Color(0xFFF0F4F3),
-      child: Container(
-        color: Colors.white,
+      onHover: (hovering) {
+        setState(() {
+          _hoveredPatientKey = hovering ? patientKey : null;
+        });
+      },
+      hoverColor: Colors.transparent,
+      splashColor: _primaryGreen.withValues(alpha: 0.08),
+      highlightColor: _primaryGreen.withValues(alpha: 0.04),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(0, isHovered ? -1 : 0, 0),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        decoration: BoxDecoration(
+          color: isHovered ? const Color(0xFFF8FCFA) : Colors.white,
+          border: Border.all(
+            color: isHovered ? const Color(0xFFCFE3DC) : Colors.transparent,
+          ),
+          boxShadow: isHovered
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : const [],
+        ),
         child: Row(
           children: [
             Expanded(

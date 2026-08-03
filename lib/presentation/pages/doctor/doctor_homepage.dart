@@ -1384,22 +1384,47 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   Widget _buildPatientRow(BuildContext context, PatientEntity p) {
     final canOpenDetail = _hasPermission(context, 'patient_detail_page');
-    return InkWell(
-      onTap: () {
-        if (!canOpenDetail) {
-          _showPermissionDeniedToast('Không có quyền xem chi tiết bệnh nhân');
-          return;
-        }
-        setState(() {
-          _showChangePassword = false;
-          _showDoctorProfile = false;
-          _selectedPatientDetail = p;
-        });
-      },
-      hoverColor: const Color(0xFFF0F4F3),
-      child: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+    var isHovered = false;
+    return StatefulBuilder(
+      builder: (context, setHoverState) {
+        return InkWell(
+          onTap: () {
+            if (!canOpenDetail) {
+              _showPermissionDeniedToast('Không có quyền xem chi tiết bệnh nhân');
+              return;
+            }
+            setState(() {
+              _showChangePassword = false;
+              _showDoctorProfile = false;
+              _selectedPatientDetail = p;
+            });
+          },
+          onHover: (hovering) => setHoverState(() => isHovered = hovering),
+          hoverColor: Colors.transparent,
+          splashColor: _primaryGreen.withValues(alpha: 0.08),
+          highlightColor: _primaryGreen.withValues(alpha: 0.04),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOut,
+            transform: Matrix4.translationValues(0, isHovered ? -1 : 0, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            decoration: BoxDecoration(
+              color: isHovered ? const Color(0xFFF8FCFA) : Colors.white,
+              border: Border.all(
+                color: isHovered
+                    ? const Color(0xFFCFE3DC)
+                    : Colors.transparent,
+              ),
+              boxShadow: isHovered
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : const [],
+            ),
         child: Row(
           children: [
             Expanded(

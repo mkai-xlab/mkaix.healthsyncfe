@@ -14,24 +14,24 @@ class AdminDashboardRemoteDataSource {
   Future<AdminDashboardStatsEntity> getStats({required String token}) async {
     final results = await Future.wait<_StatResult>([
       _getIntOrZero(
-        ApiConstants.examinationsTotalEndpoint,
+        ApiConstants.myTotalExaminationsEndpoint,
         token,
-        label: 'GET /examinations/total',
+        label: 'GET /examinations/my-total',
       ),
       _getIntOrZero(
-        ApiConstants.examinationsTotalVerifiedEndpoint,
+        ApiConstants.myTotalVerifiedExaminationsEndpoint,
         token,
-        label: 'GET /examinations/total-verified',
+        label: 'GET /examinations/my-total-verified',
       ),
       _getIntOrZero(
-        ApiConstants.examinationsTotalUnverifiedEndpoint,
+        ApiConstants.myTotalUnverifiedExaminationsEndpoint,
         token,
-        label: 'GET /examinations/total-unverified',
+        label: 'GET /examinations/my-total-unverified',
       ),
       _getIntOrZero(
-        ApiConstants.examinationsTotalSevereEndpoint,
+        ApiConstants.myTotalSevereExaminationsEndpoint,
         token,
-        label: 'GET /examinations/total-severe',
+        label: 'GET /examinations/my-total-severe',
       ),
       _getIntOrZero(
         ApiConstants.dicomTotalStudiesEndpoint,

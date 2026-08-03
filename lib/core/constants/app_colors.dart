@@ -25,7 +25,7 @@ class AppColors {
   static const Color textDisabled = Color(0xFFBDC9C4);
   static const Color border = Color(0xFFE9E8E4);
   static const Color borderStrong = Color(0xFFBDC9C4);
-  static const Color surface1 = Color(0xFFFAF9F5);
+  static const Color surface1 = Color(0xFFF0F4F3);
   static const Color surface2 = Color(0xFFEFEEEA);
   static const Color surface3 = Color(0xFF1B1C1A);
   static const Color white = Color(0xFFFFFFFF);

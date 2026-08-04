@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -27,8 +29,11 @@ class AdminHomepage extends StatefulWidget {
 }
 
 class _AdminHomepageState extends State<AdminHomepage> {
+  static const Color _pageBackground = Color(0xFFF0F4F3);
+
   int _selectedNavIndex = 0;
   DoctorAccountEntity? _selectedUser;
+  int? _hoveredUserId;
   bool _showChangePassword = false;
 
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
@@ -351,7 +356,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
   Widget _buildMainContent(BuildContext context) {
     if (_showChangePassword) {
       return Container(
-        color: const Color(0xFFF0F4F3),
+        color: _pageBackground,
         child: Column(
           children: [
             _buildTopBar(context),
@@ -371,7 +376,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     if (_selectedNavIndex == 2) {
       final token = context.read<AuthViewModel>().currentUser?.token ?? '';
       return Container(
-        color: const Color(0xFFF0F4F3),
+        color: _pageBackground,
         child: Column(
           children: [
             _buildTopBar(context),
@@ -391,7 +396,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     // Mặc định hiển thị Dashboard (index 0)
     if (_selectedNavIndex == 3) {
       return Container(
-        color: const Color(0xFFF0F4F3),
+        color: _pageBackground,
         child: Column(
           children: [
             _buildTopBar(context),
@@ -402,7 +407,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     }
 
     return Container(
-      color: const Color(0xFFF5F5F5),
+      color: _pageBackground,
       child: Column(
         children: [
           // Top Bar
@@ -438,15 +443,18 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   _buildStatisticsSection(),
                   const SizedBox(height: 24),
                   // Charts Section
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // KL Grade Distribution
-                      Expanded(flex: 1, child: _buildKLGradeDistribution()),
-                      const SizedBox(width: 20),
-                      // System Status Section
-                      Expanded(flex: 1, child: _buildSystemStatus()),
-                    ],
+                  SizedBox(
+                    height: 410,
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        // KL Grade Distribution
+                        Expanded(flex: 1, child: _buildKLGradeDistribution()),
+                        const SizedBox(width: 20),
+                        // System Status Section
+                        Expanded(flex: 1, child: _buildSystemStatus()),
+                      ],
+                    ),
                   ),
                   const SizedBox(height: 24),
                   // Activity Log
@@ -462,7 +470,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   Widget _buildUserManagementPage(BuildContext context) {
     return Container(
-      color: const Color(0xFFF0F4F3),
+      color: _pageBackground,
       child: Column(
         children: [
           _buildTopBar(context),
@@ -479,7 +487,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                     ),
                     // ── RIGHT: detail panel ──
                     Container(
-                      width: 260,
+                      width: 320,
                       color: Colors.white,
                       child: _buildUserDetailSidebar(context, viewModel),
                     ),
@@ -571,7 +579,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
           // const SizedBox(height: 20),
 
           // Filter bar
-          _buildFilterBar(context, viewModel),
+          _buildFilterBar(),
           const SizedBox(height: 16),
 
           // Table header
@@ -712,58 +720,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
-  Widget _buildFilterBar(
-    BuildContext context,
-    AdminAccountViewModel viewModel,
-  ) {
-    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+  Widget _buildFilterBar() {
     return Row(
       children: [
-        Expanded(
-          flex: 3,
-          child: SizedBox(
-            height: 40,
-            child: TextField(
-              onChanged: (v) {
-                viewModel.searchByNameDebounced(v, token);
-              },
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'Tìm theo tên...',
-                hintStyle: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFFADB5BD),
-                ),
-                prefixIcon: const Icon(
-                  Icons.tune,
-                  size: 18,
-                  color: Color(0xFF718096),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: EdgeInsets.zero,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF2D7E6E),
-                    width: 1.5,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        _buildFilterChip('Tất cả vai trò'),
-        const SizedBox(width: 8),
         _buildFilterChip('Trạng thái'),
         const SizedBox(width: 8),
         _buildFilterChip('Khoa phòng'),
@@ -819,13 +778,19 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
+  String _userStatusLabel(String status) {
+    return status == 'ACTIVE' ? 'active' : 'deactive';
+  }
+
   Widget _buildUserRow(
     BuildContext context,
     DoctorAccountEntity account,
     AdminAccountViewModel viewModel,
   ) {
     final isActive = account.status == 'ACTIVE';
+    final statusLabel = _userStatusLabel(account.status);
     final isSelected = _selectedUser?.id == account.id;
+    final isHovered = _hoveredUserId == account.id;
 
     Color roleColor;
     Color roleBg;
@@ -849,216 +814,250 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
     return GestureDetector(
       onTap: () => setState(() => _selectedUser = account),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE6F4F1) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hoveredUserId = account.id),
+        onExit: (_) => setState(() => _hoveredUserId = null),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOut,
+          transform: Matrix4.translationValues(0, isHovered ? -1 : 0, 0),
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFF2D7E6E)
-                : const Color(0xFFEDF2F7),
+                ? const Color(0xFFE6F4F1)
+                : isHovered
+                ? const Color(0xFFF8FCFA)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF2D7E6E)
+                  : isHovered
+                  ? const Color(0xFFCFE3DC)
+                  : const Color(0xFFEDF2F7),
+            ),
+            boxShadow: isHovered
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : const [],
           ),
-        ),
-        child: Row(
-          children: [
-            // Avatar + name
-            Expanded(
-              flex: 5,
-              child: Row(
-                children: [
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: const Color(
-                          0xFF2D7E6E,
-                        ).withValues(alpha: 0.15),
-                        child: Text(
-                          account.fullName.isNotEmpty
-                              ? account.fullName[0]
-                              : 'U',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2D7E6E),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? const Color(0xFF48BB78)
-                                : Colors.grey.shade400,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 1.5),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            children: [
+              // Avatar + name
+              Expanded(
+                flex: 5,
+                child: Row(
+                  children: [
+                    Stack(
                       children: [
-                        Text(
-                          account.fullName,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1A2B3C),
+                        CircleAvatar(
+                          radius: 20,
+                          backgroundColor: const Color(
+                            0xFF2D7E6E,
+                          ).withValues(alpha: 0.15),
+                          child: Text(
+                            account.fullName.isNotEmpty
+                                ? account.fullName[0]
+                                : 'U',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2D7E6E),
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          account.specialization ?? roleLabel,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF718096),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? const Color(0xFF48BB78)
+                                  : Colors.grey.shade400,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 1.5,
+                              ),
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
+                      ],
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            account.fullName,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1A2B3C),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            account.specialization ?? roleLabel,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF718096),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Username
+              Expanded(
+                flex: 3,
+                child: Text(
+                  account.username,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF4A5568),
+                  ),
+                ),
+              ),
+              // Role badge
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: roleBg,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    roleLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: roleColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              // Department
+              Expanded(
+                flex: 2,
+                child: Text(
+                  account.hospitalName?.split(' ').last ?? '—',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF4A5568),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Status
+              Expanded(
+                flex: 3,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? const Color(0xFF48BB78)
+                            : Colors.red.shade400,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      statusLabel,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isActive
+                            ? const Color(0xFF2D7E6E)
+                            : Colors.red.shade500,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // More menu
+              PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.more_vert,
+                  size: 18,
+                  color: Color(0xFF718096),
+                ),
+                onSelected: (v) {
+                  if (v == 'detail') {
+                    _showAccountDetailDialog(context, account);
+                  } else if (v == 'permission') {
+                    _showRolePermissionDialog(context);
+                  } else if (v == 'toggle') {
+                    _showToggleStatusDialog(context, account);
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'detail',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                        SizedBox(width: 8),
+                        Text('Xem chi tiết'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'permission',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.admin_panel_settings_outlined,
+                          size: 16,
+                          color: Color(0xFF2D7E6E),
+                        ),
+                        SizedBox(width: 8),
+                        Text('Phan quyen'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'toggle',
+                    child: Row(
+                      children: [
+                        Icon(
+                          isActive ? Icons.block : Icons.check_circle_outline,
+                          size: 16,
+                          color: isActive ? Colors.red : Colors.green,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(isActive ? 'Khóa tài khoản' : 'Kích hoạt'),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
-            // Username
-            Expanded(
-              flex: 3,
-              child: Text(
-                account.username,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF4A5568)),
-              ),
-            ),
-            // Role badge
-            Expanded(
-              flex: 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: roleBg,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  roleLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: roleColor,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            // Department
-            Expanded(
-              flex: 2,
-              child: Text(
-                account.hospitalName?.split(' ').last ?? '—',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF4A5568)),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // Status
-            Expanded(
-              flex: 3,
-              child: Row(
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFF48BB78)
-                          : Colors.red.shade400,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    isActive ? 'Online' : 'Tạm khóa',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isActive
-                          ? const Color(0xFF2D7E6E)
-                          : Colors.red.shade500,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // More menu
-            PopupMenuButton<String>(
-              icon: const Icon(
-                Icons.more_vert,
-                size: 18,
-                color: Color(0xFF718096),
-              ),
-              onSelected: (v) {
-                if (v == 'detail') {
-                  _showAccountDetailDialog(context, account);
-                } else if (v == 'permission') {
-                  _showRolePermissionDialog(context);
-                } else if (v == 'toggle') {
-                  _showToggleStatusDialog(context, account);
-                }
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                  value: 'detail',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.visibility_outlined,
-                        size: 16,
-                        color: Colors.blue,
-                      ),
-                      SizedBox(width: 8),
-                      Text('Xem chi tiết'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'permission',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.admin_panel_settings_outlined,
-                        size: 16,
-                        color: Color(0xFF2D7E6E),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Phan quyen'),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'toggle',
-                  child: Row(
-                    children: [
-                      Icon(
-                        isActive ? Icons.block : Icons.check_circle_outline,
-                        size: 16,
-                        color: isActive ? Colors.red : Colors.green,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(isActive ? 'Khóa tài khoản' : 'Kích hoạt'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1177,22 +1176,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSidebarInfoBox(
-                    'CA TRỰC',
-                    user.position == 'DEPARTMENT_HEAD' ? 'Sáng' : '—',
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildSidebarInfoBox(
-                    'THÂM NIÊN',
-                    '${user.yearsOfExperience} Năm',
-                  ),
-                ),
-              ],
+            _buildSidebarInfoBox(
+              'EMAIL',
+              user.email.isEmpty ? '—' : user.email,
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -1256,6 +1242,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   Widget _buildSidebarInfoBox(String label, String value) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF7FAFC),
@@ -1277,6 +1264,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
           const SizedBox(height: 4),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -2025,6 +2014,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     DoctorAccountEntity account,
   ) {
     final isActive = account.status == 'ACTIVE';
+    final statusLabel = _userStatusLabel(account.status);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -2098,7 +2088,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           ),
                         ),
                         child: Text(
-                          account.status,
+                          statusLabel,
                           style: TextStyle(
                             fontSize: 12,
                             color: isActive
@@ -2798,77 +2788,122 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildKLGradeDistribution() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+    return Consumer<AdminDashboardViewModel>(
+      builder: (context, vm, _) {
+        final segments = _adminGradeSegments(vm.stats.gradeCounts);
+        final total = segments.fold<int>(0, (sum, item) => sum + item.value);
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Phân bố KL Grade',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Center(
-            child: SizedBox(
-              height: 180,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Donut Chart
-                  CustomPaint(
-                    size: const Size(180, 180),
-                    painter: DonutChartPainter(),
-                  ),
-                  // Center text
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Phân bổ bệnh nhân theo KL Grade',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Center(
+                child: SizedBox(
+                  height: 180,
+                  child: Stack(
+                    alignment: Alignment.center,
                     children: [
-                      const Text(
-                        '2.8k',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                      CustomPaint(
+                        size: const Size(180, 180),
+                        painter: _DonutChartPainter(
+                          segments: segments,
+                          emptyColor: const Color(0xFFE7F5F1),
                         ),
                       ),
-                      Text(
-                        'Tổng số',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
+                      Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            _formatCount(total),
+                            style: const TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
+                          ),
+                          Text(
+                            'Tổng số',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
-                ],
+                ),
               ),
-            ),
+              const SizedBox(height: 20),
+              for (final segment in segments) ...[
+                _buildLegendItem(
+                  segment.label,
+                  '${_percentOf(segment.value, total)}%',
+                  segment.color,
+                ),
+                if (segment != segments.last) const SizedBox(height: 12),
+              ],
+            ],
           ),
-          const SizedBox(height: 20),
-          // Legend
-          _buildLegendItem('KL0-KL1', '62%', const Color(0xFF4CAF50)),
-          const SizedBox(height: 12),
-          _buildLegendItem('KL2-KL3', '28%', const Color(0xFFFFC107)),
-          const SizedBox(height: 12),
-          _buildLegendItem('KL4', '10%', const Color(0xFFF44336)),
-        ],
-      ),
+        );
+      },
     );
+  }
+
+  List<_AdminGradeSegment> _adminGradeSegments(Map<int, int> gradeCounts) {
+    return [
+      _AdminGradeSegment(
+        label: 'KL 0',
+        value: gradeCounts[0] ?? 0,
+        color: const Color(0xFF2F855A),
+      ),
+      _AdminGradeSegment(
+        label: 'KL 1',
+        value: gradeCounts[1] ?? 0,
+        color: const Color(0xFF38A169),
+      ),
+      _AdminGradeSegment(
+        label: 'KL 2',
+        value: gradeCounts[2] ?? 0,
+        color: const Color(0xFFD4A017),
+      ),
+      _AdminGradeSegment(
+        label: 'KL 3',
+        value: gradeCounts[3] ?? 0,
+        color: const Color(0xFFE67E22),
+      ),
+      _AdminGradeSegment(
+        label: 'KL 4',
+        value: gradeCounts[4] ?? 0,
+        color: const Color(0xFFD71920),
+      ),
+    ];
+  }
+
+  int _percentOf(int value, int denominator) {
+    if (denominator <= 0) return 0;
+    return ((value / denominator) * 100).round();
   }
 
   Widget _buildLegendItem(String label, String percentage, Color color) {
@@ -2901,15 +2936,17 @@ class _AdminHomepageState extends State<AdminHomepage> {
   Widget _buildSystemStatus() {
     return Column(
       children: [
-        _buildStatusBox(
-          'Trạng thái PACS',
-          '4/4 Online',
-          'DICOM Nodes',
-          Colors.green,
-          Icons.cloud_done,
+        Expanded(
+          child: _buildStatusBox(
+            'Trạng thái PACS',
+            '4/4 Online',
+            'DICOM Nodes',
+            Colors.green,
+            Icons.cloud_done,
+          ),
         ),
         const SizedBox(height: 16),
-        _buildStorageBox(),
+        Expanded(child: _buildStorageBox()),
       ],
     );
   }
@@ -3801,68 +3838,55 @@ class _MiniDonutPainter extends CustomPainter {
   bool shouldRepaint(_MiniDonutPainter old) => false;
 }
 
+class _AdminGradeSegment {
+  final String label;
+  final int value;
+  final Color color;
+
+  const _AdminGradeSegment({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+}
+
 // Custom Painter for Donut Chart
-class DonutChartPainter extends CustomPainter {
+class _DonutChartPainter extends CustomPainter {
+  final List<_AdminGradeSegment> segments;
+  final Color emptyColor;
+
+  const _DonutChartPainter({required this.segments, required this.emptyColor});
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    // Draw segments
-    _drawSegment(
-      canvas,
-      center,
-      radius,
-      0,
-      220,
-      const Color(0xFF4CAF50),
-    ); // 62%
-    _drawSegment(
-      canvas,
-      center,
-      radius,
-      220,
-      100,
-      const Color(0xFFFFC107),
-    ); // 28%
-    _drawSegment(
-      canvas,
-      center,
-      radius,
-      320,
-      40,
-      const Color(0xFFF44336),
-    ); // 10%
-  }
-
-  void _drawSegment(
-    Canvas canvas,
-    Offset center,
-    double radius,
-    double startAngle,
-    double sweepAngle,
-    Color color,
-  ) {
+    final radius = math.min(size.width, size.height) / 2 - 10;
+    final rect = Rect.fromCircle(center: center, radius: radius);
     final paint = Paint()
-      ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 20;
+      ..strokeWidth = 20
+      ..strokeCap = StrokeCap.butt;
+    final total = segments.fold<int>(0, (sum, item) => sum + item.value);
 
-    final rect = Rect.fromCenter(
-      center: center,
-      width: radius * 2,
-      height: radius * 2,
-    );
+    if (total <= 0) {
+      paint.color = emptyColor;
+      canvas.drawCircle(center, radius, paint);
+      return;
+    }
 
-    canvas.drawArc(
-      rect,
-      startAngle * 3.14159 / 180,
-      sweepAngle * 3.14159 / 180,
-      false,
-      paint,
-    );
+    var startAngle = -math.pi / 2;
+    for (final segment in segments) {
+      if (segment.value <= 0) continue;
+      final sweepAngle = (segment.value / total) * math.pi * 2;
+      paint.color = segment.color;
+      canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
+      startAngle += sweepAngle;
+    }
   }
 
   @override
-  bool shouldRepaint(DonutChartPainter oldDelegate) => false;
+  bool shouldRepaint(_DonutChartPainter oldDelegate) {
+    return oldDelegate.segments != segments ||
+        oldDelegate.emptyColor != emptyColor;
+  }
 }

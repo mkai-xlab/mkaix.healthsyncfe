@@ -1,7 +1,8 @@
 class ApiConstants {
-  static const String swaggerUiUrl =
-      'http://54.254.113.71:8000/api/v1/swagger-ui/index.html#/';
-  static const String baseUrl = 'http://54.254.113.71:8000/api/v1';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'localhost:8000/api/v1',
+  );
   static const String loginEndpoint = '$baseUrl/auth/login';
   static const String logoutEndpoint = '$baseUrl/auth/logout';
   static const String forgotPasswordEndpoint = '$baseUrl/auth/forgot-password';

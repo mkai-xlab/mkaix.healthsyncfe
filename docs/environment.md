@@ -19,9 +19,11 @@ flutter devices
 
 ## Current Configuration
 
-The project does not currently define environment-specific configuration files or API URLs.
+The project reads the backend API URL from the `API_BASE_URL` compile-time
+environment value, with a development fallback defined in
+`lib/core/constants/api_constants.dart`.
 
-When backend integration is added, prefer compile-time configuration through `--dart-define`:
+Pass a value through `--dart-define` when running or building:
 
 ```bash
 flutter run --dart-define=API_BASE_URL=http://localhost:8080
@@ -30,7 +32,10 @@ flutter run --dart-define=API_BASE_URL=http://localhost:8080
 Access values in Dart with:
 
 ```dart
-const apiBaseUrl = String.fromEnvironment('API_BASE_URL');
+const apiBaseUrl = String.fromEnvironment(
+  'API_BASE_URL',
+  defaultValue: 'http://54.254.113.71:8000/api/v1',
+);
 ```
 
 ## Expected Environments

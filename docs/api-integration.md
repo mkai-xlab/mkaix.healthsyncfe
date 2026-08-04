@@ -3,29 +3,52 @@
 ## Source
 
 - OpenAPI version: `3.1.0`
-- API version: `v0`
+- API version: `v1`
 - Base URL: `http://54.254.113.71:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-07-30`
+- Last OpenAPI refresh: `2026-08-03`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
-- `GET /examinations/total`, `/total-verified`, `/total-unverified`, and `/total-severe` now require query `userId`.
-- `GET /audit-logs` only documents Spring `pageable`; no `keyword`, `actor`, `action`, `status`, or `sort` filters are documented in the latest spec.
-- New/confirmed upload endpoints: `PUT /doctors/profile/avatar`, `POST /files/upload-avatar`, and `POST /s3/test-upload`.
-- Report generation returns `ReportResponse`: `POST /examinations/{id}/generate-report`.
-- Report file endpoints use examination id: `GET /reports/{examinationId}/preview` and `GET /reports/{examinationId}/download`.
-- Examination status filter enum is `AI_PROCESSING`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`.
-- New/confirmed image endpoint: `GET /ai/image/{imageId}`.
-- New/confirmed patient date endpoint: `GET /patients/filter/upload-date`.
-- New/confirmed mail test endpoint: `GET /mail-test/send`.
+- OpenAPI is now `3.1.0` / API `v1` and keeps base URL `http://54.254.113.71:8000/api/v1`.
+- Auth is bearer-token based. Login returns `accessToken`, `refreshToken`, `role`, `username`, `fullName`, and a full `permissions` array.
+- First-time login is explicitly modeled as `FirstTimeLoginRequired` with body `{ error: "FIRST_TIME_LOGIN_REQUIRED", message: "..." }`.
+- `GET /examinations/total`, `/total-verified`, `/total-unverified`, and `/total-severe` require query `userId` and optionally accept `isPersonal`.
+- The current-user dashboard counters remain available as `/examinations/my-total*`, which do not require `userId`.
+- Examination responses now include richer clinical/report fields: `studyTime`, `visitTime`, `chiefComplaint`, `clinicalNotes`, `priority`, `finalDiagnosis`, `description`, `patient`, `doctorId`, `images`, `isViewed`, and `maxPredictedGrade`.
+- `ExaminationImageDto` now exposes DICOM-level AI status and error: `aiAnalysisStatus`, `aiErrorMessage`, plus nested `aiResults`.
+- `AiPredictionResultDto` includes review-aware fields: `confirmedGrade`, `effectiveGrade`, `reviewDecision`, `reviewNote`, `reviewedByDoctorId`, `reviewedAt`, and image URLs.
+- New diagnosis review flow is documented: `PUT /ai/results/{aiResultId}/confirm` and `PUT /ai/results/{aiResultId}/kl-grade` return `DiagnosisReviewResponse`.
+- New/confirmed image endpoint: `GET /ai/image/{imageId}` for clinical/ROI/annotated images, beside `GET /ai/heatmap/{aiResultId}` and `GET /dicom/instances/{id}/image`.
+- Report generation returns `ReportResponse`: `POST /examinations/{id}/generate-report`; preview/download use examination id via `/reports/{examinationId}/preview|download`.
+- Doctors now support profile editing and avatar upload through `GET|PUT /doctors/profile` and `PUT /doctors/profile/avatar`.
+- Doctor deactivation is available both as `DELETE /doctors/{id}` with optional `reason` query and as `POST /doctors/{id}/deactivate`; activation uses `POST /doctors/{id}/activate`.
+- Patient create requires `patientCode` and `fullName`; patient responses expose both `patientCode` and compatibility alias `patient_id`.
+- Permission management is feature-based: `/permissions/tree`, `/features`, and role assignment through `/permissions/role/{roleName}`. Role assignment replaces the whole permission list and uses numeric permission IDs.
 - Delete endpoints are documented for permissions, features, patients, and doctors.
-- `AuditLogResponse` fields are `id`, `username`, `title`, `description`, `ipAddress`, `userAgent`, `timeStamp`.
-- `LoginResponse` includes `fullName`.
-- `CreateDoctorRequest` requires `fullName`, `email`, and `phone`.
-- `ChangePasswordRequest` requires `username`, `oldPassword`, and `newPassword`.
+- `GET /audit-logs` returns `PageResponseAuditLogResponse`; `AuditLogResponse` fields are `id`, `username`, `title`, `description`, `ipAddress`, `userAgent`, and `timeStamp`.
+- Notification APIs now include `GET /notifications` for all notifications, `GET /notifications/unread`, `PUT /notifications/{id}/read`, and test send `POST /notifications/send`.
+- Utility/test endpoints are documented: `GET /mail-test/send`, `POST /files/upload-avatar`, and `POST /s3/test-upload`.
+
+## Frontend Change Checklist
+
+- `ApiConstants` is mostly aligned with the v1 spec. Keep the current base URL and existing constants for auth, DICOM, AI batch, reports, notifications, permissions, and examinations.
+- Add a constant for `GET /ai/image/{imageId}` if the UI needs to render ROI/clinical/annotated images by image id. Current constants cover only heatmap and DICOM instance image.
+- Add a constant and datasource method for `PUT /doctors/profile/avatar` if profile avatar upload is used. Current profile datasource supports `GET` and `PUT /doctors/profile`, but not the multipart avatar endpoint.
+- Decide whether admin doctor deactivate should use `DELETE /doctors/{id}?reason=...` or the existing `POST /doctors/{id}/deactivate`. The spec supports both, but `DELETE` is now documented as a soft deactivate with an optional reason.
+- Add create/update/delete patient methods in `PatientRemoteDataSource` if patient management screens need them. Current patient datasource only fetches the paged list.
+- Update `PatientModel.fromJson` to fall back from `patientCode` to `patient_id`; the new response may include both, but existing parser currently ignores `patient_id`.
+- Add patient upload-date filter support for `GET /patients/filter/upload-date` if the patient list has upload-date filtering.
+- Review examination image parsing: `ExaminationImageModel` currently ignores `aiAnalysisStatus` and `aiErrorMessage`. Add fields to the entity/model if the UI should show AI progress or per-image AI failures.
+- Use `confirmedGrade` or `effectiveGrade` for final clinical display when available. `predictedGrade` alone is no longer enough after doctor review.
+- Confirm KL-grade UI should call `PUT /ai/results/{aiResultId}/confirm` for accept and `PUT /ai/results/{aiResultId}/kl-grade` for adjustment with `confirmedKlGrade` and required `reviewNote`.
+- Admin dashboard counters using `/examinations/total*` must send `userId` and optional `isPersonal`. Doctor dashboard should keep using `/examinations/my-total*`.
+- Permission role management already sends numeric `permissionIds`; keep that behavior. Add delete calls for permissions/features if the admin UI exposes deletion.
+- `PermissionRemoteDataSource` currently assumes known roles `ADMIN` and `DOCTOR`. If backend adds more medical/staff roles through `/users/staff` or other role sources, replace the hardcoded role list.
+- `CreateDoctorRequest` only requires `fullName`, `email`, and `phone`; optional fields `yearsOfExperience`, `degree`, and `biography` can be added to the create/edit UI without contract changes.
+- Error handling should parse standard `ErrorResponse.message` for `400`, `401`, `403`, `415`, and `500`. Keep the special first-time-login branch for `FIRST_TIME_LOGIN_REQUIRED`.
 
 ## Authentication
 

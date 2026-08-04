@@ -230,15 +230,17 @@ class _DashboardContent extends StatelessWidget {
                   ],
                 );
               }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 4, child: left),
-                  const SizedBox(width: 20),
-                  Expanded(flex: 5, child: middle),
-                  const SizedBox(width: 20),
-                  Expanded(flex: 3, child: right),
-                ],
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 4, child: left),
+                    const SizedBox(width: 20),
+                    Expanded(flex: 5, child: middle),
+                    const SizedBox(width: 20),
+                    Expanded(flex: 3, child: right),
+                  ],
+                ),
               );
             },
           ),

@@ -1393,15 +1393,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       final uri = Uri.parse(
         ApiConstants.examinationReportEndpoint(examinationId),
       );
-      final response = await http
-          .post(
-            uri,
-            headers: {
-              'Accept': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 30));
+      final response = await _requestReportGeneration(uri, token);
 
       if (!mounted) return;
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -1438,6 +1430,30 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       successMessage: 'Đã mở báo cáo.',
       failurePrefix: 'Không thể xem báo cáo',
     );
+  }
+
+  Future<http.Response> _requestReportGeneration(Uri uri, String token) async {
+    final headers = {
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final postResponse = await http
+        .post(uri, headers: headers)
+        .timeout(const Duration(seconds: 30));
+    if (!_isUnsupportedPostResponse(postResponse)) {
+      return postResponse;
+    }
+
+    return http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+  }
+
+  bool _isUnsupportedPostResponse(http.Response response) {
+    if (response.statusCode != 405) return false;
+    final body = utf8.decode(response.bodyBytes).toLowerCase();
+    return body.contains('request method') &&
+        body.contains('post') &&
+        body.contains('not supported');
   }
 
   Future<void> _downloadReport() async {

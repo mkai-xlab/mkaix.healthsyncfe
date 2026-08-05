@@ -104,6 +104,7 @@ class DoctorViewModel extends ChangeNotifier {
         fullName: _filterFullName.isEmpty ? null : _filterFullName,
         patientCode: _filterPatientCode.isEmpty ? null : _filterPatientCode,
         gender: _filterGender.isEmpty ? null : _filterGender,
+        isPersonal: true,
         page: _currentPage,
         size: _pageSize,
       );

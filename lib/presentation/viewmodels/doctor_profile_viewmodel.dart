@@ -63,6 +63,33 @@ class DoctorProfileViewModel extends ChangeNotifier {
     }
   }
 
+  Future<bool> uploadAvatar({
+    required String token,
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    if (_isUpdating) return false;
+
+    _isUpdating = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      _profile = await dataSource.uploadAvatar(
+        token: token,
+        bytes: bytes,
+        filename: filename,
+      );
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      return false;
+    } finally {
+      _isUpdating = false;
+      notifyListeners();
+    }
+  }
+
   void clear() {
     _profile = null;
     _errorMessage = null;

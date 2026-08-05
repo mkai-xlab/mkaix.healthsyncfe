@@ -64,6 +64,11 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       mode: ExaminationListMode.statusAiProcessing,
     ),
     _StatusOption(
+      label: 'Phân tích thất bại',
+      status: 'AI_FAILED',
+      mode: ExaminationListMode.statusAiFailed,
+    ),
+    _StatusOption(
       label: 'Cần xác nhận',
       status: 'NEED_VERIFY',
       mode: ExaminationListMode.statusNeedVerify,

@@ -95,4 +95,66 @@ class DoctorProfileRemoteDataSource {
       throw Exception('Không thể kết nối để cập nhật hồ sơ bác sĩ');
     }
   }
+
+  Future<DoctorAccountModel> uploadAvatar({
+    required String token,
+    required List<int> bytes,
+    required String filename,
+  }) async {
+    try {
+      final request = http.MultipartRequest(
+        'PUT',
+        Uri.parse(ApiConstants.doctorProfileAvatarEndpoint),
+      );
+      request.headers.addAll({
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      });
+      request.files.add(
+        http.MultipartFile.fromBytes('file', bytes, filename: filename),
+      );
+
+      final streamedResponse = await client
+          .send(request)
+          .timeout(const Duration(seconds: 45));
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final body = utf8.decode(response.bodyBytes);
+        final json = jsonDecode(body);
+        if (json is! Map<String, dynamic>) {
+          throw Exception('Dữ liệu cập nhật ảnh đại diện không hợp lệ');
+        }
+        if (json.containsKey('id') || json.containsKey('doctorId')) {
+          return DoctorAccountModel.fromJson(json);
+        }
+        final avatarUrl = json['avatarUrl']?.toString();
+        if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
+          return updateProfile(
+            token: token,
+            payload: {'avatarUrl': avatarUrl.trim()},
+          );
+        }
+        throw Exception('Phản hồi cập nhật ảnh đại diện thiếu avatarUrl');
+      }
+
+      final body = utf8.decode(response.bodyBytes);
+      String message =
+          'Không thể cập nhật ảnh đại diện (${response.statusCode})';
+      try {
+        final json = jsonDecode(body);
+        if (json is Map && json['message'] != null) {
+          message = json['message'].toString();
+        }
+      } catch (_) {}
+      throw Exception(message);
+    } on TimeoutException {
+      throw Exception(
+        'Kết nối tới máy chủ quá thời gian khi cập nhật ảnh đại diện',
+      );
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Không thể kết nối để cập nhật ảnh đại diện');
+    }
+  }
 }

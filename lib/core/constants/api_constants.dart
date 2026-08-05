@@ -66,6 +66,8 @@ class ApiConstants {
   static const String createDoctorsEndpoint = '$baseUrl/doctors';
   static const String activeDoctorsEndpoint = '$baseUrl/doctors/active';
   static const String doctorProfileEndpoint = '$baseUrl/doctors/profile';
+  static const String doctorProfileAvatarEndpoint =
+      '$doctorProfileEndpoint/avatar';
   static String doctorByIdEndpoint(int id) => '$doctorsEndpoint/$id';
   static String activateDoctorEndpoint(int id) =>
       '$doctorsEndpoint/$id/activate';
@@ -91,8 +93,11 @@ class ApiConstants {
       '$baseUrl/ai/results/$aiResultId/kl-grade';
 
   // DICOM endpoints
+  static const String notificationsEndpoint = '$baseUrl/notifications';
   static const String notificationsUnreadEndpoint =
       '$baseUrl/notifications/unread';
+  static const String markAllNotificationsReadEndpoint =
+      '$baseUrl/notifications/read-all';
   static const String notificationsSendEndpoint = '$baseUrl/notifications/send';
   static String markNotificationReadEndpoint(int id) =>
       '$baseUrl/notifications/$id/read';

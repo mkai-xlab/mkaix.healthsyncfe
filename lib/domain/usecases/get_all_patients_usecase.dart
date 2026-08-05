@@ -10,6 +10,7 @@ class GetAllPatientsUseCase {
     String? fullName,
     String? patientCode,
     String? gender,
+    bool isPersonal = false,
     int page = 0,
     int size = 10,
   }) {
@@ -18,6 +19,7 @@ class GetAllPatientsUseCase {
       fullName: fullName,
       patientCode: patientCode,
       gender: gender,
+      isPersonal: isPersonal,
       page: page,
       size: size,
     );

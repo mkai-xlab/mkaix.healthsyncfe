@@ -1,11 +1,20 @@
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:cross_file/cross_file.dart';
+import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/toast_service.dart';
+import '../../../core/utils/media_url_resolver.dart';
 import '../../../domain/entities/doctor_account_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/doctor_profile_viewmodel.dart';
+import '../../widgets/authenticated_avatar_image.dart';
 
 class DoctorProfilePage extends StatefulWidget {
   final bool embedded;
@@ -101,7 +110,7 @@ class _ProfileContent extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Hồ sơ bác sĩ',
+            'Thông tin cá nhân',
             style: TextStyle(
               fontSize: 30,
               fontWeight: FontWeight.w700,
@@ -124,7 +133,10 @@ class _ProfileContent extends StatelessWidget {
               if (!isWide) {
                 return Column(
                   children: [
-                    _HeroCard(profile: profile),
+                    _HeroCard(
+                      profile: profile,
+                      onAvatarTap: () => _showAvatarUploadDialog(context),
+                    ),
                     const SizedBox(height: 20),
                     detailPanel,
                     const SizedBox(height: 20),
@@ -135,7 +147,10 @@ class _ProfileContent extends StatelessWidget {
 
               return Column(
                 children: [
-                  _HeroCard(profile: profile),
+                  _HeroCard(
+                    profile: profile,
+                    onAvatarTap: () => _showAvatarUploadDialog(context),
+                  ),
                   const SizedBox(height: 20),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,6 +166,14 @@ class _ProfileContent extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Future<void> _showAvatarUploadDialog(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => const _AvatarUploadDialog(),
     );
   }
 }
@@ -169,9 +192,6 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
   late final TextEditingController _fullNameController;
   late final TextEditingController _emailController;
   late final TextEditingController _phoneController;
-  late final TextEditingController _avatarUrlController;
-  late final TextEditingController _yearsController;
-  late final TextEditingController _degreeController;
   late final TextEditingController _biographyController;
 
   String _initialSnapshot = '';
@@ -182,9 +202,6 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
     _fullNameController = TextEditingController();
     _emailController = TextEditingController();
     _phoneController = TextEditingController();
-    _avatarUrlController = TextEditingController();
-    _yearsController = TextEditingController();
-    _degreeController = TextEditingController();
     _biographyController = TextEditingController();
     _syncFromProfile(widget.profile);
   }
@@ -202,9 +219,6 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
     _fullNameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
-    _avatarUrlController.dispose();
-    _yearsController.dispose();
-    _degreeController.dispose();
     _biographyController.dispose();
     super.dispose();
   }
@@ -287,29 +301,6 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
                     controller: _phoneController,
                     label: 'Số điện thoại',
                     keyboardType: TextInputType.phone,
-                  ),
-                  _buildTextField(
-                    controller: _avatarUrlController,
-                    label: 'Avatar URL',
-                    keyboardType: TextInputType.url,
-                  ),
-                  _buildTextField(
-                    controller: _yearsController,
-                    label: 'Số năm kinh nghiệm',
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      final text = (value ?? '').trim();
-                      if (text.isEmpty) return null;
-                      final parsed = int.tryParse(text);
-                      if (parsed == null || parsed < 0) {
-                        return 'Nhập số hợp lệ';
-                      }
-                      return null;
-                    },
-                  ),
-                  _buildTextField(
-                    controller: _degreeController,
-                    label: 'Học vị',
                   ),
                 ];
                 return Wrap(
@@ -421,11 +412,6 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
     _fullNameController.text = profile.fullName;
     _emailController.text = profile.email;
     _phoneController.text = profile.phone;
-    _avatarUrlController.text = profile.avatarUrl ?? '';
-    _yearsController.text = profile.yearsOfExperience <= 0
-        ? ''
-        : profile.yearsOfExperience.toString();
-    _degreeController.text = profile.degree ?? '';
     _biographyController.text = profile.bio ?? '';
     _initialSnapshot = _snapshot();
     if (mounted) {
@@ -473,9 +459,6 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
       'fullName': _fullNameController.text.trim(),
       'email': _emailController.text.trim(),
       'phone': _phoneController.text.trim(),
-      'avatarUrl': _avatarUrlController.text.trim(),
-      'yearsOfExperience': int.tryParse(_yearsController.text.trim()) ?? 0,
-      'degree': _degreeController.text.trim(),
       'biography': _biographyController.text.trim(),
     };
 
@@ -498,9 +481,6 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
       _fullNameController.text.trim(),
       _emailController.text.trim(),
       _phoneController.text.trim(),
-      _avatarUrlController.text.trim(),
-      _yearsController.text.trim(),
-      _degreeController.text.trim(),
       _biographyController.text.trim(),
     ].join('|');
   }
@@ -508,8 +488,9 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
 
 class _HeroCard extends StatelessWidget {
   final DoctorAccountEntity profile;
+  final VoidCallback onAvatarTap;
 
-  const _HeroCard({required this.profile});
+  const _HeroCard({required this.profile, required this.onAvatarTap});
 
   @override
   Widget build(BuildContext context) {
@@ -538,6 +519,7 @@ class _HeroCard extends StatelessWidget {
           final image = _ProfileAvatar(
             profile: profile,
             size: compact ? 112 : 148,
+            onTap: onAvatarTap,
           );
           final info = Expanded(
             child: Column(
@@ -592,56 +574,540 @@ class _HeroCard extends StatelessWidget {
 class _ProfileAvatar extends StatelessWidget {
   final DoctorAccountEntity profile;
   final double size;
+  final VoidCallback onTap;
 
-  const _ProfileAvatar({required this.profile, required this.size});
+  const _ProfileAvatar({
+    required this.profile,
+    required this.size,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final avatarUrl = profile.avatarUrl?.trim() ?? '';
+    final imageUrl = resolveMediaUrl(avatarUrl);
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
     final initialsSource = profile.fullName.trim().isNotEmpty
         ? profile.fullName.trim()
         : profile.username.trim();
     final initial = initialsSource.isEmpty
         ? 'B'
         : initialsSource[0].toUpperCase();
-
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        color: const Color(0xFFE7F5F1),
-        border: Border.all(color: const Color(0xFFD8E2E8)),
+    final fallback = Center(
+      child: Text(
+        initial,
+        style: TextStyle(
+          fontSize: size * 0.34,
+          fontWeight: FontWeight.w700,
+          color: AppColors.primary,
+        ),
       ),
-      clipBehavior: Clip.antiAlias,
-      child: avatarUrl.isEmpty
-          ? Center(
-              child: Text(
-                initial,
-                style: TextStyle(
-                  fontSize: size * 0.34,
-                  fontWeight: FontWeight.w700,
+    );
+
+    return Tooltip(
+      message: 'Đổi ảnh đại diện',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: Stack(
+          children: [
+            Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(18),
+                color: const Color(0xFFE7F5F1),
+                border: Border.all(color: const Color(0xFFD8E2E8)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: imageUrl.isEmpty
+                  ? fallback
+                  : AuthenticatedAvatarImage(
+                      imageUrl: imageUrl,
+                      token: token,
+                      fallback: fallback,
+                    ),
+            ),
+            Positioned(
+              right: 8,
+              bottom: 8,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
                   color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(999),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.16),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Icon(
+                  Icons.photo_camera_outlined,
+                  size: 18,
+                  color: Colors.white,
                 ),
               ),
-            )
-          : Image.network(
-              avatarUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (context, error, stackTrace) {
-                return Center(
-                  child: Text(
-                    initial,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AvatarUploadDialog extends StatefulWidget {
+  const _AvatarUploadDialog();
+
+  @override
+  State<_AvatarUploadDialog> createState() => _AvatarUploadDialogState();
+}
+
+class _AvatarUploadDialogState extends State<_AvatarUploadDialog> {
+  static const int _maxFileSize = 5 * 1024 * 1024;
+
+  final _cropKey = GlobalKey();
+  Uint8List? _imageBytes;
+  Uint8List? _previewBytes;
+  String _filename = 'avatar.png';
+  String? _error;
+  bool _isDragging = false;
+  bool _isPreparing = false;
+  double _zoom = 1;
+  double _cropSize = 320;
+  Offset _imageOffset = Offset.zero;
+
+  @override
+  Widget build(BuildContext context) {
+    final isUploading = context.watch<DoctorProfileViewModel>().isUpdating;
+    final screenSize = MediaQuery.sizeOf(context);
+    final maxDialogHeight = screenSize.height * 0.94;
+    final maxCropSize = (screenSize.height - 250).clamp(340.0, 520.0);
+    final maxDialogWidth = screenSize.width < 1180
+        ? screenSize.width - 40
+        : 920.0;
+
+    return Dialog(
+      insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: maxDialogWidth,
+          maxHeight: maxDialogHeight,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 24, 24, 18),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final isWide = constraints.maxWidth >= 680;
+              final preview = _buildSidePanel();
+              final content = isWide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 7,
+                          child: Padding(
+                            padding: const EdgeInsets.only(right: 13),
+                            child: LayoutBuilder(
+                              builder: (context, leftConstraints) {
+                                final cropSize = leftConstraints.maxWidth.clamp(
+                                  260.0,
+                                  maxCropSize,
+                                );
+                                _cropSize = cropSize;
+                                return Align(
+                                  alignment: Alignment.topLeft,
+                                  child: SizedBox.square(
+                                    dimension: cropSize,
+                                    child: _buildCropper(),
+                                  ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          flex: 3,
+                          child: Padding(
+                            padding: const EdgeInsets.only(left: 13),
+                            child: preview,
+                          ),
+                        ),
+                      ],
+                    )
+                  : Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Builder(
+                          builder: (context) {
+                            final cropSize = constraints.maxWidth.clamp(
+                              260.0,
+                              maxCropSize,
+                            );
+                            _cropSize = cropSize;
+                            return SizedBox.square(
+                              dimension: cropSize,
+                              child: _buildCropper(),
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 18),
+                        preview,
+                      ],
+                    );
+
+              final dialogBody = Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Cập nhật ảnh đại diện',
                     style: TextStyle(
-                      fontSize: size * 0.34,
+                      fontSize: 22,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.primary,
+                      color: AppColors.textPrimary,
                     ),
                   ),
-                );
-              },
-            ),
+                  const SizedBox(height: 16),
+                  content,
+                  const SizedBox(height: 18),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: isUploading
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        child: const Text('Hủy'),
+                      ),
+                      const SizedBox(width: 12),
+                      FilledButton.icon(
+                        onPressed:
+                            _imageBytes == null || isUploading || _isPreparing
+                            ? null
+                            : _uploadAvatar,
+                        icon: isUploading || _isPreparing
+                            ? const SizedBox(
+                                width: 16,
+                                height: 16,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.cloud_upload_outlined),
+                        label: Text(
+                          isUploading || _isPreparing
+                              ? 'Đang lưu...'
+                              : 'Lưu ảnh',
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              );
+
+              if (isWide) {
+                return dialogBody;
+              }
+
+              return SingleChildScrollView(child: dialogBody);
+            },
+          ),
+        ),
+      ),
     );
+  }
+
+  Widget _buildCropper() {
+    return AspectRatio(
+      aspectRatio: 1,
+      child: DropTarget(
+        onDragEntered: (_) => setState(() => _isDragging = true),
+        onDragExited: (_) => setState(() => _isDragging = false),
+        onDragDone: (detail) async {
+          setState(() => _isDragging = false);
+          if (detail.files.isNotEmpty) {
+            await _loadXFile(detail.files.first);
+          }
+        },
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: const Color(0xFFF8FAFC),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: _isDragging ? AppColors.primary : const Color(0xFFE2E8F0),
+              width: _isDragging ? 1.6 : 1,
+            ),
+          ),
+          child: SizedBox.expand(
+            child: _imageBytes == null
+                ? _buildDropPlaceholder()
+                : _buildCropArea(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDropPlaceholder() {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.add_photo_alternate_outlined,
+            size: 42,
+            color: AppColors.primary.withValues(alpha: 0.7),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Kéo thả ảnh PNG hoặc JPEG vào đây',
+            style: TextStyle(fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 6),
+          const Text(
+            'Tối đa 5MB',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCropArea() {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: RepaintBoundary(
+        key: _cropKey,
+        child: ClipRect(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onPanUpdate: (details) {
+              setState(() {
+                _imageOffset = _boundedOffset(
+                  _imageOffset + details.delta,
+                  _zoom,
+                );
+              });
+            },
+            onPanEnd: (_) => _refreshPreview(),
+            child: Transform.translate(
+              offset: _imageOffset,
+              child: Transform.scale(
+                scale: _zoom,
+                child: SizedBox.expand(
+                  child: Image.memory(_imageBytes!, fit: BoxFit.cover),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSidePanel() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text(
+          'Preview',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          width: 112,
+          height: 112,
+          decoration: BoxDecoration(
+            color: const Color(0xFFE7F5F1),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: const Color(0xFFD8E2E8)),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: _previewBytes == null
+              ? (_imageBytes == null
+                    ? const Icon(Icons.person_outline, size: 38)
+                    : Image.memory(_imageBytes!, fit: BoxFit.cover))
+              : Image.memory(_previewBytes!, fit: BoxFit.cover),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Kéo ảnh để căn khung, dùng thanh trượt để thu phóng.',
+          style: TextStyle(
+            color: AppColors.textSecondary,
+            fontSize: 13,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 18),
+        SizedBox(
+          width: double.infinity,
+          child: OutlinedButton.icon(
+            onPressed: _pickFile,
+            icon: const Icon(Icons.image_outlined),
+            label: const Text('Chọn ảnh'),
+          ),
+        ),
+        const SizedBox(height: 14),
+        const Text(
+          'Thu phóng',
+          style: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: AppColors.textPrimary,
+          ),
+        ),
+        Slider(
+          value: _zoom,
+          min: 1,
+          max: 4,
+          divisions: 30,
+          onChanged: _imageBytes == null ? null : _setZoom,
+          onChangeEnd: _imageBytes == null ? null : (_) => _refreshPreview(),
+        ),
+        if (_error != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            _error!,
+            style: const TextStyle(color: AppColors.error, fontSize: 13),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Future<void> _pickFile() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['png', 'jpg', 'jpeg'],
+      withData: true,
+    );
+    final file = result?.files.single;
+    if (file == null) return;
+    await _loadBytes(bytes: file.bytes, filename: file.name, size: file.size);
+  }
+
+  Future<void> _loadXFile(XFile file) async {
+    await _loadBytes(
+      bytes: await file.readAsBytes(),
+      filename: file.name,
+      size: await file.length(),
+    );
+  }
+
+  Future<void> _loadBytes({
+    required Uint8List? bytes,
+    required String filename,
+    required int size,
+  }) async {
+    final lowerName = filename.toLowerCase();
+    if (!lowerName.endsWith('.png') &&
+        !lowerName.endsWith('.jpg') &&
+        !lowerName.endsWith('.jpeg')) {
+      setState(() => _error = 'Chỉ hỗ trợ ảnh PNG hoặc JPEG');
+      return;
+    }
+    if (bytes == null || bytes.isEmpty) {
+      setState(() => _error = 'Không thể đọc file ảnh');
+      return;
+    }
+    if (size > _maxFileSize) {
+      setState(() => _error = 'Ảnh vượt quá dung lượng 5MB');
+      return;
+    }
+
+    setState(() {
+      _imageBytes = bytes;
+      _previewBytes = bytes;
+      _filename = filename;
+      _zoom = 1;
+      _imageOffset = Offset.zero;
+      _error = null;
+    });
+    await WidgetsBinding.instance.endOfFrame;
+    await Future<void>.delayed(const Duration(milliseconds: 80));
+    if (mounted) {
+      await _refreshPreview();
+    }
+  }
+
+  void _setZoom(double value) {
+    setState(() {
+      _zoom = value;
+      _imageOffset = _boundedOffset(_imageOffset, value);
+    });
+  }
+
+  Offset _boundedOffset(Offset offset, double scale) {
+    final maxOffset = ((_cropSize * scale) - _cropSize) / 2;
+    if (maxOffset <= 0) return Offset.zero;
+    return Offset(
+      offset.dx.clamp(-maxOffset, maxOffset),
+      offset.dy.clamp(-maxOffset, maxOffset),
+    );
+  }
+
+  Future<Uint8List?> _captureCrop() async {
+    final boundary =
+        _cropKey.currentContext?.findRenderObject() as RenderRepaintBoundary?;
+    if (boundary == null) return null;
+    final image = await boundary.toImage(pixelRatio: 2);
+    final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData?.buffer.asUint8List();
+  }
+
+  Future<void> _refreshPreview() async {
+    final bytes = await _captureCrop();
+    if (!mounted || bytes == null) return;
+    setState(() => _previewBytes = bytes);
+  }
+
+  Future<void> _uploadAvatar() async {
+    setState(() => _isPreparing = true);
+    final bytes = await _captureCrop();
+    if (!mounted) return;
+    if (bytes == null) {
+      setState(() {
+        _isPreparing = false;
+        _error = 'Không thể xử lý ảnh đã cắt';
+      });
+      return;
+    }
+
+    setState(() {
+      _previewBytes = bytes;
+      _isPreparing = false;
+    });
+
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    final success = await context.read<DoctorProfileViewModel>().uploadAvatar(
+      token: token,
+      bytes: bytes,
+      filename: _normalizedUploadName(),
+    );
+    if (!mounted) return;
+    if (success) {
+      AppToast.showSuccess('Cập nhật ảnh đại diện thành công');
+      Navigator.of(context).pop();
+    } else {
+      final vm = context.read<DoctorProfileViewModel>();
+      setState(() {
+        _error = vm.errorMessage ?? 'Không thể cập nhật ảnh đại diện';
+      });
+    }
+  }
+
+  String _normalizedUploadName() {
+    final baseName = _filename
+        .split(RegExp(r'[\\/]'))
+        .last
+        .replaceAll(RegExp(r'\.(png|jpe?g)$', caseSensitive: false), '');
+    final safeBaseName = baseName.trim().isEmpty ? 'avatar' : baseName.trim();
+    return '$safeBaseName-cropped.png';
   }
 }
 

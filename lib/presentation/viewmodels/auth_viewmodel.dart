@@ -180,6 +180,7 @@ class AuthViewModel extends ChangeNotifier {
       'fullName': user.fullName,
       'token': user.token,
       'refreshToken': user.refreshToken,
+      'avatarUrl': user.avatarUrl,
       'roles': user.roles,
       'permissions': user.permissionItems.isNotEmpty
           ? user.permissionItems

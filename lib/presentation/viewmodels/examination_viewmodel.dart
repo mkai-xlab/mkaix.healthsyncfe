@@ -19,6 +19,7 @@ enum ExaminationListMode {
   grade3,
   grade4,
   statusAiProcessing,
+  statusAiFailed,
   statusNeedVerify,
   statusVerified,
   statusReportGenerated,
@@ -97,6 +98,7 @@ class ExaminationViewModel extends ChangeNotifier {
         mode: _listMode.name,
         direction: _listMode.name.endsWith('Asc') ? 'asc' : 'desc',
         date: _filterDate == null ? null : _formatApiDate(_filterDate!),
+        isPersonal: true,
       );
       _examinations = result.content;
       _totalElements = result.totalElements;
@@ -144,7 +146,7 @@ class ExaminationViewModel extends ChangeNotifier {
 
       try {
         _patientGradeStats = await getPatientExaminationsUseCase
-            .executePatientGradeStatistics(token: token);
+            .executePatientGradeStatistics(token: token, isPersonal: true);
       } catch (e) {
         final gradeError = e.toString().replaceAll('Exception: ', '');
         _errorMessage = _appendDashboardError(_errorMessage, gradeError);

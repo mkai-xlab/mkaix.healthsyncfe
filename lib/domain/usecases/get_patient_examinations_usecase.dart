@@ -20,6 +20,7 @@ class GetPatientExaminationsUseCase {
     String mode = 'all',
     String direction = 'desc',
     String? date,
+    bool isPersonal = false,
   }) {
     return repository.getExaminationsPage(
       token: token,
@@ -28,6 +29,7 @@ class GetPatientExaminationsUseCase {
       mode: mode,
       direction: direction,
       date: date,
+      isPersonal: isPersonal,
     );
   }
 
@@ -51,8 +53,12 @@ class GetPatientExaminationsUseCase {
 
   Future<List<PatientGradeStatsEntity>> executePatientGradeStatistics({
     required String token,
+    bool isPersonal = false,
   }) {
-    return repository.getPatientGradeStatistics(token: token);
+    return repository.getPatientGradeStatistics(
+      token: token,
+      isPersonal: isPersonal,
+    );
   }
 
   Future<List<ExaminationEntity>> executeDoctor({

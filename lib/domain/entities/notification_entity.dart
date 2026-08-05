@@ -16,4 +16,24 @@ class NotificationEntity {
     required this.createdAt,
     this.data,
   });
+
+  NotificationEntity copyWith({
+    int? id,
+    String? title,
+    String? message,
+    String? type,
+    bool? isRead,
+    DateTime? createdAt,
+    Object? data,
+  }) {
+    return NotificationEntity(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      message: message ?? this.message,
+      type: type ?? this.type,
+      isRead: isRead ?? this.isRead,
+      createdAt: createdAt ?? this.createdAt,
+      data: data ?? this.data,
+    );
+  }
 }

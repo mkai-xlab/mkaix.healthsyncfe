@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../services/toast_service.dart';
+import '../../presentation/pages/landing/landing_page.dart';
 import '../../presentation/pages/auth/login_page.dart';
 import '../../presentation/pages/auth/forgot_password_page.dart';
 import '../../presentation/pages/auth/reset_password_page.dart';
@@ -16,9 +17,14 @@ class AppRouter {
 
   late final GoRouter router = GoRouter(
     navigatorKey: AppToast.navigatorKey,
-    initialLocation: '/login',
+    initialLocation: '/',
     refreshListenable: authViewModel,
     routes: [
+      GoRoute(
+        path: '/',
+        name: 'landing',
+        builder: (context, state) => const LandingPage(),
+      ),
       GoRoute(
         path: '/login',
         name: 'login',
@@ -59,6 +65,7 @@ class AppRouter {
 
       // Các trang public — không cần đăng nhập
       final isPublicRoute =
+          loc == '/' ||
           loc == '/login' ||
           loc == '/forgot-password' ||
           loc == '/reset-password' ||

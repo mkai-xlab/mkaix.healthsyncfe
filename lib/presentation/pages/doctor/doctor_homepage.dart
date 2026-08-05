@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:fe/core/services/toast_service.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/media_url_resolver.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/dicom_upload_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
+import '../../viewmodels/doctor_profile_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
 import '../../viewmodels/notification_viewmodel.dart';
+import '../../widgets/authenticated_avatar_image.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/notification_entity.dart';
 import '../../../domain/entities/user_entity.dart';
@@ -47,7 +50,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<NotificationViewModel>().loadUnreadNotifications(_token);
+      context.read<NotificationViewModel>().loadNotifications(_token);
+      context.read<DoctorProfileViewModel>().loadProfile(token: _token);
     });
   }
 
@@ -799,19 +803,40 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircleAvatar(
-                          radius: 15,
-                          backgroundColor: const Color(0xFFE6F4F1),
-                          child: Text(
-                            vm.currentUser?.displayName.isNotEmpty == true
+                        Consumer<DoctorProfileViewModel>(
+                          builder: (context, profileVm, _) {
+                            final avatarUrl = resolveMediaUrl(
+                              profileVm.profile?.avatarUrl ?? '',
+                            );
+                            final token = vm.currentUser?.token ?? '';
+                            final initial =
+                                vm.currentUser?.displayName.isNotEmpty == true
                                 ? vm.currentUser!.displayName[0].toUpperCase()
-                                : 'B',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: _primaryGreen,
-                            ),
-                          ),
+                                : 'B';
+                            final fallback = Text(
+                              initial,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: _primaryGreen,
+                              ),
+                            );
+                            return CircleAvatar(
+                              radius: 15,
+                              backgroundColor: const Color(0xFFE6F4F1),
+                              child: avatarUrl.isEmpty
+                                  ? fallback
+                                  : ClipOval(
+                                      child: SizedBox.expand(
+                                        child: AuthenticatedAvatarImage(
+                                          imageUrl: avatarUrl,
+                                          token: token,
+                                          fallback: fallback,
+                                        ),
+                                      ),
+                                    ),
+                            );
+                          },
                         ),
                         const SizedBox(width: 8),
                         Column(
@@ -1691,7 +1716,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           elevation: 12,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           constraints: const BoxConstraints.tightFor(width: 380),
-          onOpened: () => vm.loadUnreadNotifications(_token),
+          onOpened: () => vm.loadNotifications(_token),
           itemBuilder: (context) => [
             PopupMenuItem<void>(
               enabled: false,
@@ -1945,8 +1970,14 @@ class _NotificationDropdown extends StatelessWidget {
                       tooltip: 'Tải lại',
                       onPressed: vm.isLoading
                           ? null
-                          : () => vm.loadUnreadNotifications(token),
+                          : () => vm.loadNotifications(token),
                       icon: const Icon(Icons.refresh, size: 18),
+                    ),
+                    TextButton(
+                      onPressed: vm.unreadCount == 0
+                          ? null
+                          : () => vm.markAllAsRead(token),
+                      child: const Text('Đã đọc tất cả'),
                     ),
                   ],
                 ),
@@ -1974,7 +2005,7 @@ class _NotificationDropdown extends StatelessWidget {
                 const Expanded(
                   child: Center(
                     child: Text(
-                      'Không có thông báo chưa đọc',
+                      'Không có thông báo',
                       style: TextStyle(color: Color(0xFF718096)),
                     ),
                   ),
@@ -1996,8 +2027,12 @@ class _NotificationDropdown extends StatelessWidget {
                       final notification = vm.visibleNotifications[index];
                       return _NotificationTile(
                         notification: notification,
-                        onTap: () =>
-                            vm.markAsRead(id: notification.id, token: token),
+                        onTap: notification.isRead
+                            ? null
+                            : () => vm.markAsRead(
+                                id: notification.id,
+                                token: token,
+                              ),
                       );
                     },
                   ),
@@ -2014,16 +2049,22 @@ class _NotificationTile extends StatelessWidget {
   const _NotificationTile({required this.notification, required this.onTap});
 
   final NotificationEntity notification;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = _notificationColor(notification.type);
+    final isUnread = !notification.isRead;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
-      child: Padding(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 2),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: isUnread ? const Color(0xFFF0F7FF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2047,10 +2088,10 @@ class _NotificationTile extends StatelessWidget {
                         : notification.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1F2937),
+                      fontWeight: isUnread ? FontWeight.w800 : FontWeight.w600,
+                      color: const Color(0xFF1F2937),
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -2058,24 +2099,31 @@ class _NotificationTile extends StatelessWidget {
                     notification.message,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       height: 1.3,
-                      color: Color(0xFF4B5563),
+                      color: isUnread
+                          ? const Color(0xFF4B5563)
+                          : const Color(0xFF718096),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Container(
+            SizedBox(
               width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(top: 6),
-              decoration: const BoxDecoration(
-                color: Color(0xFFE53E3E),
-                shape: BoxShape.circle,
-              ),
+              child: isUnread
+                  ? Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE53E3E),
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  : null,
             ),
           ],
         ),

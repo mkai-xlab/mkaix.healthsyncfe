@@ -19,6 +19,7 @@ abstract class ExaminationRemoteDataSource {
     String mode = 'all',
     String direction = 'desc',
     String? date,
+    bool isPersonal = false,
   });
 
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
@@ -33,6 +34,7 @@ abstract class ExaminationRemoteDataSource {
 
   Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
     required String token,
+    bool isPersonal = false,
   });
 
   Future<List<ExaminationEntity>> getExaminations({required String token});
@@ -78,6 +80,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     String mode = 'all',
     String direction = 'desc',
     String? date,
+    bool isPersonal = false,
   }) async {
     final normalizedDirection = direction == 'asc' ? 'asc' : 'desc';
     final filterDate = date ?? '';
@@ -88,7 +91,10 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         token: token,
         page: page,
         size: size,
-        queryParameters: {'direction': mode == 'studyDateAsc' ? 'asc' : 'desc'},
+        queryParameters: {
+          'direction': mode == 'studyDateAsc' ? 'asc' : 'desc',
+          if (isPersonal) 'isPersonal': 'true',
+        },
         includeSort: false,
         shouldSortLocally: false,
         errorMessage: 'Khong the sap xep ca kham theo ngay kham',
@@ -103,6 +109,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         size: size,
         queryParameters: {
           'direction': mode == 'uploadDateAsc' ? 'asc' : 'desc',
+          if (isPersonal) 'isPersonal': 'true',
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -116,7 +123,10 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         token: token,
         page: page,
         size: size,
-        queryParameters: {'date': filterDate},
+        queryParameters: {
+          'date': filterDate,
+          if (isPersonal) 'isPersonal': 'true',
+        },
         includeSort: false,
         shouldSortLocally: false,
         errorMessage: 'Khong the loc ca kham theo ngay kham',
@@ -129,7 +139,10 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         token: token,
         page: page,
         size: size,
-        queryParameters: {'date': filterDate},
+        queryParameters: {
+          'date': filterDate,
+          if (isPersonal) 'isPersonal': 'true',
+        },
         includeSort: false,
         shouldSortLocally: false,
         errorMessage: 'Khong the loc ca kham theo ngay upload',
@@ -143,7 +156,11 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         token: token,
         page: page,
         size: size,
-        queryParameters: {'grade': grade, 'sort': normalizedDirection},
+        queryParameters: {
+          'grade': grade,
+          'sort': normalizedDirection,
+          if (isPersonal) 'isPersonal': 'true',
+        },
         includeSort: false,
         shouldSortLocally: false,
         errorMessage: 'Khong the loc ca kham theo KL grade',
@@ -157,7 +174,11 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         token: token,
         page: page,
         size: size,
-        queryParameters: {'status': status, 'sort': normalizedDirection},
+        queryParameters: {
+          'status': status,
+          'sort': normalizedDirection,
+          if (isPersonal) 'isPersonal': 'true',
+        },
         includeSort: false,
         shouldSortLocally: false,
         errorMessage: 'Khong the loc ca kham theo trang thai',
@@ -169,7 +190,10 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       token: token,
       page: page,
       size: size,
-      queryParameters: {'sort': normalizedDirection},
+      queryParameters: {
+        'sort': normalizedDirection,
+        if (isPersonal) 'isPersonal': 'true',
+      },
       includeSort: false,
       shouldSortLocally: false,
       errorMessage: 'Khong the tai danh sach ca kham',
@@ -180,6 +204,8 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     switch (mode) {
       case 'statusAiProcessing':
         return 'AI_PROCESSING';
+      case 'statusAiFailed':
+        return 'AI_FAILED';
       case 'statusNeedVerify':
         return 'NEED_VERIFY';
       case 'statusVerified':
@@ -272,7 +298,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       token: token,
       page: page,
       size: size,
-      queryParameters: const {'direction': 'desc'},
+      queryParameters: const {'direction': 'desc', 'isPersonal': 'true'},
       includeSort: false,
       errorMessage: 'Khong the tai danh sach ca kham cua ban',
     );
@@ -320,8 +346,11 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
   @override
   Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
     required String token,
+    bool isPersonal = false,
   }) async {
-    final uri = Uri.parse(ApiConstants.patientGradeStatisticsEndpoint);
+    final uri = Uri.parse(
+      ApiConstants.patientGradeStatisticsEndpoint,
+    ).replace(queryParameters: {if (isPersonal) 'isPersonal': 'true'});
     final response = await client
         .get(
           uri,

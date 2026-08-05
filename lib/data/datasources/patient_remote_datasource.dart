@@ -10,6 +10,7 @@ abstract class PatientRemoteDataSource {
     String? fullName,
     String? patientCode,
     String? gender,
+    bool isPersonal = false,
     int page = 0,
     int size = 10,
   });
@@ -25,12 +26,14 @@ class PatientRemoteDataSourceImpl implements PatientRemoteDataSource {
     String? fullName,
     String? patientCode,
     String? gender,
+    bool isPersonal = false,
     int page = 0,
     int size = 10,
   }) async {
     final Map<String, String> queryParams = {
       'page': page.toString(),
       'size': size.toString(),
+      if (isPersonal) 'isPersonal': 'true',
       if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
       if (patientCode != null && patientCode.isNotEmpty)
         'patientCode': patientCode,

@@ -508,6 +508,21 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        TextButton.icon(
+          onPressed: () => context.go('/'),
+          style: TextButton.styleFrom(
+            foregroundColor: _primaryGreen,
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          icon: const Icon(Icons.arrow_back_rounded, size: 18),
+          label: const Text(
+            'Về trang giới thiệu',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(height: 18),
         // Title
         const Text(
           'Đăng nhập hệ thống',

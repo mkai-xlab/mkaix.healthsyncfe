@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:fe/core/services/toast_service.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/media_url_resolver.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_dashboard_viewmodel.dart';
@@ -19,6 +20,7 @@ import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart
 import 'package:fe/presentation/pages/admin/audit_log_page.dart';
 import 'package:fe/presentation/pages/auth/account_change_password_page.dart';
 import 'package:fe/presentation/widgets/pagination_bar.dart';
+import 'package:fe/presentation/widgets/authenticated_avatar_image.dart';
 import 'package:http/http.dart' as http;
 
 class AdminHomepage extends StatefulWidget {
@@ -37,6 +39,40 @@ class _AdminHomepageState extends State<AdminHomepage> {
   bool _showChangePassword = false;
 
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
+
+  Widget _buildAccountAvatar({
+    required String name,
+    required String? avatarUrl,
+    required double radius,
+    Color color = AppColors.primary,
+  }) {
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'U';
+    final imageUrl = resolveMediaUrl(avatarUrl ?? '');
+    final fallback = Text(
+      initial,
+      style: TextStyle(
+        fontSize: radius * 0.7,
+        fontWeight: FontWeight.bold,
+        color: color,
+      ),
+    );
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: color.withValues(alpha: 0.15),
+      child: imageUrl.isEmpty
+          ? fallback
+          : ClipOval(
+              child: SizedBox.expand(
+                child: AuthenticatedAvatarImage(
+                  imageUrl: imageUrl,
+                  token: _token,
+                  fallback: fallback,
+                ),
+              ),
+            ),
+    );
+  }
 
   @override
   void initState() {
@@ -362,7 +398,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
             _buildTopBar(context),
             Expanded(
               child: AccountChangePasswordPage(
-                onCancel: () => setState(() => _showChangePassword = false),
+                onCancel: () => setState(() {
+                  _showChangePassword = false;
+                }),
               ),
             ),
           ],
@@ -856,21 +894,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   children: [
                     Stack(
                       children: [
-                        CircleAvatar(
+                        _buildAccountAvatar(
+                          name: account.fullName,
+                          avatarUrl: account.avatarUrl,
                           radius: 20,
-                          backgroundColor: const Color(
-                            0xFF2D7E6E,
-                          ).withValues(alpha: 0.15),
-                          child: Text(
-                            account.fullName.isNotEmpty
-                                ? account.fullName[0]
-                                : 'U',
-                            style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF2D7E6E),
-                            ),
-                          ),
+                          color: const Color(0xFF2D7E6E),
                         ),
                         Positioned(
                           right: 0,
@@ -1121,19 +1149,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
               child: Stack(
                 alignment: Alignment.bottomRight,
                 children: [
-                  CircleAvatar(
+                  _buildAccountAvatar(
+                    name: user.fullName,
+                    avatarUrl: user.avatarUrl,
                     radius: 36,
-                    backgroundColor: const Color(
-                      0xFF2D7E6E,
-                    ).withValues(alpha: 0.15),
-                    child: Text(
-                      user.fullName.isNotEmpty ? user.fullName[0] : 'U',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D7E6E),
-                      ),
-                    ),
+                    color: const Color(0xFF2D7E6E),
                   ),
                   Container(
                     width: 14,
@@ -2037,21 +2057,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   ),
                   child: Column(
                     children: [
-                      CircleAvatar(
+                      _buildAccountAvatar(
+                        name: account.fullName,
+                        avatarUrl: account.avatarUrl,
                         radius: 50,
-                        backgroundColor: const Color(
-                          0xFF2D7E6E,
-                        ).withOpacity(0.1),
-                        child: Text(
-                          account.fullName.isNotEmpty
-                              ? account.fullName[0]
-                              : 'U',
-                          style: const TextStyle(
-                            fontSize: 40,
-                            color: Color(0xFF2D7E6E),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        color: const Color(0xFF2D7E6E),
                       ),
                       const SizedBox(height: 20),
                       Text(
@@ -2364,19 +2374,10 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircleAvatar(
+                    _buildAccountAvatar(
+                      name: vm.currentUser?.displayName ?? 'Admin',
+                      avatarUrl: vm.currentUser?.avatarUrl,
                       radius: 15,
-                      backgroundColor: const Color(0xFFE6F4F1),
-                      child: Text(
-                        vm.currentUser?.displayName.isNotEmpty == true
-                            ? vm.currentUser!.displayName[0].toUpperCase()
-                            : 'A',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
                     ),
                     const SizedBox(width: 8),
                     Column(
@@ -2508,7 +2509,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
   void _handleAdminUserMenuAction(_AdminUserMenuAction action) {
     switch (action) {
       case _AdminUserMenuAction.changePassword:
-        setState(() => _showChangePassword = true);
+        setState(() {
+          _showChangePassword = true;
+        });
         break;
       case _AdminUserMenuAction.logout:
         context.read<AuthViewModel>().logout();
@@ -2527,7 +2530,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
           elevation: 12,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           constraints: const BoxConstraints.tightFor(width: 380),
-          onOpened: () => vm.loadUnreadNotifications(_token),
+          onOpened: () => vm.loadNotifications(_token),
           itemBuilder: (context) => [
             PopupMenuItem<void>(
               enabled: false,
@@ -3625,8 +3628,14 @@ class _AdminNotificationDropdown extends StatelessWidget {
                       iconSize: 18,
                       onPressed: vm.isLoading
                           ? null
-                          : () => vm.loadUnreadNotifications(token),
+                          : () => vm.loadNotifications(token),
                       icon: const Icon(Icons.refresh_outlined),
+                    ),
+                    TextButton(
+                      onPressed: vm.unreadCount == 0
+                          ? null
+                          : () => vm.markAllAsRead(token),
+                      child: const Text('Đã đọc tất cả'),
                     ),
                   ],
                 ),
@@ -3665,7 +3674,7 @@ class _AdminNotificationBody extends StatelessWidget {
     if (vm.notifications.isEmpty) {
       return const _AdminNotificationEmpty(
         icon: Icons.notifications_none_outlined,
-        message: 'Chưa có thông báo mới.',
+        message: 'Chưa có thông báo.',
       );
     }
 
@@ -3683,7 +3692,7 @@ class _AdminNotificationBody extends StatelessWidget {
         final notification = vm.visibleNotifications[index];
         return _AdminNotificationTile(
           notification: notification,
-          onTap: notification.id <= 0
+          onTap: notification.id <= 0 || notification.isRead
               ? null
               : () => vm.markAsRead(id: notification.id, token: token),
         );
@@ -3703,9 +3712,11 @@ class _AdminNotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isUnread = !notification.isRead;
     return InkWell(
       onTap: onTap,
-      child: Padding(
+      child: Container(
+        color: isUnread ? const Color(0xFFF0F7FF) : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3734,9 +3745,9 @@ class _AdminNotificationTile extends StatelessWidget {
                         : notification.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: isUnread ? FontWeight.w800 : FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -3745,14 +3756,31 @@ class _AdminNotificationTile extends StatelessWidget {
                     notification.message,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       height: 1.35,
-                      color: AppColors.textSecondary,
+                      color: isUnread
+                          ? AppColors.textSecondary
+                          : const Color(0xFF94A3B8),
                     ),
                   ),
                 ],
               ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 8,
+              child: isUnread
+                  ? Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE53E3E),
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  : null,
             ),
           ],
         ),

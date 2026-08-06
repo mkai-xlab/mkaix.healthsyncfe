@@ -30,21 +30,9 @@ flutter run --dart-define=API_BASE_URL=http://localhost:8080/api/v1
 flutter build web --release --dart-define=API_BASE_URL=http://localhost:8080/api/v1
 ```
 
-For deployments, keep the environment file outside the repository at
-`../env/fe.env` (for example, `~/healthsync/env/fe.env` beside the frontend
-checkout) and build with:
-
-```dotenv
-API_BASE_URL=https://api.example.com/api/v1
-```
-
-```bash
-flutter build web --release --dart-define-from-file=../env/fe.env
-```
-
-The development deployment overrides `API_BASE_URL` with
-`http://${{ secrets.EC2_PUBLIC_IP }}:8000/api/v1`; production uses
-`http://${{ secrets.VIETTEL_PUBLIC_IP }}:8000/api/v1`.
+Deployments pass the API URL directly from GitHub Actions secrets. Development
+uses `EC2_PUBLIC_IP`, while production uses `VIETTEL_PUBLIC_IP`; no frontend
+environment file is required on either server.
 
 Access values in Dart with:
 

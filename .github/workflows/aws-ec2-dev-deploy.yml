@@ -39,9 +39,5 @@ jobs:
             cd ~/healthsync/mkaix.healthsyncfe/
             git checkout dev
             git pull --ff-only origin dev
-            test -f ../env/fe.env
-            grep -Eq '^API_BASE_URL=https?://' ../env/fe.env
-            flutter build web --release \
-              --dart-define-from-file=../env/fe.env \
-              --dart-define=API_BASE_URL=http://${{ secrets.EC2_PUBLIC_IP }}:8000/api/v1
+            flutter build web --release --dart-define=API_BASE_URL=http://${{ secrets.EC2_PUBLIC_IP }}:8000/api/v1
             sudo systemctl reload nginx

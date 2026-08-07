@@ -7,6 +7,7 @@ import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
+import '../../widgets/pagination_bar.dart';
 
 class PatientDetailPage extends StatefulWidget {
   final PatientEntity patient;
@@ -113,6 +114,32 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
                     ],
                   ),
                 ),
+              ),
+              PaginationBar(
+                currentPage: vm.currentPage,
+                totalPages: vm.totalPages,
+                totalElements: vm.totalElements,
+                pageSize: vm.pageSize,
+                isLoading: vm.isLoading,
+                itemLabel: 'ca khám',
+                onPageChanged: (page) {
+                  final token =
+                      context.read<AuthViewModel>().currentUser?.token ?? '';
+                  vm.goToPatientPage(
+                    patientId: _patientDetailId,
+                    token: token,
+                    page: page,
+                  );
+                },
+                onPageSizeChanged: (size) {
+                  final token =
+                      context.read<AuthViewModel>().currentUser?.token ?? '';
+                  vm.changePatientPageSize(
+                    patientId: _patientDetailId,
+                    token: token,
+                    size: size,
+                  );
+                },
               ),
             ],
           );

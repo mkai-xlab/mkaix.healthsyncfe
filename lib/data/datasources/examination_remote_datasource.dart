@@ -49,6 +49,13 @@ abstract class ExaminationRemoteDataSource {
     required String token,
   });
 
+  Future<ExaminationPageEntity> getPatientExaminationsPage({
+    required String patientId,
+    required String token,
+    int page = 0,
+    int size = 10,
+  });
+
   Future<ExaminationEntity> getExaminationById({
     required int examinationId,
     required String token,
@@ -603,14 +610,27 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     required String patientId,
     required String token,
   }) async {
-    final page = await _getExaminationsPage(
-      endpoint: ApiConstants.examinationsByPatientEndpoint(patientId),
+    final page = await getPatientExaminationsPage(
+      patientId: patientId,
       token: token,
-      page: 0,
-      size: 10,
-      errorMessage: 'Khong the tai danh sach ca kham cua benh nhan',
     );
     return page.content;
+  }
+
+  @override
+  Future<ExaminationPageEntity> getPatientExaminationsPage({
+    required String patientId,
+    required String token,
+    int page = 0,
+    int size = 10,
+  }) async {
+    return _getExaminationsPage(
+      endpoint: ApiConstants.examinationsByPatientEndpoint(patientId),
+      token: token,
+      page: page,
+      size: size,
+      errorMessage: 'Khong the tai danh sach ca kham cua benh nhan',
+    );
   }
 
   String _httpErrorMessage(int statusCode, String fallbackMessage) {

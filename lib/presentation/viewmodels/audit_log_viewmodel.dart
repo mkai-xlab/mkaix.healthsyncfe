@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/datasources/audit_log_remote_datasource.dart';
 import '../../domain/entities/audit_log_entity.dart';
+import '../../core/utils/error_message_utils.dart';
 
 class AuditLogViewModel extends ChangeNotifier {
   final AuditLogRemoteDataSource remoteDataSource;
@@ -58,7 +59,7 @@ class AuditLogViewModel extends ChangeNotifier {
         _selectedLog = _logs.isEmpty ? null : _logs.first;
       }
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       _logs = [];
       _selectedLog = null;
     } finally {

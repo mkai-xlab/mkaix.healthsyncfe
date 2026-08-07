@@ -321,6 +321,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     return Form(
       key: _formKey,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -379,12 +380,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           const SizedBox(height: 28),
 
           // Email field
-          const Text(
-            'Địa chỉ Email',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF2D3748),
+          RichText(
+            text: const TextSpan(
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF2D3748),
+              ),
+              children: [
+                TextSpan(text: 'Địa chỉ Email'),
+                TextSpan(
+                  text: ' *',
+                  style: TextStyle(color: Color(0xFFE53E3E)),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 6),

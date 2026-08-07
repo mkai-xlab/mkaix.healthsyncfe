@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:fe/core/services/toast_service.dart';
@@ -346,7 +347,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 children: [
                   _buildNavItem(0, 'Trang chủ', Icons.home_outlined),
-                  _buildNavItem(1, 'Quản lý người dùng', Icons.people_outline),
+                  _buildNavItem(
+                    1,
+                    'Quản lA� người dA�ng',
+                    Icons.people_outline,
+                  ),
                   _buildNavItem(
                     2,
                     'Quản lý phân quyền',
@@ -680,7 +685,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
         ),
         const SizedBox(width: 10),
         _buildUMStatCard(
-          label: 'KỸ THUẬT VIÊN',
+          label: 'KỸ THUẬT VIA?N',
           value: ktv.toString(),
           sub: 'Hỗ trợ CDHA',
         ),
@@ -805,9 +810,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: const [
-          Expanded(flex: 5, child: Text('NGƯỜI DÙNG', style: style)),
-          Expanded(flex: 3, child: Text('TÀI KHOẢN', style: style)),
           Expanded(flex: 2, child: Text('VAI TRÒ', style: style)),
+          Expanded(flex: 3, child: Text('TA�I KHOẢN', style: style)),
+          Expanded(flex: 2, child: Text('VAI TRA�', style: style)),
           Expanded(flex: 2, child: Text('KHOA', style: style)),
           Expanded(flex: 3, child: Text('TRẠNG THÁI', style: style)),
           SizedBox(width: 32),
@@ -1393,275 +1398,296 @@ class _AdminHomepageState extends State<AdminHomepage> {
     bool isSubmitting = false;
     String? submitError;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-            insetPadding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 24,
-            ),
-            titlePadding: EdgeInsets.zero,
-            contentPadding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
-            actionsPadding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Container(
-              padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
-              decoration: const BoxDecoration(
-                color: Color(0xFFE6F4F1),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: const Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.white,
-                    child: Icon(
-                      Icons.person_add_outlined,
-                      color: Color(0xFF2D7E6E),
+    showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                insetPadding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
+                titlePadding: EdgeInsets.zero,
+                contentPadding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
+                actionsPadding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Container(
+                  padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE6F4F1),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
                     ),
                   ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Thêm bác sĩ mới',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A2B3C),
-                          ),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Tạo hồ sơ bác sĩ theo API mới',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF4F6F68),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            content: SizedBox(
-              width: 500,
-              child: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: const Row(
                     children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF7FBFA),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFD8E7E3)),
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.white,
+                        child: Icon(
+                          Icons.person_add_outlined,
+                          color: Color(0xFF2D7E6E),
                         ),
-                        child: const Row(
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Color(0xFF2D7E6E),
-                              size: 18,
+                            Text(
+                              'ThA�m bA�c sĩ mới',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1A2B3C),
+                              ),
                             ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'API mới tạo bác sĩ qua /doctors với họ tên, email và số điện thoại.',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  height: 1.4,
-                                  color: Color(0xFF4F6F68),
-                                ),
+                            SizedBox(height: 3),
+                            Text(
+                              'Tạo hồ sơ bA�c sĩ theo API mới',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF4F6F68),
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      _buildFieldLabel('Họ và tên *'),
-                      TextFormField(
-                        controller: nameController,
-                        decoration: _buildInputDecoration(
-                          'Nhập họ và tên',
-                          Icons.person_outline,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Vui lòng nhập họ tên'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Email *'),
-                      TextFormField(
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: _buildInputDecoration(
-                          'example@email.com',
-                          Icons.email_outlined,
-                        ),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'Vui lòng nhập email';
-                          }
-                          if (!RegExp(
-                            r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
-                          ).hasMatch(v.trim())) {
-                            return 'Email không hợp lệ';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Số điện thoại *'),
-                      TextFormField(
-                        controller: phoneController,
-                        keyboardType: TextInputType.phone,
-                        decoration: _buildInputDecoration(
-                          'Số điện thoại',
-                          Icons.phone_outlined,
-                        ),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'Vui lòng nhập số điện thoại';
-                          }
-                          if (!RegExp(r'^\d+$').hasMatch(v.trim())) {
-                            return 'Số điện thoại chỉ chứa chữ số';
-                          }
-                          return null;
-                        },
-                      ),
-                      if (submitError != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF0F0),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: const Color(0xFFFFCDD2),
-                              ),
-                            ),
-                            child: Text(
-                              submitError!,
-                              style: const TextStyle(
-                                color: Color(0xFFE53E3E),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () => Navigator.pop(dialogContext),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF2D7E6E),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text(
-                  'Hủy',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () async {
-                        if (formKey.currentState!.validate()) {
-                          setDialogState(() {
-                            isSubmitting = true;
-                            submitError = null;
-                          });
-                          final success = await viewModel.createDoctorSilently(
-                            doctorData: {
-                              'fullName': nameController.text.trim(),
-                              'email': emailController.text.trim(),
-                              'phone': phoneController.text.trim(),
+                content: SizedBox(
+                  width: 500,
+                  child: Form(
+                    key: formKey,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7FBFA),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(0xFFD8E7E3),
+                              ),
+                            ),
+                            child: const Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Color(0xFF2D7E6E),
+                                  size: 18,
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'API mới tạo bA�c sĩ qua /doctors với họ tA�n, email vA� số điện thoại.',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      height: 1.4,
+                                      color: Color(0xFF4F6F68),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _buildFieldLabel('Họ vA� tA�n *'),
+                          TextFormField(
+                            controller: nameController,
+                            decoration: _buildInputDecoration(
+                              'Nhập họ vA� tA�n',
+                              Icons.person_outline,
+                            ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Vui lA�ng nhập họ tA�n'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildFieldLabel('Email *'),
+                          TextFormField(
+                            controller: emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: _buildInputDecoration(
+                              'example@email.com',
+                              Icons.email_outlined,
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Vui lA�ng nhập email';
+                              }
+                              if (!RegExp(
+                                r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
+                              ).hasMatch(v.trim())) {
+                                return 'Email khA�ng hợp lệ';
+                              }
+                              return null;
                             },
-                            token: token,
-                          );
-                          if (!mounted ||
-                              !context.mounted ||
-                              !dialogContext.mounted) {
-                            return;
-                          }
-                          if (success) {
-                            Navigator.pop(dialogContext);
-                            await viewModel.fetchFirstPage(token);
-                            AppToast.showSuccess('Tạo bác sĩ thành công');
-                          }
-                          if (!success && context.mounted) {
-                            setDialogState(() {
-                              isSubmitting = false;
-                              submitError =
-                                  viewModel.errorMessage ??
-                                  'Không thể tạo bác sĩ';
-                            });
-                          }
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2D7E6E),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 13,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildFieldLabel('Số điện thoại *'),
+                          TextFormField(
+                            controller: phoneController,
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(10),
+                            ],
+                            decoration: _buildInputDecoration(
+                              'Số điện thoại',
+                              Icons.phone_outlined,
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Vui lA�ng nhập số điện thoại';
+                              }
+                              if (!RegExp(r'^\d+$').hasMatch(v.trim())) {
+                                return 'Số điện thoại chỉ chứa chữ số';
+                              }
+                              if (v.trim().length != 10) {
+                                return 'Số điện thoại phải cA� đA�ng 10 chữ số';
+                              }
+                              return null;
+                            },
+                          ),
+                          if (submitError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF0F0),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xFFFFCDD2),
+                                  ),
+                                ),
+                                child: Text(
+                                  submitError!,
+                                  style: const TextStyle(
+                                    color: Color(0xFFE53E3E),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                child: isSubmitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Xác nhận tạo'),
-              ),
-            ],
-          );
-        },
-      ),
-    ).whenComplete(() {
-      nameController.dispose();
-      emailController.dispose();
-      phoneController.dispose();
-    });
+                actions: [
+                  TextButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => Navigator.pop(dialogContext),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF2D7E6E),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Hủy',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            if (formKey.currentState!.validate()) {
+                              setDialogState(() {
+                                isSubmitting = true;
+                                submitError = null;
+                              });
+                              final success = await viewModel
+                                  .createDoctorSilently(
+                                    doctorData: {
+                                      'fullName': nameController.text.trim(),
+                                      'email': emailController.text.trim(),
+                                      'phone': phoneController.text.trim(),
+                                    },
+                                    token: token,
+                                  );
+                              if (!mounted ||
+                                  !context.mounted ||
+                                  !dialogContext.mounted) {
+                                return;
+                              }
+                              if (success) {
+                                Navigator.pop(dialogContext, true);
+                                return;
+                              }
+                              if (!success && context.mounted) {
+                                setDialogState(() {
+                                  isSubmitting = false;
+                                  submitError =
+                                      viewModel.errorMessage ??
+                                      'KhA�ng thể tạo bA�c sĩ';
+                                });
+                              }
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D7E6E),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 13,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('XA�c nhận tạo'),
+                  ),
+                ],
+              );
+            },
+          ),
+        )
+        .whenComplete(() {
+          nameController.dispose();
+          emailController.dispose();
+          phoneController.dispose();
+        })
+        .then((created) async {
+          if (created == true && mounted && pageContext.mounted) {
+            await viewModel.fetchFirstPage(token);
+            if (mounted && pageContext.mounted) {
+              AppToast.showSuccess('Tạo bA�c sĩ thA�nh cA�ng');
+            }
+          }
+        });
   }
 
   void _showCreateAccountDialog(BuildContext context) {
@@ -1675,9 +1701,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
     // Danh sách role tạm thời — khi có API roles thì thay bằng dữ liệu thực
     final roles = [
-      {'id': 1, 'name': 'Bác sĩ'},
-      {'id': 2, 'name': 'Kỹ thuật viên'},
       {'id': 3, 'name': 'Quản trị viên'},
+      {'id': 2, 'name': 'Kỹ thuật viA�n'},
+      {'id': 3, 'name': 'Quản trị viA�n'},
     ];
 
     showDialog(
@@ -1715,6 +1741,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 width: 480,
                 child: Form(
                   key: formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -1800,6 +1827,10 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         TextFormField(
                           controller: phoneController,
                           keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
                           decoration: _buildInputDecoration(
                             'Số điện thoại',
                             Icons.phone_outlined,
@@ -1809,6 +1840,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
                                 v.isNotEmpty &&
                                 !RegExp(r'^\d+$').hasMatch(v)) {
                               return 'Số điện thoại chỉ chứa chữ số';
+                            }
+                            if (v != null &&
+                                v.trim().isNotEmpty &&
+                                v.trim().length != 10) {
+                              return 'Số điện thoại phải cA� đA�ng 10 chữ số';
                             }
                             return null;
                           },
@@ -1902,7 +1938,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             );
                             if (success && context.mounted) {
                               Navigator.pop(context);
-                              AppToast.showSuccess('Tạo tài khoản thành công');
+                              AppToast.showSuccess(
+                                'Tạo tA�i khoản thA�nh cA�ng',
+                              );
                             }
                           }
                         },
@@ -1938,14 +1976,31 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildFieldLabel(String label) {
+    final isRequired = label.trimRight().endsWith('*');
+    final cleanLabel = isRequired
+        ? label
+              .trimRight()
+              .substring(0, label.trimRight().length - 1)
+              .trimRight()
+        : label;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+          children: [
+            TextSpan(text: cleanLabel),
+            if (isRequired)
+              const TextSpan(
+                text: ' *',
+                style: TextStyle(color: Color(0xFFE53E3E)),
+              ),
+          ],
         ),
       ),
     );
@@ -1987,14 +2042,18 @@ class _AdminHomepageState extends State<AdminHomepage> {
     DoctorAccountEntity account,
   ) {
     final bool isActive = account.status == 'ACTIVE';
-    final String actionText = isActive ? 'Khóa' : 'Kích hoạt';
+    if (isActive) {
+      _showDeactivateDoctorDialog(context, account);
+      return;
+    }
+    const actionText = 'Kich hoat';
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('$actionText tài khoản'),
+        title: Text('$actionText tai khoan'),
         content: Text(
-          'Bạn có chắc chắn muốn $actionText tài khoản của bác sĩ ${account.fullName} không?',
+          'Ban co chac chan muon $actionText tai khoan cua bac si ${account.fullName} khong?',
         ),
         actions: [
           TextButton(
@@ -2012,9 +2071,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
               if (context.mounted) {
                 Navigator.pop(context);
                 if (success) {
-                  AppToast.showSuccess('${actionText} tài khoản thành công!');
+                  AppToast.showSuccess('$actionText tai khoan thanh cong!');
                 } else {
-                  AppToast.showError('Có lỗi xảy ra, vui lòng thử lại.');
+                  AppToast.showError('Co loi xay ra, vui long thu lai.');
                 }
               }
             },
@@ -2022,11 +2081,93 @@ class _AdminHomepageState extends State<AdminHomepage> {
               backgroundColor: isActive ? Colors.red : Colors.green,
               foregroundColor: Colors.white,
             ),
-            child: Text('Xác nhận $actionText'),
+            child: Text('Xac nhan $actionText'),
           ),
         ],
       ),
     );
+  }
+
+  void _showDeactivateDoctorDialog(
+    BuildContext context,
+    DoctorAccountEntity account,
+  ) {
+    final reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Khoa tai khoan'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Ban co chac chan muon khoa tai khoan cua bac si ${account.fullName} khong?',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: reasonController,
+                minLines: 3,
+                maxLines: 5,
+                textInputAction: TextInputAction.newline,
+                decoration: _buildInputDecoration(
+                  'Nhap ly do vo hieu hoa',
+                  Icons.notes_outlined,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Vui long nhap ly do vo hieu hoa';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Huy', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+
+              final token =
+                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              final success = await context
+                  .read<AdminAccountViewModel>()
+                  .toggleDoctorStatus(
+                    account.id,
+                    false,
+                    token,
+                    reason: reasonController.text.trim(),
+                  );
+
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
+              if (context.mounted) {
+                if (success) {
+                  AppToast.showSuccess('Khoa tai khoan thanh cong!');
+                } else {
+                  AppToast.showError('Co loi xay ra, vui long thu lai.');
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xac nhan Khoa'),
+          ),
+        ],
+      ),
+    ).whenComplete(reasonController.dispose);
   }
 
   void _showAccountDetailDialog(
@@ -3180,8 +3321,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
         'time': '14:25:31, 24/05/2024',
         'user': 'Bác sĩ Mai Tiến',
         'avatar': 'M',
-        'action': 'Chạy phân tích AI - Case #92110',
         'status': 'THÀNH CÔNG',
+        'status': 'THA�NH CA�NG',
       },
       {
         'time': '14:18:05, 24/05/2024',
@@ -3194,8 +3335,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
         'time': '13:55:12, 24/05/2024',
         'user': 'Hệ thống',
         'avatar': 'S',
-        'action': 'Backup dữ liệu tự động hàng ngày',
         'status': 'CẢNH BÁO',
+        'status': 'CẢNH BA�O',
       },
     ];
 

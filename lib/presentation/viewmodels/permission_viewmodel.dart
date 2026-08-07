@@ -4,6 +4,7 @@ import '../../data/datasources/permission_remote_datasource.dart';
 import '../../data/models/permission_catalog_model.dart';
 import '../../data/models/permission_model.dart';
 import '../../data/models/role_model.dart';
+import '../../core/utils/error_message_utils.dart';
 
 class PermissionViewModel extends ChangeNotifier {
   final PermissionRemoteDataSource dataSource;
@@ -66,7 +67,9 @@ class PermissionViewModel extends ChangeNotifier {
   }
 
   List<PermissionModel> permissionsForFeature(String featureId) {
-    final permissions = _permissions.where((p) => p.featureId == featureId).toList();
+    final permissions = _permissions
+        .where((p) => p.featureId == featureId)
+        .toList();
     return _orderPermissionsByHierarchy(permissions);
   }
 
@@ -95,7 +98,7 @@ class PermissionViewModel extends ChangeNotifier {
         _saved[role.id] = Set<String>.from(perms);
       }
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -167,6 +170,132 @@ class PermissionViewModel extends ChangeNotifier {
     });
   }
 
+  Future<bool> movePermissionToFeature({
+    required PermissionModel permission,
+    required String targetFeatureId,
+  }) async {
+    _isSaving = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await dataSource.updatePermission(
+        id: permission.id,
+        code: permission.code,
+        name: permission.name,
+        featureId: targetFeatureId,
+        presentation: permission.presentation.isEmpty
+            ? null
+            : permission.presentation,
+        priority: permission.priority,
+        requiresPermissionId: permission.parentId,
+      );
+
+      final targetFeature = featureById(targetFeatureId);
+      _permissions = _permissions.map((item) {
+        if (item.id != permission.id) return item;
+        return item.copyWith(
+          featureId: targetFeatureId,
+          resource: targetFeature?.name,
+        );
+      }).toList();
+      _successMessage = 'Đã chuyển quyền sang tính năng mới';
+      return true;
+    } catch (e) {
+      _errorMessage = userFriendlyErrorMessage(e);
+      return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> movePermissionToParent({
+    required PermissionModel permission,
+    required PermissionModel targetParent,
+  }) async {
+    _isSaving = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      await dataSource.updatePermission(
+        id: permission.id,
+        code: permission.code,
+        name: permission.name,
+        featureId: permission.featureId ?? targetParent.featureId ?? '',
+        presentation: permission.presentation.isEmpty
+            ? null
+            : permission.presentation,
+        priority: permission.priority,
+        requiresPermissionId: targetParent.id,
+      );
+
+      _permissions = _permissions.map((item) {
+        if (item.id != permission.id) return item;
+        return item.copyWith(parentId: targetParent.id);
+      }).toList();
+      _successMessage = 'Đã chuyển quyền sang quyền cha mới';
+      return true;
+    } catch (e) {
+      _errorMessage = userFriendlyErrorMessage(e);
+      return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> updateParentPermissionPriorities(
+    List<PermissionModel> orderedParents,
+  ) async {
+    _isSaving = true;
+    _errorMessage = null;
+    _successMessage = null;
+    notifyListeners();
+
+    try {
+      final updates = <Future>[];
+      for (var index = 0; index < orderedParents.length; index++) {
+        final permission = orderedParents[index];
+        updates.add(
+          dataSource.updatePermission(
+            id: permission.id,
+            code: permission.code,
+            name: permission.name,
+            featureId: permission.featureId ?? '',
+            presentation: permission.presentation.isEmpty
+                ? null
+                : permission.presentation,
+            priority: index + 1,
+            requiresPermissionId: permission.parentId,
+          ),
+        );
+      }
+      await Future.wait(updates);
+
+      final priorityById = <String, int>{
+        for (var index = 0; index < orderedParents.length; index++)
+          orderedParents[index].id: index + 1,
+      };
+      _permissions = _permissions.map((permission) {
+        final priority = priorityById[permission.id];
+        if (priority == null) return permission;
+        return permission.copyWith(priority: priority);
+      }).toList();
+      _successMessage = 'Đã cập nhật thứ tự quyền cha';
+      return true;
+    } catch (e) {
+      _errorMessage = userFriendlyErrorMessage(e);
+      return false;
+    } finally {
+      _isSaving = false;
+      notifyListeners();
+    }
+  }
+
   void togglePermission(String roleId, String permissionId) {
     final current = _draft[roleId] ?? <String>{};
     final isEnabling = !current.contains(permissionId);
@@ -209,7 +338,7 @@ class PermissionViewModel extends ChangeNotifier {
       await Future.wait(futures);
       _successMessage = 'Đã lưu thay đổi phân quyền thành công';
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isSaving = false;
       notifyListeners();
@@ -242,7 +371,7 @@ class PermissionViewModel extends ChangeNotifier {
       _successMessage = 'Đã cập nhật dữ liệu thành công';
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       return false;
     } finally {
       _isSaving = false;
@@ -304,13 +433,10 @@ class PermissionViewModel extends ChangeNotifier {
 
     visitChildren('');
 
-    final remainingRoots = permissions
-        .where((permission) {
-          final parentId = permission.parentId?.trim() ?? '';
-          return parentId.isNotEmpty && !allById.containsKey(parentId);
-        })
-        .toList()
-      ..sort(comparePermission);
+    final remainingRoots = permissions.where((permission) {
+      final parentId = permission.parentId?.trim() ?? '';
+      return parentId.isNotEmpty && !allById.containsKey(parentId);
+    }).toList()..sort(comparePermission);
 
     for (final root in remainingRoots) {
       if (!visited.add(root.id)) continue;
@@ -318,10 +444,11 @@ class PermissionViewModel extends ChangeNotifier {
       visitChildren(root.id);
     }
 
-    final leftovers = permissions
-        .where((permission) => !visited.contains(permission.id))
-        .toList()
-      ..sort(comparePermission);
+    final leftovers =
+        permissions
+            .where((permission) => !visited.contains(permission.id))
+            .toList()
+          ..sort(comparePermission);
 
     for (final permission in leftovers) {
       visited.add(permission.id);

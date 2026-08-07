@@ -1,7 +1,7 @@
 class ApiConstants {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'localhost:8000/api/v1',
+    defaultValue: 'http://47.131.63.48:8000/api/v1',
   );
   static const String loginEndpoint = '$baseUrl/auth/login';
   static const String logoutEndpoint = '$baseUrl/auth/logout';
@@ -58,8 +58,12 @@ class ApiConstants {
       '$examinationsEndpoint/my-total-unverified';
   static const String myTotalSevereExaminationsEndpoint =
       '$examinationsEndpoint/my-total-severe';
+  static const String myTotalLast7DaysExaminationsEndpoint =
+      '$examinationsEndpoint/my-total-last-7-days';
   static const String userAccountsEndpoint = '$baseUrl/users';
   static const String staffUsersEndpoint = '$baseUrl/users/staff';
+  static const String doctorCountEndpoint = '$baseUrl/users/count/doctors';
+  static const String headCountEndpoint = '$baseUrl/users/count/heads';
 
   // doctors endpoints
   static const String doctorsEndpoint = '$baseUrl/doctors';
@@ -87,6 +91,7 @@ class ApiConstants {
   static const String aiPredictBatchEndpoint = '$baseUrl/ai/predict-batch';
   static String aiHeatmapEndpoint(int aiResultId) =>
       '$baseUrl/ai/heatmap/$aiResultId';
+  static String aiImageEndpoint(int imageId) => '$baseUrl/ai/image/$imageId';
   static String aiResultConfirmEndpoint(int aiResultId) =>
       '$baseUrl/ai/results/$aiResultId/confirm';
   static String aiResultKlGradeEndpoint(int aiResultId) =>
@@ -114,6 +119,7 @@ class ApiConstants {
       '$baseUrl/dicom/instances/$id/image';
   static String dicomInstanceRawEndpoint(int id) =>
       '$baseUrl/dicom/instances/$id/raw';
+  static const String avatarUploadEndpoint = '$baseUrl/files/upload-avatar';
 
   // Audit endpoints
   static const String auditLogsEndpoint = '$baseUrl/audit-logs';

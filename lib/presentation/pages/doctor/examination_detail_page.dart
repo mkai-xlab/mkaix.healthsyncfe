@@ -16,6 +16,7 @@ import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
 import 'patient_detail_page.dart';
+import '../../../core/utils/error_message_utils.dart';
 
 enum _ImageMode { original, annotated, roi, gradcam }
 
@@ -941,7 +942,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       AppToast.showError(message);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(e.toString().replaceAll('Exception: ', ''));
+      AppToast.showError(userFriendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isReviewSubmitting = false);
     }
@@ -1407,7 +1408,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     } catch (e) {
       if (!mounted) return;
       _showReportMessage(
-        'Không thể tạo báo cáo: ${e.toString().replaceAll('Exception: ', '')}',
+        'Không thể tạo báo cáo: ${userFriendlyErrorMessage(e)}',
         isError: true,
       );
     } finally {
@@ -1519,7 +1520,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     } catch (e) {
       if (!mounted) return;
       _showReportMessage(
-        '$failurePrefix: ${e.toString().replaceAll('Exception: ', '')}',
+        '$failurePrefix: ${userFriendlyErrorMessage(e)}',
         isError: true,
       );
     } finally {

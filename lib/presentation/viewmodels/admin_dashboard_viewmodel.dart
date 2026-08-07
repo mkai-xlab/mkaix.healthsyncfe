@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/datasources/admin_dashboard_remote_datasource.dart';
 import '../../domain/entities/admin_dashboard_stats_entity.dart';
+import '../../core/utils/error_message_utils.dart';
 
 class AdminDashboardViewModel extends ChangeNotifier {
   final AdminDashboardRemoteDataSource remoteDataSource;
@@ -27,7 +28,7 @@ class AdminDashboardViewModel extends ChangeNotifier {
       _stats = await remoteDataSource.getStats(token: token);
       _errorMessage = _stats.warningMessage;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       _stats = AdminDashboardStatsEntity.empty;
     } finally {
       _isLoading = false;

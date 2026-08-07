@@ -28,7 +28,7 @@ abstract class DicomRemoteDataSource {
   });
 
   Future<DicomUploadSubmission> uploadZipBatch({
-    required DicomUploadFile file,
+    required List<DicomUploadFile> files,
     required String token,
   });
 
@@ -105,22 +105,19 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
 
   @override
   Future<DicomUploadSubmission> uploadZipBatch({
-    required DicomUploadFile file,
+    required List<DicomUploadFile> files,
     required String token,
   }) async {
-    final request =
-        http.MultipartRequest(
-            'POST',
-            Uri.parse(ApiConstants.dicomUploadZipBatchEndpoint),
-          )
-          ..headers.addAll(_headers(token))
-          ..files.add(
-            http.MultipartFile.fromBytes(
-              'file',
-              file.bytes,
-              filename: file.name,
-            ),
-          );
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse(ApiConstants.dicomUploadZipBatchEndpoint),
+    )..headers.addAll(_headers(token));
+
+    for (final file in files) {
+      request.files.add(
+        http.MultipartFile.fromBytes('files', file.bytes, filename: file.name),
+      );
+    }
 
     final response = await _send(request);
     return _parseBatchSubmission(response);

@@ -6,6 +6,11 @@ import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart'
+    show
+        FilteringTextInputFormatter,
+        LengthLimitingTextInputFormatter,
+        TextInputFormatter;
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -245,6 +250,7 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
       ),
       child: Form(
         key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -276,7 +282,7 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
                 final fields = <Widget>[
                   _buildTextField(
                     controller: _fullNameController,
-                    label: 'Họ và tên',
+                    label: 'Họ và tên *',
                     validator: (value) {
                       if ((value ?? '').trim().isEmpty) {
                         return 'Vui lòng nhập họ và tên';
@@ -301,6 +307,18 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
                     controller: _phoneController,
                     label: 'Số điện thoại',
                     keyboardType: TextInputType.phone,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(10),
+                    ],
+                    validator: (value) {
+                      final text = (value ?? '').trim();
+                      if (text.isEmpty) return null;
+                      if (text.length != 10) {
+                        return 'Số điện thoại phải có đúng 10 chữ số';
+                      }
+                      return null;
+                    },
                   ),
                 ];
                 return Wrap(
@@ -355,33 +373,51 @@ class _EditableProfileCardState extends State<_EditableProfileCard> {
     required TextEditingController controller,
     required String label,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
     int minLines = 1,
     int maxLines = 1,
     String? Function(String?)? validator,
   }) {
     final isMultiLine = maxLines > 1;
+    final isRequired = label.trimRight().endsWith('*');
+    final cleanLabel = isRequired
+        ? label
+              .trimRight()
+              .substring(0, label.trimRight().length - 1)
+              .trimRight()
+        : label;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w600,
-            color: AppColors.textPrimary,
+        RichText(
+          text: TextSpan(
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textPrimary,
+            ),
+            children: [
+              TextSpan(text: cleanLabel),
+              if (isRequired)
+                const TextSpan(
+                  text: ' *',
+                  style: TextStyle(color: Color(0xFFE53E3E)),
+                ),
+            ],
           ),
         ),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
           keyboardType: keyboardType,
+          inputFormatters: inputFormatters,
           minLines: minLines,
           maxLines: maxLines,
           validator: validator,
           style: const TextStyle(fontSize: 15),
           decoration: InputDecoration(
-            hintText: label,
+            hintText: cleanLabel,
             hintStyle: const TextStyle(fontSize: 15, color: Color(0xFF9AA6B2)),
             filled: true,
             fillColor: const Color(0xFFF8FAFC),

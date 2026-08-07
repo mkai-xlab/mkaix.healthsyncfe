@@ -41,6 +41,13 @@ abstract class ExaminationRepository {
     required String token,
   });
 
+  Future<ExaminationPageEntity> getPatientExaminationsPage({
+    required String patientId,
+    required String token,
+    int page = 0,
+    int size = 10,
+  });
+
   Future<ExaminationEntity> getExaminationById({
     required int examinationId,
     required String token,

@@ -78,6 +78,20 @@ class GetPatientExaminationsUseCase {
     );
   }
 
+  Future<ExaminationPageEntity> executePatientPage({
+    required String patientId,
+    required String token,
+    int page = 0,
+    int size = 10,
+  }) {
+    return repository.getPatientExaminationsPage(
+      patientId: patientId,
+      token: token,
+      page: page,
+      size: size,
+    );
+  }
+
   Future<ExaminationEntity> executeDetail({
     required int examinationId,
     required String token,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../data/datasources/doctor_profile_remote_datasource.dart';
 import '../../domain/entities/doctor_account_entity.dart';
+import '../../core/utils/error_message_utils.dart';
 
 class DoctorProfileViewModel extends ChangeNotifier {
   final DoctorProfileRemoteDataSource dataSource;
@@ -34,7 +35,7 @@ class DoctorProfileViewModel extends ChangeNotifier {
     try {
       _profile = await dataSource.getProfile(token: token);
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -55,7 +56,7 @@ class DoctorProfileViewModel extends ChangeNotifier {
       _profile = await dataSource.updateProfile(token: token, payload: payload);
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       return false;
     } finally {
       _isUpdating = false;
@@ -82,7 +83,7 @@ class DoctorProfileViewModel extends ChangeNotifier {
       );
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       return false;
     } finally {
       _isUpdating = false;

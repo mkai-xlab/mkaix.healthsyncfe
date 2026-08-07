@@ -22,11 +22,13 @@ class AdminRepositoryImpl implements AdminRepository {
     required int id,
     required bool activate,
     required String token,
+    String? reason,
   }) async {
     return await remoteDataSource.toggleDoctorStatus(
       id: id,
       activate: activate,
       token: token,
+      reason: reason,
     );
   }
 }

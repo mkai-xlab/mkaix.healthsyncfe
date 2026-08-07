@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/dicom_websocket_service.dart';
 import '../../data/datasources/notification_remote_datasource.dart';
 import '../../domain/entities/notification_entity.dart';
+import '../../core/utils/error_message_utils.dart';
 
 class NotificationViewModel extends ChangeNotifier {
   final NotificationRemoteDataSource remoteDataSource;
@@ -47,7 +48,7 @@ class NotificationViewModel extends ChangeNotifier {
     try {
       await webSocketService.connect(token);
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       notifyListeners();
     }
   }
@@ -73,7 +74,7 @@ class NotificationViewModel extends ChangeNotifier {
       _notifications = result;
       _normalizeVisibleCount();
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -108,7 +109,7 @@ class NotificationViewModel extends ChangeNotifier {
         for (final item in _notifications)
           if (item.id == id) previous else item,
       ];
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       notifyListeners();
     }
   }
@@ -126,7 +127,7 @@ class NotificationViewModel extends ChangeNotifier {
       await remoteDataSource.markAllAsRead(token: token);
     } catch (e) {
       _notifications = previous;
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       notifyListeners();
     }
   }

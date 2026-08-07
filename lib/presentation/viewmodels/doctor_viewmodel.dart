@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../domain/entities/patient_entity.dart';
 import '../../domain/usecases/get_all_patients_usecase.dart';
+import '../../core/utils/error_message_utils.dart';
 
 class DoctorViewModel extends ChangeNotifier {
   final GetAllPatientsUseCase getAllPatientsUseCase;
@@ -119,7 +120,7 @@ class DoctorViewModel extends ChangeNotifier {
       _currentPage = result.pageNumber;
       _errorMessage = null;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();

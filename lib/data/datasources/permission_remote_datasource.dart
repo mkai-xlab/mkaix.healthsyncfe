@@ -134,10 +134,12 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
     String? requiresPermissionId,
   }) async {
     final uri = Uri.parse(ApiConstants.permissionsEndpoint);
+    final parsedFeatureId = int.tryParse(featureId) ?? featureId;
     final payload = <String, dynamic>{
       'code': code.trim(),
       'name': name.trim(),
-      'featureId': int.tryParse(featureId) ?? featureId,
+      'featureId': parsedFeatureId,
+      'feature_id': parsedFeatureId,
     };
     final trimmedPresentation = presentation?.trim();
     if (trimmedPresentation?.isNotEmpty ?? false) {
@@ -148,9 +150,11 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
     }
     final trimmedRequiresPermissionId = requiresPermissionId?.trim();
     if (trimmedRequiresPermissionId?.isNotEmpty ?? false) {
-      payload['requiresPermissionId'] =
+      final parsedRequiresPermissionId =
           int.tryParse(trimmedRequiresPermissionId!) ??
           trimmedRequiresPermissionId;
+      payload['requiresPermissionId'] = parsedRequiresPermissionId;
+      payload['parent_id'] = parsedRequiresPermissionId;
     }
 
     final response = await client
@@ -173,10 +177,13 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
     String? requiresPermissionId,
   }) async {
     final uri = Uri.parse(ApiConstants.permissionByIdEndpoint(id));
+    final parsedFeatureId = int.tryParse(featureId) ?? featureId;
     final payload = <String, dynamic>{
+      'id': int.tryParse(id) ?? id,
       'code': code.trim(),
       'name': name.trim(),
-      'featureId': int.tryParse(featureId) ?? featureId,
+      'featureId': parsedFeatureId,
+      'feature_id': parsedFeatureId,
     };
     final trimmedPresentation = presentation?.trim();
     if (trimmedPresentation?.isNotEmpty ?? false) {
@@ -261,6 +268,10 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
     try {
       final decoded = jsonDecode(utf8.decode(bodyBytes));
       if (decoded is Map<String, dynamic>) {
+        final data = decoded['data'];
+        if (data is Map<String, dynamic>) {
+          return PermissionModel.fromJson(data);
+        }
         return PermissionModel.fromJson(decoded);
       }
     } catch (_) {}

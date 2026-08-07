@@ -28,9 +28,11 @@ class PermissionModel {
       name: json['name']?.toString() ?? '',
       resource: json['resource']?.toString() ?? '',
       action: json['action']?.toString() ?? '',
-      featureId: json['featureId']?.toString(),
+      featureId:
+          json['featureId']?.toString() ?? json['feature_id']?.toString(),
       parentId:
           json['parent_id']?.toString() ??
+          json['parentId']?.toString() ??
           json['requiresPermissionId']?.toString(),
       presentation: json['presentation']?.toString() ?? '',
       priority: json['priority'] is int
@@ -50,4 +52,28 @@ class PermissionModel {
     'presentation': presentation,
     'priority': priority,
   };
+
+  PermissionModel copyWith({
+    String? id,
+    String? code,
+    String? name,
+    String? resource,
+    String? action,
+    String? featureId,
+    String? parentId,
+    String? presentation,
+    int? priority,
+  }) {
+    return PermissionModel(
+      id: id ?? this.id,
+      code: code ?? this.code,
+      name: name ?? this.name,
+      resource: resource ?? this.resource,
+      action: action ?? this.action,
+      featureId: featureId ?? this.featureId,
+      parentId: parentId ?? this.parentId,
+      presentation: presentation ?? this.presentation,
+      priority: priority ?? this.priority,
+    );
+  }
 }

@@ -90,6 +90,21 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
   }
 
   @override
+  Future<ExaminationPageEntity> getPatientExaminationsPage({
+    required String patientId,
+    required String token,
+    int page = 0,
+    int size = 10,
+  }) {
+    return remoteDataSource.getPatientExaminationsPage(
+      patientId: patientId,
+      token: token,
+      page: page,
+      size: size,
+    );
+  }
+
+  @override
   Future<ExaminationEntity> getExaminationById({
     required int examinationId,
     required String token,

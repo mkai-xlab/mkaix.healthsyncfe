@@ -4,21 +4,22 @@
 
 - OpenAPI version: `3.1.0`
 - API version: `v1`
-- Base URL: `http://54.254.113.71:8000/api/v1`
+- Base URL: `http://47.131.63.48:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-08-05`
+- Last OpenAPI refresh: `2026-08-07`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
-- OpenAPI is now `3.1.0` / API `v1` and keeps base URL `http://54.254.113.71:8000/api/v1`.
-- The `2026-08-05` spec has no added or removed paths/schemas compared with `2026-08-04`; it confirms the current v1 contract.
+- OpenAPI is now `3.1.0` / API `v1` and uses base URL `http://47.131.63.48:8000/api/v1`.
+- The `2026-08-07` spec confirms the current v1 contract and documents the dashboard/count utility endpoints listed below.
 - Auth is bearer-token based. Login returns `accessToken`, `refreshToken`, `role`, `username`, `fullName`, and a full `permissions` array.
 - First-time login is explicitly modeled as `FirstTimeLoginRequired` with body `{ error: "FIRST_TIME_LOGIN_REQUIRED", message: "..." }`.
 - `GET /examinations/total`, `/total-verified`, `/total-unverified`, and `/total-severe` require query `userId` and optionally accept `isPersonal`.
 - For doctor/current-user views, every endpoint that supports `isPersonal` must send `isPersonal=true`.
 - The current-user dashboard counters remain available as `/examinations/my-total*`, which do not require `userId`.
+- Current-user dashboard also has `GET /examinations/my-total-last-7-days`.
 - Examination status filter enum is `AI_PROCESSING`, `AI_FAILED`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`.
 - Examination responses now include richer clinical/report fields: `studyTime`, `visitTime`, `chiefComplaint`, `clinicalNotes`, `priority`, `finalDiagnosis`, `description`, `patient`, `doctorId`, `images`, `isViewed`, and `maxPredictedGrade`.
 - `ExaminationImageDto` now exposes DICOM-level AI status and error: `aiAnalysisStatus`, `aiErrorMessage`, plus nested `aiResults`.
@@ -27,6 +28,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - New/confirmed image endpoint: `GET /ai/image/{imageId}` for clinical/ROI/annotated images, beside `GET /ai/heatmap/{aiResultId}` and `GET /dicom/instances/{id}/image`.
 - Report generation returns `ReportResponse`: `POST /examinations/{id}/generate-report`; preview/download use examination id via `/reports/{examinationId}/preview|download`.
 - Doctors now support profile editing and avatar upload through `GET|PUT /doctors/profile` and `PUT /doctors/profile/avatar`.
+- Users now expose count helpers: `GET /users/count/doctors` and `GET /users/count/heads`.
 - Doctor deactivation is available both as `DELETE /doctors/{id}` with optional `reason` query and as `POST /doctors/{id}/deactivate`; activation uses `POST /doctors/{id}/activate`.
 - Doctor `fullName` validation is stricter on create/edit/profile update: it must match `^[\p{L}\s]+$`, so names with numbers or punctuation can fail validation.
 - Patient create requires `patientCode` and `fullName`; patient responses expose both `patientCode` and compatibility alias `patient_id`.
@@ -39,9 +41,9 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 
 ## Frontend Change Checklist
 
-- `ApiConstants` is mostly aligned with the v1 spec. Keep the current base URL and existing constants for auth, DICOM, AI batch, reports, notifications, permissions, and examinations.
-- Add a constant for `GET /ai/image/{imageId}` if the UI needs to render ROI/clinical/annotated images by image id. Current constants cover only heatmap and DICOM instance image.
-- Add a constant and datasource method for `PUT /doctors/profile/avatar` if profile avatar upload is used. Current profile datasource supports `GET` and `PUT /doctors/profile`, but not the multipart avatar endpoint.
+- `ApiConstants` is aligned with the v1 spec for auth, DICOM, AI, reports, notifications, permissions, users, doctors, and examinations.
+- Use `ApiConstants.aiImageEndpoint(imageId)` if the UI needs to render ROI/clinical/annotated images by image id.
+- `DoctorProfileRemoteDataSource` already supports `PUT /doctors/profile/avatar`; use `ApiConstants.avatarUploadEndpoint` only for the standalone `POST /files/upload-avatar` utility endpoint.
 - Add frontend validation for doctor `fullName` before create/edit/profile update: allow letters and spaces only, and avoid punctuation or numeric suffixes that backend now rejects.
 - Decide whether admin doctor deactivate should use `DELETE /doctors/{id}?reason=...` or the existing `POST /doctors/{id}/deactivate`. The spec supports both, but `DELETE` is now documented as a soft deactivate with an optional reason.
 - Add create/update/delete patient methods in `PatientRemoteDataSource` if patient management screens need them. Current patient datasource only fetches the paged list.
@@ -76,6 +78,8 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | --- | --- | --- | --- |
 | `POST` | `/users` | Create user account | `UserResponse` |
 | `GET` | `/users/staff` | Get staff users | `UserResponse[]` |
+| `GET` | `/users/count/doctors` | Count doctor users | `number` |
+| `GET` | `/users/count/heads` | Count department-head users | `number` |
 | `GET` | `/doctors` | Paginated doctors, optional `keyword`, `specialization`, `status`, `page`, `size`, `sort` | `PageResponseDoctorResponse` |
 | `POST` | `/doctors` | Create doctor | `DoctorResponse` |
 | `PUT` | `/doctors/{id}` | Edit doctor | `DoctorResponse` |
@@ -123,6 +127,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/examinations/my-total-verified` | Current doctor's verified examinations | `number` |
 | `GET` | `/examinations/my-total-unverified` | Current doctor's unverified examinations | `number` |
 | `GET` | `/examinations/my-total-severe` | Current doctor's severe examinations | `number` |
+| `GET` | `/examinations/my-total-last-7-days` | Current doctor's examinations in the last 7 days | `number` |
 | `GET` | `/examinations/statistics/patients-by-grade` | Patient count by predicted grade | `PatientGradeStatsDto[]` |
 
 ## Examination Statistics
@@ -137,6 +142,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/examinations/my-total-verified` | Current doctor's verified examinations | number |
 | `GET` | `/examinations/my-total-unverified` | Current doctor's unverified examinations | number |
 | `GET` | `/examinations/my-total-severe` | Current doctor's severe examinations | number |
+| `GET` | `/examinations/my-total-last-7-days` | Current doctor's examinations in the last 7 days | number |
 | `GET` | `/examinations/statistics/patients-by-grade` | Patient count by predicted grade | `PatientGradeStatsDto[]` |
 
 ## DICOM And AI

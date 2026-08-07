@@ -7,5 +7,6 @@ abstract class AdminRepository {
     required int id,
     required bool activate,
     required String token,
+    String? reason,
   });
 }

@@ -348,6 +348,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
 
     return Form(
       key: _formKey,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -461,13 +462,13 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
               if (v == null || v.isEmpty) {
                 return 'Vui lòng nhập mật khẩu mới';
               }
-              if (v.length < 8) {
-                return 'Mật khẩu phải có ít nhất 8 ký tự';
+              if (v.length < 8 || v.length > 32) {
+                return 'Mật khẩu phải có từ 8 đến 32 ký tự';
               }
               return null;
             },
             decoration: _buildInputDecoration(
-              hint: 'Ít nhất 8 ký tự',
+              hint: '8-32 ký tự',
               icon: Icons.lock_outline_rounded,
               suffix: IconButton(
                 icon: Icon(
@@ -682,12 +683,20 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
   // HELPERS
   // ─────────────────────────────────────────────
   Widget _buildLabel(String label) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF2D3748),
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF2D3748),
+        ),
+        children: [
+          TextSpan(text: label),
+          const TextSpan(
+            text: ' *',
+            style: TextStyle(color: Color(0xFFE53E3E)),
+          ),
+        ],
       ),
     );
   }

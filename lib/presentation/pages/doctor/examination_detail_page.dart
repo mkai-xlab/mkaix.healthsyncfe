@@ -666,6 +666,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
 
   Widget _aiPanel() {
     final result = _selectedAiResult;
+    final image = _selectedImage;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -673,7 +674,62 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: result == null ? _aiProcessingState() : _aiResultState(result),
+      child: image?.hasFailedAiAnalysis == true
+          ? _aiFailedState(image!)
+          : result == null
+          ? _aiProcessingState()
+          : _aiResultState(result),
+    );
+  }
+
+  Widget _aiFailedState(ExaminationImageEntity image) {
+    final message = image.aiErrorMessage.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _panelTitle(Icons.analytics_outlined, 'Kết quả phân tích'),
+        const SizedBox(height: 22),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.errorLight.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.error.withValues(alpha: 0.24)),
+          ),
+          child: Column(
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 34,
+                color: AppColors.error,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Phân tích không thành công',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.error,
+                ),
+              ),
+              if (message.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.45,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 

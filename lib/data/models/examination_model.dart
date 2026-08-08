@@ -98,6 +98,8 @@ class ExaminationImageModel extends ExaminationImageEntity {
     super.bodyPart,
     required super.imageUrl,
     super.annotatedImageUrl,
+    super.aiAnalysisStatus,
+    super.aiErrorMessage,
     super.aiResults,
   });
 
@@ -137,6 +139,14 @@ class ExaminationImageModel extends ExaminationImageEntity {
           ? ApiConstants.dicomInstanceImageEndpoint(dicomInstanceId)
           : '',
       annotatedImageUrl: annotatedImageUrl,
+      aiAnalysisStatus:
+          json['aiAnalysisStatus']?.toString() ??
+          json['ai_analysis_status']?.toString() ??
+          '',
+      aiErrorMessage:
+          json['aiErrorMessage']?.toString() ??
+          json['ai_error_message']?.toString() ??
+          '',
       aiResults: aiResults,
     );
   }

@@ -14,6 +14,7 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
   bool _showPassword = false;
   bool _rememberMe = false;
   bool _usernameTouched = false;
@@ -54,6 +55,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     _pulseController.dispose();
     super.dispose();
   }
@@ -679,10 +681,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       return;
                     }
                     setState(() => _localErrorMessage = null);
-                    await vm.login(
+                    final success = await vm.login(
                       _usernameController.text.trim(),
                       _passwordController.text,
                     );
+                    if (!mounted || success || vm.isFirstTimeLogin) return;
+                    setState(() {
+                      _passwordController.clear();
+                      _passwordTouched = false;
+                    });
+                    _passwordFocusNode.requestFocus();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen,
@@ -806,8 +814,12 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   Widget _buildPasswordField() {
     return TextField(
       controller: _passwordController,
+      focusNode: _passwordFocusNode,
       obscureText: !_showPassword,
-      onChanged: (_) => setState(() => _passwordTouched = true),
+      onChanged: (_) => setState(() {
+        _passwordTouched = true;
+        _localErrorMessage = null;
+      }),
       style: const TextStyle(fontSize: 14, color: Color(0xFF1A2B3C)),
       decoration: InputDecoration(
         hintText: 'Nhập mật khẩu',

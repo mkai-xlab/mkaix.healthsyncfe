@@ -6,20 +6,23 @@
 - API version: `v1`
 - Base URL: `http://47.131.63.48:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-08-07`
+- Last OpenAPI refresh: `2026-08-08`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
 - OpenAPI is now `3.1.0` / API `v1` and uses base URL `http://47.131.63.48:8000/api/v1`.
-- The `2026-08-07` spec confirms the current v1 contract and documents the dashboard/count utility endpoints listed below.
+- The `2026-08-08` spec confirms the current v1 contract and adds AI chat plus medical knowledge indexing endpoints.
 - Auth is bearer-token based. Login returns `accessToken`, `refreshToken`, `role`, `username`, `fullName`, and a full `permissions` array.
 - First-time login is explicitly modeled as `FirstTimeLoginRequired` with body `{ error: "FIRST_TIME_LOGIN_REQUIRED", message: "..." }`.
 - `GET /examinations/total`, `/total-verified`, `/total-unverified`, and `/total-severe` require query `userId` and optionally accept `isPersonal`.
 - For doctor/current-user views, every endpoint that supports `isPersonal` must send `isPersonal=true`.
 - The current-user dashboard counters remain available as `/examinations/my-total*`, which do not require `userId`.
 - Current-user dashboard also has `GET /examinations/my-total-last-7-days`.
+- New AI chat endpoint: `POST /chat/ask`, request `{ question }`, response `ChatAnswerResponse` with `route`, `answer`, `sources`, `warning`, and `generatedAt`.
+- New medical knowledge endpoints under `/knowledge-documents` support listing documents, single/batch upload, URL registration, report sync, reindex, and delete.
+- Knowledge indexing upload/reindex/sync endpoints use `202 Accepted` when the document is queued for asynchronous indexing.
 - Examination status filter enum is `AI_PROCESSING`, `AI_FAILED`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`.
 - Examination responses now include richer clinical/report fields: `studyTime`, `visitTime`, `chiefComplaint`, `clinicalNotes`, `priority`, `finalDiagnosis`, `description`, `patient`, `doctorId`, `images`, `isViewed`, and `maxPredictedGrade`.
 - `ExaminationImageDto` now exposes DICOM-level AI status and error: `aiAnalysisStatus`, `aiErrorMessage`, plus nested `aiResults`.
@@ -37,11 +40,12 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - `GET /audit-logs` returns `PageResponseAuditLogResponse`; `AuditLogResponse` fields are `id`, `username`, `title`, `description`, `ipAddress`, `userAgent`, and `timeStamp`.
 - Notification APIs now include `GET /notifications` for all notifications, `GET /notifications/unread`, `PUT /notifications/{id}/read`, and test send `POST /notifications/send`.
 - New notification bulk-read endpoint: `PUT /notifications/read-all`, returning `MarkAllNotificationsReadResponse` with `updatedCount`.
+- `GET /roles` is now documented and returns `RoleDto[]` for administrator role assignment.
 - Utility/test endpoints are documented: `GET /mail-test/send`, `POST /files/upload-avatar`, and `POST /s3/test-upload`.
 
 ## Frontend Change Checklist
 
-- `ApiConstants` is aligned with the v1 spec for auth, DICOM, AI, reports, notifications, permissions, users, doctors, and examinations.
+- `ApiConstants` is aligned with the v1 spec for auth, DICOM, AI, AI chat, medical knowledge, reports, notifications, permissions, users, doctors, roles, and examinations.
 - Use `ApiConstants.aiImageEndpoint(imageId)` if the UI needs to render ROI/clinical/annotated images by image id.
 - `DoctorProfileRemoteDataSource` already supports `PUT /doctors/profile/avatar`; use `ApiConstants.avatarUploadEndpoint` only for the standalone `POST /files/upload-avatar` utility endpoint.
 - Add frontend validation for doctor `fullName` before create/edit/profile update: allow letters and spaces only, and avoid punctuation or numeric suffixes that backend now rejects.
@@ -59,6 +63,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - `CreateDoctorRequest` only requires `fullName`, `email`, and `phone`; optional fields `yearsOfExperience`, `degree`, and `biography` can be added to the create/edit UI without contract changes.
 - Error handling should parse standard `ErrorResponse.message` for `400`, `401`, `403`, `415`, and `500`. Keep the special first-time-login branch for `FIRST_TIME_LOGIN_REQUIRED`.
 - Add a notification datasource method for `PUT /notifications/read-all` if the notification panel needs a "mark all as read" action. Parse `updatedCount` and refresh unread count/list after success.
+- Add chat and knowledge datasources before wiring those admin/assistant screens. Constants already exist as `ApiConstants.chatAskEndpoint` and `ApiConstants.knowledgeDocument*Endpoint`.
 
 ## Authentication
 
@@ -80,6 +85,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/users/staff` | Get staff users | `UserResponse[]` |
 | `GET` | `/users/count/doctors` | Count doctor users | `number` |
 | `GET` | `/users/count/heads` | Count department-head users | `number` |
+| `GET` | `/roles` | Get all roles for role assignment | `RoleDto[]` |
 | `GET` | `/doctors` | Paginated doctors, optional `keyword`, `specialization`, `status`, `page`, `size`, `sort` | `PageResponseDoctorResponse` |
 | `POST` | `/doctors` | Create doctor | `DoctorResponse` |
 | `PUT` | `/doctors/{id}` | Edit doctor | `DoctorResponse` |
@@ -164,6 +170,27 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `PUT` | `/ai/results/{aiResultId}/confirm` | Confirm AI grade | `DiagnosisReviewResponse` |
 | `POST` | `/files/upload-avatar` | Upload avatar as multipart `file` | `Map<String, String>` |
 | `POST` | `/s3/test-upload` | Test S3 upload with required `folderName`, `fileName`, multipart `file` | `string` |
+
+## AI Chat And Medical Knowledge
+
+| Method | Path | Purpose | Request | Response |
+| --- | --- | --- | --- | --- |
+| `POST` | `/chat/ask` | Ask a business or medical RAG question | `ChatQuestionRequest` with required `question`, max 2000 chars | `ChatAnswerResponse` |
+| `GET` | `/knowledge-documents` | List knowledge sources and indexing status | none | `KnowledgeDocumentResponse[]` |
+| `POST` | `/knowledge-documents/upload` | Upload one medical knowledge file for async indexing | multipart `file`, optional query `title`, `accessScope` | `202 Accepted`, `KnowledgeDocumentResponse` |
+| `POST` | `/knowledge-documents/upload/batch` | Upload multiple knowledge files for async indexing | multipart `files`, optional query `accessScope` | `202 Accepted`, `KnowledgeBatchUploadResponse` |
+| `POST` | `/knowledge-documents/url` | Register a URL as a knowledge source | `KnowledgeUrlRequest` with `title`, `url`, optional `accessScope` | `202 Accepted`, `KnowledgeDocumentResponse` |
+| `POST` | `/knowledge-documents/{id}/reindex` | Queue an existing knowledge document for indexing again | path `id` | `202 Accepted`, `KnowledgeDocumentResponse` |
+| `POST` | `/knowledge-documents/reports/{reportId}/sync` | Queue an approved report as a knowledge source | path `reportId` | `202 Accepted`, `KnowledgeDocumentResponse` |
+| `DELETE` | `/knowledge-documents/{id}` | Delete a knowledge document and indexed content | path `id` | `204 No Content` |
+
+`ChatAnswerResponse` fields: `route`, `answer`, `sources`, `warning`, `generatedAt`.
+
+`ChatSourceResponse` fields: `sourceId`, `title`, `sourceType`, `locator`, `score`.
+
+`KnowledgeDocumentResponse` fields: `id`, `title`, `sourceType`, `sourceUrl`, `originalName`, `accessScope`, `status`, `chunkCount`, `errorMessage`, `createdAt`, `indexedAt`.
+
+`KnowledgeUrlRequest.accessScope` enum: `ALL`, `DOCTOR`, `ADMIN`, `OWNER`.
 
 ## Permissions And Features
 

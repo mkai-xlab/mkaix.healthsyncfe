@@ -130,11 +130,6 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
     required String token,
   }) async {
     try {
-      debugPrint(
-        '[DICOM verify API request] uploadSessionId=$uploadSessionId, '
-        'acceptedPatientCodes=${acceptedPatientCodes.join(',')}',
-        wrapWidth: 1024,
-      );
       final response = await client
           .post(
             Uri.parse(ApiConstants.dicomVerifyEndpoint),
@@ -151,10 +146,6 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
           .timeout(const Duration(seconds: 60));
 
       final body = utf8.decode(response.bodyBytes);
-      debugPrint(
-        '[DICOM verify API response] status=${response.statusCode}, body=$body',
-        wrapWidth: 1024,
-      );
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return DicomVerifyResponse.fromHttp(
           statusCode: response.statusCode,
@@ -284,9 +275,6 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
 
   DicomUploadSubmission _parseBatchSubmission(_UploadHttpResponse response) {
     final body = response.body.trim();
-    debugPrint(
-      '[DICOM upload HTTP response] status=${response.statusCode}, bytes=${body.length}',
-    );
     if (response.statusCode == 202 || body.isEmpty) {
       return DicomUploadSubmission.accepted(message: body);
     }
@@ -304,7 +292,6 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
 
     final map = Map<String, dynamic>.from(data);
     if (_looksLikeBatchResult(map)) {
-      debugPrint('[DICOM upload HTTP parsed batch] keys=${map.keys.join(',')}');
       return DicomUploadSubmission.completed(
         BatchDicomUploadModel.fromJson(map),
       );

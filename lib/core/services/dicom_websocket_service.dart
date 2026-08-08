@@ -52,14 +52,10 @@ class DicomWebSocketService {
         stompConnectHeaders: _authHeaders(token),
         webSocketConnectHeaders: _authHeaders(token),
         onConnect: (frame) {
-          debugPrint(
-            '[DICOM WebSocket] connected: ${ApiConstants.webSocketUrl}',
-          );
           _client?.subscribe(
             destination: '/user/queue/notifications',
             callback: _handleNotificationFrame,
           );
-          debugPrint('[DICOM WebSocket] subscribed: /user/queue/notifications');
           if (!completer.isCompleted) completer.complete();
           _connectCompleter = null;
         },
@@ -140,8 +136,6 @@ class DicomWebSocketService {
     final body = frame.body;
     if (body == null || body.trim().isEmpty) return;
 
-    debugPrint('[DICOM WebSocket raw frame] $body', wrapWidth: 1024);
-
     try {
       final decoded = jsonDecode(body);
       if (decoded is! Map) return;
@@ -152,11 +146,6 @@ class DicomWebSocketService {
       final directBatchPayload = _looksLikeBatchResult(payload)
           ? payload
           : null;
-      debugPrint(
-        type == 'DICOM_BATCH_RESULT' || directBatchPayload != null
-            ? '[DICOM WebSocket frame] type=DICOM_BATCH_RESULT, title=$title'
-            : '[DICOM WebSocket frame] type=$type, title=$title, message=$message',
-      );
 
       _notificationController.add(
         DicomUploadNotification(
@@ -179,11 +168,6 @@ class DicomWebSocketService {
             _decodeBatchPayload(payload['message']);
         if (resultPayload != null) {
           final result = BatchDicomUploadModel.fromJson(resultPayload);
-          debugPrint(
-            '[DICOM WebSocket parsed batch] '
-            'patients=${result.successfulPatients.length}, '
-            'errors=${result.errors.length}',
-          );
           if (!_batchResultController.hasListener) {
             _pendingBatchResult = result;
           }

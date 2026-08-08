@@ -115,7 +115,7 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
 
     for (final file in files) {
       request.files.add(
-        http.MultipartFile.fromBytes('files', file.bytes, filename: file.name),
+        http.MultipartFile.fromBytes('file', file.bytes, filename: file.name),
       );
     }
 

@@ -129,11 +129,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   IconData _permissionIcon(String permissionName) {
     final normalized = normalizePermissionKey(permissionName);
-    if (normalized == 'doctor_dashboard_page' ||
-        normalized == 'doctor_homepage' ||
-        normalized == 'dashboard' ||
-        normalized == 'home_page' ||
-        normalized == 'trang_chu') {
+    if (normalized == 'doctor_dashboard_page') {
       return Icons.home_outlined;
     }
     if (normalized == 'examination_list_page') {
@@ -145,11 +141,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         normalized == 'patient_detail_page') {
       return Icons.people_outline;
     }
-    if (normalized == 'dicom_upload_page' ||
-        normalized == 'file_upload_page' ||
-        normalized.contains('xray') ||
-        normalized.contains('x_quang') ||
-        normalized.contains('diagnosis')) {
+    if (normalized == 'dicom_upload_page' || normalized == 'file_upload_page') {
       return Icons.medical_information_outlined;
     }
     if (normalized.contains('report')) {
@@ -406,13 +398,13 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
     final selectedPermission = selectedItem?.routeKey ?? '';
 
-    if (selectedPermission == 'doctor_dashboard_page' ||
-        selectedPermission == 'doctor_homepage' ||
-        selectedPermission == 'dashboard' ||
-        selectedPermission == 'home_page' ||
-        selectedPermission == 'trang_chu') {
+    if (selectedPermission == 'doctor_dashboard_page') {
       return DoctorDashboardPage(
         embedded: true,
+        canOpenExaminationList: _hasPermission(
+          context,
+          'examination_list_page',
+        ),
         onOpenExaminationList: _openExaminationListTab,
       );
     }
@@ -692,6 +684,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   // TOP BAR
   // ─────────────────────────────────────────────
   Widget _buildTopBar(BuildContext context) {
+    final canSearchPatients =
+        _hasPermission(context, 'patient_list_page') ||
+        _hasPermission(context, 'patient_detail_page');
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -713,12 +708,17 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
               height: 38,
               child: TextField(
                 controller: _searchController,
-                onChanged: (v) => context
-                    .read<DoctorViewModel>()
-                    .searchByNameDebounced(v, _token),
+                readOnly: !canSearchPatients,
+                onChanged: canSearchPatients
+                    ? (v) => context
+                          .read<DoctorViewModel>()
+                          .searchByNameDebounced(v, _token)
+                    : null,
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Tìm kiếm bệnh nhân, hồ sơ, mã số...',
+                  hintText: canSearchPatients
+                      ? 'Tìm kiếm bệnh nhân, hồ sơ, mã số...'
+                      : 'Không có quyền tìm kiếm bệnh nhân',
                   hintStyle: const TextStyle(
                     color: Color(0xFFADB5BD),
                     fontSize: 13,
@@ -1799,8 +1799,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   bool _hasUploadPermission(BuildContext context) {
     final auth = context.read<AuthViewModel>();
     return auth.hasPermissionPresentation('dicom_upload_page') ||
-        auth.hasPermissionPresentation('file_upload_page') ||
-        auth.hasPermissionPresentation('upload_dicom_image');
+        auth.hasPermissionPresentation('file_upload_page');
   }
 
   /*

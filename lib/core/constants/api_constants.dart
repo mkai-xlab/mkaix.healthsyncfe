@@ -64,6 +64,7 @@ class ApiConstants {
   static const String staffUsersEndpoint = '$baseUrl/users/staff';
   static const String doctorCountEndpoint = '$baseUrl/users/count/doctors';
   static const String headCountEndpoint = '$baseUrl/users/count/heads';
+  static const String rolesEndpoint = '$baseUrl/roles';
 
   // doctors endpoints
   static const String doctorsEndpoint = '$baseUrl/doctors';
@@ -82,10 +83,26 @@ class ApiConstants {
   static const String permissionsEndpoint = '$baseUrl/permissions';
   static const String permissionsTreeEndpoint = '$baseUrl/permissions/tree';
   static const String rolePermissionsEndpoint = '$baseUrl/permissions/role';
-  static const String rolesEndpoint = '$baseUrl/roles';
   static const String featuresEndpoint = '$baseUrl/features';
   static String featureByIdEndpoint(String id) => '$featuresEndpoint/$id';
   static String permissionByIdEndpoint(String id) => '$permissionsEndpoint/$id';
+
+  // AI chat and knowledge endpoints
+  static const String chatAskEndpoint = '$baseUrl/chat/ask';
+  static const String knowledgeDocumentsEndpoint =
+      '$baseUrl/knowledge-documents';
+  static const String knowledgeDocumentUploadEndpoint =
+      '$knowledgeDocumentsEndpoint/upload';
+  static const String knowledgeDocumentBatchUploadEndpoint =
+      '$knowledgeDocumentsEndpoint/upload/batch';
+  static const String knowledgeDocumentUrlEndpoint =
+      '$knowledgeDocumentsEndpoint/url';
+  static String knowledgeDocumentByIdEndpoint(int id) =>
+      '$knowledgeDocumentsEndpoint/$id';
+  static String knowledgeDocumentReindexEndpoint(int id) =>
+      '$knowledgeDocumentsEndpoint/$id/reindex';
+  static String knowledgeReportSyncEndpoint(int reportId) =>
+      '$knowledgeDocumentsEndpoint/reports/$reportId/sync';
 
   // AI endpoints
   static const String aiPredictBatchEndpoint = '$baseUrl/ai/predict-batch';

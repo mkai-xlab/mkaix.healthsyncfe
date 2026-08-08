@@ -19,6 +19,7 @@ import 'package:fe/presentation/viewmodels/examination_viewmodel.dart';
 import 'package:fe/data/datasources/admin_remote_datasource.dart';
 import 'package:fe/data/datasources/admin_dashboard_remote_datasource.dart';
 import 'package:fe/data/datasources/audit_log_remote_datasource.dart';
+import 'package:fe/data/datasources/chat_remote_datasource.dart';
 import 'package:fe/data/datasources/dicom_remote_datasource.dart';
 import 'package:fe/data/datasources/doctor_profile_remote_datasource.dart';
 import 'package:fe/data/datasources/notification_remote_datasource.dart';
@@ -28,6 +29,8 @@ import 'package:fe/presentation/viewmodels/audit_log_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/dicom_upload_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/doctor_profile_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/chat_viewmodel.dart';
+import 'package:fe/presentation/widgets/ai_chat/ai_chat_widget.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -88,6 +91,8 @@ Future<void> main() async {
   final notificationViewModel = NotificationViewModel(
     notificationRemoteDataSource,
   );
+  final chatRemoteDataSource = ChatRemoteDataSource(httpClient);
+  final chatViewModel = ChatViewModel(remoteDataSource: chatRemoteDataSource);
 
   // ViewModels
   final authViewModel = AuthViewModel(
@@ -116,6 +121,7 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: dicomUploadViewModel),
         ChangeNotifierProvider.value(value: doctorProfileViewModel),
         ChangeNotifierProvider.value(value: notificationViewModel),
+        ChangeNotifierProvider.value(value: chatViewModel),
       ],
       child: MyApp(appRouter: appRouter),
     ),
@@ -143,7 +149,7 @@ class MyApp extends StatelessWidget {
             textScaler: TextScaler.linear(currentTextScale * _compactTextScale),
           ),
           child: _RealtimeNotificationConnector(
-            child: child ?? const SizedBox.shrink(),
+            child: AiChatWidget(child: child ?? const SizedBox.shrink()),
           ),
         );
       },
@@ -238,13 +244,16 @@ class _RealtimeNotificationConnectorState
 
     if (token.trim().isEmpty) {
       if (_connectedToken != null) {
-        notificationVm.disconnectRealtime();
+        notificationVm.reset();
         _connectedToken = null;
       }
       return;
     }
 
     if (_connectedToken == token) return;
+    if (_connectedToken != null) {
+      notificationVm.reset();
+    }
     _connectedToken = token;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _connectedToken != token) return;

@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -38,6 +39,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
   DoctorAccountEntity? _selectedUser;
   int? _hoveredUserId;
   bool _showChangePassword = false;
+  bool _isSystemSettingsExpanded = false;
 
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
 
@@ -207,35 +209,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   Icons.admin_panel_settings_outlined,
                 ),
                 _buildNavItem(3, 'Lịch sử hoạt động', Icons.history_outlined),
-                _buildNavItem(
-                  4,
-                  'Thông báo hệ thống',
-                  Icons.notifications_outlined,
-                ),
                 _buildNavItem(5, 'Cấu hình hệ thống', Icons.settings_outlined),
               ],
-            ),
-          ),
-          const Divider(color: Colors.white24),
-          // Logout Button
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Material(
-              color: Colors.transparent,
-              child: ListTile(
-                leading: const Icon(
-                  Icons.logout,
-                  color: Colors.white70,
-                  size: 20,
-                ),
-                title: const Text(
-                  'Đăng xuất',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                onTap: () {
-                  context.read<AuthViewModel>().logout();
-                },
-              ),
             ),
           ),
         ],
@@ -244,7 +219,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildNavItem(int index, String label, IconData icon) {
-    final isSelected = _selectedNavIndex == index;
+    final isSelected =
+        _selectedNavIndex == index || (index == 5 && _selectedNavIndex == 6);
     final borderRadius = BorderRadius.circular(8);
     return Material(
       color: isSelected
@@ -273,6 +249,111 @@ class _AdminHomepageState extends State<AdminHomepage> {
         },
         shape: RoundedRectangleBorder(borderRadius: borderRadius),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildSystemSettingsNavGroup() {
+    final isSelected = _selectedNavIndex == 5 || _selectedNavIndex == 6;
+    final borderRadius = BorderRadius.circular(8);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: isSelected
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: borderRadius,
+          child: ListTile(
+            leading: Icon(
+              Icons.settings_outlined,
+              color: isSelected ? Colors.white : Colors.white70,
+              size: 20,
+            ),
+            title: Text(
+              'Cấu hình hệ thống',
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+            trailing: Icon(
+              _isSystemSettingsExpanded
+                  ? Icons.expand_less_rounded
+                  : Icons.expand_more_rounded,
+              color: Colors.white70,
+              size: 18,
+            ),
+            onTap: () {
+              setState(() {
+                _isSystemSettingsExpanded = !_isSystemSettingsExpanded;
+                _selectedNavIndex = 5;
+                _showChangePassword = false;
+              });
+            },
+            shape: RoundedRectangleBorder(borderRadius: borderRadius),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ),
+          ),
+        ),
+        if (_isSystemSettingsExpanded || _selectedNavIndex == 6)
+          _buildSystemSettingsChildNavItem(
+            index: 6,
+            label: 'Quản lý tài liệu',
+            icon: Icons.description_outlined,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSystemSettingsChildNavItem({
+    required int index,
+    required String label,
+    required IconData icon,
+  }) {
+    final isSelected = _selectedNavIndex == index;
+    final borderRadius = BorderRadius.circular(8);
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, top: 4),
+      child: Material(
+        color: isSelected
+            ? Colors.white.withValues(alpha: 0.12)
+            : Colors.transparent,
+        borderRadius: borderRadius,
+        child: ListTile(
+          dense: true,
+          leading: Icon(
+            icon,
+            color: isSelected ? Colors.white : Colors.white70,
+            size: 18,
+          ),
+          title: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white70,
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+          onTap: () {
+            setState(() {
+              _selectedNavIndex = index;
+              _isSystemSettingsExpanded = true;
+              _showChangePassword = false;
+            });
+          },
+          shape: RoundedRectangleBorder(borderRadius: borderRadius),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 2,
+          ),
+        ),
       ),
     );
   }
@@ -347,11 +428,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 children: [
                   _buildNavItem(0, 'Trang chủ', Icons.home_outlined),
-                  _buildNavItem(
-                    1,
-                    'Quản lA� người dA�ng',
-                    Icons.people_outline,
-                  ),
+                  _buildNavItem(1, 'Quản lý người dùng', Icons.people_outline),
                   _buildNavItem(
                     2,
                     'Quản lý phân quyền',
@@ -359,33 +436,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   ),
                   _buildNavItem(3, 'Lịch sử hoạt động', Icons.history_outlined),
                   _buildNavItem(
-                    4,
-                    'Thông báo hệ thống',
-                    Icons.notifications_outlined,
-                  ),
-                  _buildNavItem(
                     5,
                     'Cấu hình hệ thống',
                     Icons.settings_outlined,
                   ),
                 ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Material(
-                color: Colors.transparent,
-                child: ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.white70),
-                  title: const Text(
-                    'Đăng xuất',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  onTap: () {
-                    context.read<AuthViewModel>().logout();
-                    Navigator.pop(context);
-                  },
-                ),
               ),
             ),
           ],
@@ -448,6 +503,12 @@ class _AdminHomepageState extends State<AdminHomepage> {
         ),
       );
     }
+    if (_selectedNavIndex == 5) {
+      return _buildSystemSettingsPage(context);
+    }
+    if (_selectedNavIndex == 6) {
+      return _buildKnowledgeDocumentsPage(context);
+    }
 
     return Container(
       color: _pageBackground,
@@ -486,19 +547,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   _buildStatisticsSection(),
                   const SizedBox(height: 24),
                   // Charts Section
-                  SizedBox(
-                    height: 410,
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // KL Grade Distribution
-                        Expanded(flex: 1, child: _buildKLGradeDistribution()),
-                        const SizedBox(width: 20),
-                        // System Status Section
-                        Expanded(flex: 1, child: _buildSystemStatus()),
-                      ],
-                    ),
-                  ),
+                  SizedBox(height: 410, child: _buildKLGradeDistribution()),
                   const SizedBox(height: 24),
                   // Activity Log
                   _buildActivityLog(),
@@ -509,6 +558,508 @@ class _AdminHomepageState extends State<AdminHomepage> {
         ],
       ),
     );
+  }
+
+  Widget _buildSystemSettingsPage(BuildContext context) {
+    return Container(
+      color: _pageBackground,
+      child: Column(
+        children: [
+          _buildTopBar(context),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Cấu hình hệ thống',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Quản lý các chức năng vận hành, dữ liệu nền và thiết lập hệ thống.',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                  ),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      _buildSettingsFeatureCard(
+                        icon: Icons.description_outlined,
+                        title: 'Quản lý tài liệu',
+                        description:
+                            'Quản lý tài liệu lâm sàng, tài liệu AI và bài báo khoa học.',
+                        onTap: () => setState(() {
+                          _selectedNavIndex = 6;
+                        }),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsFeatureCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: AppColors.primary, size: 26),
+                ),
+                const SizedBox(width: 18),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.35,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildKnowledgeDocumentsPage(BuildContext context) {
+    return Container(
+      color: _pageBackground,
+      child: Column(
+        children: [
+          _buildTopBar(context),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Danh sách tài liệu & bài báo khoa học',
+                              style: TextStyle(
+                                fontSize: 34,
+                                height: 1.08,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF111827),
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'Quản lý và xem xét các tài liệu lâm sàng, tài liệu về AI và tài liệu nghiên cứu.',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Color(0xFF4B5563),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      FilledButton.icon(
+                        onPressed: () =>
+                            _showUploadKnowledgeDocumentDialog(context),
+                        icon: const Icon(Icons.upload_file_outlined, size: 18),
+                        label: const Text('Tải lên tài liệu mới'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primaryLight,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  _buildDocumentFilterBar(),
+                  const SizedBox(height: 18),
+                  _buildEmptyDocumentTable(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentFilterBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              enabled: false,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search, size: 20),
+                hintText: 'Tìm kiếm tài liệu...',
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.borderStrong),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.borderStrong),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          _buildDocumentFilterChip('Tất cả', selected: true),
+          _buildDocumentFilterChip('Bài báo khoa học'),
+          _buildDocumentFilterChip('Hồ sơ bệnh án'),
+          _buildDocumentFilterChip('Kết quả xét nghiệm'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentFilterChip(String label, {bool selected = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: Chip(
+        label: Text(label),
+        backgroundColor: selected ? AppColors.primaryLight : Colors.white,
+        labelStyle: TextStyle(
+          color: selected ? Colors.white : const Color(0xFF4B5563),
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        ),
+        side: BorderSide(
+          color: selected ? AppColors.primaryLight : AppColors.borderStrong,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      ),
+    );
+  }
+
+  Widget _buildEmptyDocumentTable() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            color: const Color(0xFFEFF4FA),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            child: const Row(
+              children: [
+                Expanded(flex: 3, child: _DocumentHeaderCell('TÊN TÀI LIỆU')),
+                Expanded(child: _DocumentHeaderCell('LOẠI')),
+                Expanded(child: _DocumentHeaderCell('BỆNH NHÂN\nLIÊN QUAN')),
+                Expanded(child: _DocumentHeaderCell('NGÀY TẢI')),
+                Expanded(child: _DocumentHeaderCell('TRẠNG THÁI\nAI')),
+                SizedBox(width: 72, child: _DocumentHeaderCell('THAO\nTÁC')),
+              ],
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 64),
+            child: const Column(
+              children: [
+                Icon(
+                  Icons.folder_open_outlined,
+                  size: 56,
+                  color: Color(0xFF9CA3AF),
+                ),
+                SizedBox(height: 14),
+                Text(
+                  'Chưa có tài liệu nào',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Tải lên tài liệu đầu tiên để bắt đầu quản lý kho tri thức.',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: AppColors.border)),
+            ),
+            child: const Row(
+              children: [
+                Text(
+                  'Showing 0 to 0 of 0 results',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
+                ),
+                Spacer(),
+                Icon(Icons.chevron_left_rounded, color: Color(0xFFCBD5E1)),
+                SizedBox(width: 8),
+                Text('1', style: TextStyle(color: Color(0xFF9CA3AF))),
+                SizedBox(width: 8),
+                Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showUploadKnowledgeDocumentDialog(BuildContext context) async {
+    const allowedExtensions = ['pdf', 'doc', 'docx', 'docs'];
+    PlatformFile? selectedFile;
+    String? validationError;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> pickFile() async {
+              final result = await FilePicker.platform.pickFiles(
+                type: FileType.custom,
+                allowedExtensions: allowedExtensions,
+                allowMultiple: false,
+                withData: true,
+              );
+              if (result == null || result.files.isEmpty) return;
+
+              final file = result.files.first;
+              final extension = _fileExtension(file.name);
+              if (!allowedExtensions.contains(extension)) {
+                setDialogState(() {
+                  selectedFile = null;
+                  validationError =
+                      'Chỉ hỗ trợ file PDF, DOC, DOCX hoặc DOCS. Vui lòng chọn lại.';
+                });
+                return;
+              }
+
+              setDialogState(() {
+                selectedFile = file;
+                validationError = null;
+              });
+            }
+
+            final file = selectedFile;
+
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              title: const Text(
+                'Tải lên tài liệu',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              content: SizedBox(
+                width: 460,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Chọn tài liệu để bổ sung vào kho tri thức. Hệ thống hiện hỗ trợ PDF, DOC, DOCX và DOCS.',
+                      style: TextStyle(color: Color(0xFF6B7280), height: 1.35),
+                    ),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: pickFile,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 22,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: validationError == null
+                                ? AppColors.borderStrong
+                                : AppColors.error,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.cloud_upload_outlined,
+                              size: 36,
+                              color: AppColors.primaryLight,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              file == null ? 'Nhấn để chọn file' : file.name,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF111827),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              file == null
+                                  ? 'Định dạng: .pdf, .doc, .docx, .docs'
+                                  : _formatFileSize(file.size),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (validationError != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        validationError!,
+                        style: const TextStyle(
+                          color: AppColors.error,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Hủy'),
+                ),
+                FilledButton.icon(
+                  onPressed: file == null
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Đã chọn ${file.name}. API upload sẽ được tích hợp ở bước tiếp theo.',
+                              ),
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.upload_file_outlined, size: 18),
+                  label: const Text('Tải lên'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primaryLight,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _fileExtension(String fileName) {
+    final parts = fileName.toLowerCase().trim().split('.');
+    if (parts.length < 2) return '';
+    return parts.last;
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes <= 0) return 'Không rõ dung lượng';
+    const kb = 1024;
+    const mb = kb * 1024;
+    if (bytes >= mb) return '${(bytes / mb).toStringAsFixed(1)} MB';
+    return '${(bytes / kb).toStringAsFixed(1)} KB';
   }
 
   Widget _buildUserManagementPage(BuildContext context) {
@@ -811,8 +1362,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
       child: Row(
         children: const [
           Expanded(flex: 2, child: Text('VAI TRÒ', style: style)),
-          Expanded(flex: 3, child: Text('TA�I KHOẢN', style: style)),
-          Expanded(flex: 2, child: Text('VAI TRA�', style: style)),
+          Expanded(flex: 3, child: Text('TÀI KHOẢN', style: style)),
+          Expanded(flex: 2, child: Text('VAI TRÒ', style: style)),
           Expanded(flex: 2, child: Text('KHOA', style: style)),
           Expanded(flex: 3, child: Text('TRẠNG THÁI', style: style)),
           SizedBox(width: 32),
@@ -1440,7 +1991,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'ThA�m bA�c sĩ mới',
+                              'Thêm bác sĩ mới',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -1449,7 +2000,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             ),
                             SizedBox(height: 3),
                             Text(
-                              'Tạo hồ sơ bA�c sĩ theo API mới',
+                              'Tạo hồ sơ bác sĩ theo API mới',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF4F6F68),
@@ -1493,7 +2044,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                                 SizedBox(width: 10),
                                 Expanded(
                                   child: Text(
-                                    'API mới tạo bA�c sĩ qua /doctors với họ tA�n, email vA� số điện thoại.',
+                                    'API mới tạo bác sĩ qua /doctors với họ tên, email và số điện thoại.',
                                     style: TextStyle(
                                       fontSize: 13,
                                       height: 1.4,
@@ -1505,15 +2056,15 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          _buildFieldLabel('Họ vA� tA�n *'),
+                          _buildFieldLabel('Họ và tên *'),
                           TextFormField(
                             controller: nameController,
                             decoration: _buildInputDecoration(
-                              'Nhập họ vA� tA�n',
+                              'Nhập họ và tên',
                               Icons.person_outline,
                             ),
                             validator: (v) => (v == null || v.trim().isEmpty)
-                                ? 'Vui lA�ng nhập họ tA�n'
+                                ? 'Vui lòng nhập họ tên'
                                 : null,
                           ),
                           const SizedBox(height: 16),
@@ -1527,12 +2078,12 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             ),
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
-                                return 'Vui lA�ng nhập email';
+                                return 'Vui lòng nhập email';
                               }
                               if (!RegExp(
                                 r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
                               ).hasMatch(v.trim())) {
-                                return 'Email khA�ng hợp lệ';
+                                return 'Email không hợp lệ';
                               }
                               return null;
                             },
@@ -1552,13 +2103,13 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             ),
                             validator: (v) {
                               if (v == null || v.trim().isEmpty) {
-                                return 'Vui lA�ng nhập số điện thoại';
+                                return 'Vui lòng nhập số điện thoại';
                               }
                               if (!RegExp(r'^\d+$').hasMatch(v.trim())) {
                                 return 'Số điện thoại chỉ chứa chữ số';
                               }
                               if (v.trim().length != 10) {
-                                return 'Số điện thoại phải cA� đA�ng 10 chữ số';
+                                return 'Số điện thoại phải có đúng 10 chữ số';
                               }
                               return null;
                             },
@@ -1642,7 +2193,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                                   isSubmitting = false;
                                   submitError =
                                       viewModel.errorMessage ??
-                                      'KhA�ng thể tạo bA�c sĩ';
+                                      'Không thể tạo bác sĩ';
                                 });
                               }
                             }
@@ -1668,7 +2219,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                               color: Colors.white,
                             ),
                           )
-                        : const Text('XA�c nhận tạo'),
+                        : const Text('Xác nhận tạo'),
                   ),
                 ],
               );
@@ -1684,7 +2235,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
           if (created == true && mounted && pageContext.mounted) {
             await viewModel.fetchFirstPage(token);
             if (mounted && pageContext.mounted) {
-              AppToast.showSuccess('Tạo bA�c sĩ thA�nh cA�ng');
+              AppToast.showSuccess('Tạo bác sĩ thành công');
             }
           }
         });
@@ -1702,8 +2253,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
     // Danh sách role tạm thời — khi có API roles thì thay bằng dữ liệu thực
     final roles = [
       {'id': 3, 'name': 'Quản trị viên'},
-      {'id': 2, 'name': 'Kỹ thuật viA�n'},
-      {'id': 3, 'name': 'Quản trị viA�n'},
+      {'id': 2, 'name': 'Kỹ thuật viên'},
+      {'id': 3, 'name': 'Quản trị viên'},
     ];
 
     showDialog(
@@ -1766,7 +2317,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                               SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  'Dien thong tin de tao user. He thong se gan tai khoan theo vai tro da chon.',
+                                  'Điền thông tin để tạo tài khoản. Hệ thống sẽ gán tài khoản theo vai trò đã chọn.',
                                   style: TextStyle(
                                     fontSize: 13,
                                     height: 1.4,
@@ -1844,7 +2395,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             if (v != null &&
                                 v.trim().isNotEmpty &&
                                 v.trim().length != 10) {
-                              return 'Số điện thoại phải cA� đA�ng 10 chữ số';
+                              return 'Số điện thoại phải có đúng 10 chữ số';
                             }
                             return null;
                           },
@@ -1938,9 +2489,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             );
                             if (success && context.mounted) {
                               Navigator.pop(context);
-                              AppToast.showSuccess(
-                                'Tạo tA�i khoản thA�nh cA�ng',
-                              );
+                              AppToast.showSuccess('Tạo tài khoản thành công');
                             }
                           }
                         },
@@ -2046,14 +2595,14 @@ class _AdminHomepageState extends State<AdminHomepage> {
       _showDeactivateDoctorDialog(context, account);
       return;
     }
-    const actionText = 'Kich hoat';
+    const actionText = 'Kích hoạt';
 
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('$actionText tai khoan'),
+        title: Text('$actionText tài khoản'),
         content: Text(
-          'Ban co chac chan muon $actionText tai khoan cua bac si ${account.fullName} khong?',
+          'Bạn có chắc chắn muốn $actionText tài khoản của bác sĩ ${account.fullName} không?',
         ),
         actions: [
           TextButton(
@@ -2071,9 +2620,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
               if (context.mounted) {
                 Navigator.pop(context);
                 if (success) {
-                  AppToast.showSuccess('$actionText tai khoan thanh cong!');
+                  AppToast.showSuccess('$actionText tài khoản thành công!');
                 } else {
-                  AppToast.showError('Co loi xay ra, vui long thu lai.');
+                  AppToast.showError('Có lỗi xảy ra, vui lòng thử lại.');
                 }
               }
             },
@@ -2081,7 +2630,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               backgroundColor: isActive ? Colors.red : Colors.green,
               foregroundColor: Colors.white,
             ),
-            child: Text('Xac nhan $actionText'),
+            child: Text('Xác nhận $actionText'),
           ),
         ],
       ),
@@ -2098,7 +2647,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Khoa tai khoan'),
+        title: const Text('Khóa tài khoản'),
         content: Form(
           key: formKey,
           child: Column(
@@ -2106,7 +2655,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Ban co chac chan muon khoa tai khoan cua bac si ${account.fullName} khong?',
+                'Bạn có chắc chắn muốn khóa tài khoản của bác sĩ ${account.fullName} không?',
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -2115,12 +2664,12 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 maxLines: 5,
                 textInputAction: TextInputAction.newline,
                 decoration: _buildInputDecoration(
-                  'Nhap ly do vo hieu hoa',
+                  'Nhập lý do vô hiệu hóa',
                   Icons.notes_outlined,
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Vui long nhap ly do vo hieu hoa';
+                    return 'Vui lòng nhập lý do vô hiệu hóa';
                   }
                   return null;
                 },
@@ -2131,7 +2680,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Huy', style: TextStyle(color: Colors.grey)),
+            child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -2153,9 +2702,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
               }
               if (context.mounted) {
                 if (success) {
-                  AppToast.showSuccess('Khoa tai khoan thanh cong!');
+                  AppToast.showSuccess('Khóa tài khoản thành công!');
                 } else {
-                  AppToast.showError('Co loi xay ra, vui long thu lai.');
+                  AppToast.showError('Có lỗi xảy ra, vui lòng thử lại.');
                 }
               }
             },
@@ -2163,7 +2712,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               backgroundColor: Colors.red,
               foregroundColor: Colors.white,
             ),
-            child: const Text('Xac nhan Khoa'),
+            child: const Text('Xác nhận khóa'),
           ),
         ],
       ),
@@ -2961,53 +3510,74 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 20),
-              Center(
-                child: SizedBox(
-                  height: 180,
-                  child: Stack(
-                    alignment: Alignment.center,
-                    children: [
-                      CustomPaint(
-                        size: const Size(180, 180),
-                        painter: _DonutChartPainter(
-                          segments: segments,
-                          emptyColor: const Color(0xFFE7F5F1),
+              const SizedBox(height: 18),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: Center(
+                        child: SizedBox(
+                          width: 220,
+                          height: 220,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CustomPaint(
+                                size: const Size(220, 220),
+                                painter: _DonutChartPainter(
+                                  segments: segments,
+                                  emptyColor: const Color(0xFFE7F5F1),
+                                ),
+                              ),
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _formatCount(total),
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Tổng số',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
                         ),
                       ),
-                      Column(
+                    ),
+                    const SizedBox(width: 28),
+                    Expanded(
+                      flex: 6,
+                      child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Text(
-                            _formatCount(total),
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
+                          for (final segment in segments) ...[
+                            _buildLegendItem(
+                              segment.label,
+                              segment.value,
+                              total,
+                              segment.color,
                             ),
-                          ),
-                          Text(
-                            'Tổng số',
-                            style: TextStyle(
-                              fontSize: 11,
-                              color: Colors.grey.shade600,
-                            ),
-                          ),
+                            if (segment != segments.last)
+                              const SizedBox(height: 16),
+                          ],
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: 20),
-              for (final segment in segments) ...[
-                _buildLegendItem(
-                  segment.label,
-                  '${_percentOf(segment.value, total)}%',
-                  segment.color,
-                ),
-                if (segment != segments.last) const SizedBox(height: 12),
-              ],
             ],
           ),
         );
@@ -3050,7 +3620,10 @@ class _AdminHomepageState extends State<AdminHomepage> {
     return ((value / denominator) * 100).round();
   }
 
-  Widget _buildLegendItem(String label, String percentage, Color color) {
+  Widget _buildLegendItem(String label, int value, int total, Color color) {
+    final percent = _percentOf(value, total);
+    final progress = total <= 0 ? 0.0 : (value / total).clamp(0.0, 1.0);
+
     return Row(
       children: [
         Container(
@@ -3059,14 +3632,28 @@ class _AdminHomepageState extends State<AdminHomepage> {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
-        Expanded(
+        SizedBox(
+          width: 48,
           child: Text(
             label,
             style: const TextStyle(fontSize: 12, color: Colors.black87),
           ),
         ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: color.withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
         Text(
-          percentage,
+          '$percent%',
           style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -3077,6 +3664,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildSystemStatus() {
     return Column(
       children: [
@@ -3322,7 +3910,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
         'user': 'Bác sĩ Mai Tiến',
         'avatar': 'M',
         'status': 'THÀNH CÔNG',
-        'status': 'THA�NH CA�NG',
       },
       {
         'time': '14:18:05, 24/05/2024',
@@ -3336,7 +3923,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
         'user': 'Hệ thống',
         'avatar': 'S',
         'status': 'CẢNH BÁO',
-        'status': 'CẢNH BA�O',
       },
     ];
 
@@ -3956,6 +4542,28 @@ class _AdminNotificationEmpty extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DocumentHeaderCell extends StatelessWidget {
+  final String label;
+
+  const _DocumentHeaderCell(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 12,
+        height: 1.25,
+        fontWeight: FontWeight.w800,
+        color: Color(0xFF4B5563),
+        letterSpacing: 0.4,
       ),
     );
   }

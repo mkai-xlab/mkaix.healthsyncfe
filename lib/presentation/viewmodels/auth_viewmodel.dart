@@ -125,6 +125,7 @@ class AuthViewModel extends ChangeNotifier {
   /// Đăng nhập — trả về true nếu thành công, false nếu lỗi thường,
   /// và set isFirstTimeLogin = true nếu cần đổi mật khẩu lần đầu
   Future<bool> login(String email, String password) async {
+    if (_isLoading) return false;
     _isLoading = true;
     _errorMessage = null;
     _isFirstTimeLogin = false;

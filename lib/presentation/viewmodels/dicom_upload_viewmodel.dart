@@ -672,13 +672,6 @@ class DicomUploadViewModel extends ChangeNotifier {
     _verifiedPatientKeys
       ..clear()
       ..addAll(_successfulPatients.map(_patientKey));
-    debugPrint(
-      '[DICOM upload viewmodel batch] '
-      'session=$_uploadSessionId, '
-      'patients=${_successfulPatients.length}, '
-      'errors=${_batchErrors.length}, '
-      'dicomInstanceCount=${dicomInstanceIdsForVerification.length}',
-    );
     _showBatchSuccessToast();
     _showBatchErrorToast();
     if (_successfulPatients.isEmpty) {

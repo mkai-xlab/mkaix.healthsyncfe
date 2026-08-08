@@ -57,6 +57,15 @@ class NotificationViewModel extends ChangeNotifier {
     webSocketService.disconnect();
   }
 
+  void reset() {
+    webSocketService.disconnect();
+    _notifications = [];
+    _visibleCount = 10;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
   Future<void> loadNotifications(String token) async {
     if (token.trim().isEmpty || _isLoading) return;
 

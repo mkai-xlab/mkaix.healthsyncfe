@@ -35,5 +35,5 @@ jobs:
             cd ~/healthsync/mkaix.healthsyncfe/
             git checkout main
             git pull --ff-only origin main
-            flutter build web
+            flutter build web --release --dart-define=API_BASE_URL=http://${{ secrets.VIETTEL_PUBLIC_IP }}:8000/api/v1
             systemctl reload nginx

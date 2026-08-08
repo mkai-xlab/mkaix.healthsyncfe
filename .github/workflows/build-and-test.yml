@@ -42,3 +42,6 @@ jobs:
 
       - name: Run tests
         run: flutter test
+
+      - name: Build web
+        run: flutter build web --release --dart-define=API_BASE_URL=http://localhost:8000/api/v1

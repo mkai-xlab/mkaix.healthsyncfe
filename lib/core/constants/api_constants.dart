@@ -1,7 +1,7 @@
 class ApiConstants {
   static const String baseUrl = String.fromEnvironment(
     'API_BASE_URL',
-    defaultValue: 'http://47.131.63.48:8000/api/v1',
+    defaultValue: 'http://localhost:8000/api/v1',
   );
   static const String loginEndpoint = '$baseUrl/auth/login';
   static const String logoutEndpoint = '$baseUrl/auth/logout';

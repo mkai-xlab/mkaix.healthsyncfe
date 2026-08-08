@@ -26,15 +26,20 @@ environment value, with a development fallback defined in
 Pass a value through `--dart-define` when running or building:
 
 ```bash
-flutter run --dart-define=API_BASE_URL=http://localhost:8080
+flutter run --dart-define=API_BASE_URL=http://localhost:8080/api/v1
+flutter build web --release --dart-define=API_BASE_URL=http://localhost:8080/api/v1
 ```
+
+Deployments pass the API URL directly from GitHub Actions secrets. Development
+uses `EC2_PUBLIC_IP`, while production uses `VIETTEL_PUBLIC_IP`; no frontend
+environment file is required on either server.
 
 Access values in Dart with:
 
 ```dart
 const apiBaseUrl = String.fromEnvironment(
   'API_BASE_URL',
-  defaultValue: 'http://54.254.113.71:8000/api/v1',
+  defaultValue: 'http://localhost:8000/api/v1',
 );
 ```
 
@@ -59,6 +64,6 @@ const apiBaseUrl = String.fromEnvironment(
 
 | Key | Required | Description |
 | --- | --- | --- |
-| `API_BASE_URL` | Yes, once backend integration exists. | Base URL for backend API requests. |
+| `API_BASE_URL` | Yes. | Public base URL for backend API requests, including `/api/v1`. |
 | `APP_ENV` | Optional. | Environment label such as `local`, `dev`, `staging`, or `prod`. |
 | `ENABLE_LOGGING` | Optional. | Enables verbose client logging in non-production builds. |

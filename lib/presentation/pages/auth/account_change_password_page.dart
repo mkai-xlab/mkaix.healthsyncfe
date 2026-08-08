@@ -121,6 +121,7 @@ class _AccountChangePasswordPageState extends State<AccountChangePasswordPage> {
       padding: const EdgeInsets.fromLTRB(26, 26, 24, 28),
       child: Form(
         key: _formKey,
+        autovalidateMode: AutovalidateMode.onUserInteraction,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -167,14 +168,8 @@ class _AccountChangePasswordPageState extends State<AccountChangePasswordPage> {
                 if (value == null || value.isEmpty) {
                   return 'Vui lòng nhập mật khẩu mới';
                 }
-                if (value.length < 8) {
-                  return 'Mật khẩu mới phải có tối thiểu 8 ký tự';
-                }
-                if (value.length > 32) {
-                  return 'Mật khẩu mới không được quá 32 ký tự';
-                }
-                if (!_hasLetterAndNumber(value)) {
-                  return 'Mật khẩu mới phải bao gồm chữ cái và số';
+                if (value.length < 8 || value.length > 32) {
+                  return 'Mật khẩu mới phải có từ 8 đến 32 ký tự';
                 }
                 if (value == _currentPasswordController.text) {
                   return 'Mật khẩu mới không được trùng mật khẩu hiện tại';
@@ -279,12 +274,20 @@ class _AccountChangePasswordPageState extends State<AccountChangePasswordPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textPrimary,
+        RichText(
+          text: TextSpan(
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w700,
+              color: AppColors.textPrimary,
+            ),
+            children: [
+              TextSpan(text: label),
+              const TextSpan(
+                text: ' *',
+                style: TextStyle(color: Color(0xFFE53E3E)),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 8),
@@ -357,8 +360,7 @@ class _AccountChangePasswordPageState extends State<AccountChangePasswordPage> {
             ],
           ),
           SizedBox(height: 10),
-          _RequirementText('Tối thiểu 8 ký tự'),
-          _RequirementText('Bao gồm chữ cái và số'),
+          _RequirementText('Từ 8 đến 32 ký tự'),
           _RequirementText('Không trùng với mật khẩu gần nhất'),
         ],
       ),
@@ -401,10 +403,6 @@ class _AccountChangePasswordPageState extends State<AccountChangePasswordPage> {
         ),
       ),
     );
-  }
-
-  bool _hasLetterAndNumber(String value) {
-    return RegExp(r'[A-Za-z]').hasMatch(value) && RegExp(r'\d').hasMatch(value);
   }
 
   Future<void> _submit() async {

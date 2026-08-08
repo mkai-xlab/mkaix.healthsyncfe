@@ -11,6 +11,7 @@ abstract class ExaminationRepository {
     String mode = 'all',
     String direction = 'desc',
     String? date,
+    bool isPersonal = false,
   });
 
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
@@ -25,6 +26,7 @@ abstract class ExaminationRepository {
 
   Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
     required String token,
+    bool isPersonal = false,
   });
 
   Future<List<ExaminationEntity>> getExaminations({required String token});
@@ -37,6 +39,13 @@ abstract class ExaminationRepository {
   Future<List<ExaminationEntity>> getPatientExaminations({
     required String patientId,
     required String token,
+  });
+
+  Future<ExaminationPageEntity> getPatientExaminationsPage({
+    required String patientId,
+    required String token,
+    int page = 0,
+    int size = 10,
   });
 
   Future<ExaminationEntity> getExaminationById({

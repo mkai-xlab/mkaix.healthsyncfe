@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 class ExaminationStatusUtils {
   static const String aiProcessing = 'AI_PROCESSING';
+  static const String aiFailed = 'AI_FAILED';
   static const String needVerify = 'NEED_VERIFY';
   static const String verified = 'VERIFIED';
   static const String reportGenerated = 'REPORT_GENERATED';
@@ -13,6 +14,8 @@ class ExaminationStatusUtils {
     switch (normalize(status)) {
       case aiProcessing:
         return 'Đang phân tích';
+      case aiFailed:
+        return 'Phân tích thất bại';
       case needVerify:
         return 'Cần xác nhận';
       case verified:
@@ -30,6 +33,8 @@ class ExaminationStatusUtils {
     switch (normalize(status)) {
       case aiProcessing:
         return Colors.white;
+      case aiFailed:
+        return const Color(0xFFEF4444);
       case needVerify:
         return const Color(0xFFFACC15);
       case verified:

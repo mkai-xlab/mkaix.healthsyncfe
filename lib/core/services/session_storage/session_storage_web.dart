@@ -13,3 +13,7 @@ Future<void> write(String key, String value) async {
 Future<void> remove(String key) async {
   html.window.localStorage.remove(key);
 }
+
+Future<void> clearAll() async {
+  html.window.localStorage.clear();
+}

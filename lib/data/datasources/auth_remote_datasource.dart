@@ -84,9 +84,9 @@ class AuthRemoteDataSource {
         } catch (e) {
           if (e is FirstTimeLoginException) rethrow;
         }
-        throw Exception('Tài khoản hoặc mật khẩu không chính xác!');
+        throw Exception('Tên đăng nhập hoặc mật khẩu không chính xác!');
       } else if (response.statusCode == 401) {
-        throw Exception('Tài khoản hoặc mật khẩu không chính xác!');
+        throw Exception('Tên đăng nhập hoặc mật khẩu không chính xác!');
       } else {
         throw Exception('Hệ thống gặp sự cố (Mã lỗi: ${response.statusCode})');
       }

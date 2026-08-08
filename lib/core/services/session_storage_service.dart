@@ -16,4 +16,8 @@ class SessionStorageService {
   Future<void> clearUser() {
     return storage.remove(userKey);
   }
+
+  Future<void> clearAll() {
+    return storage.clearAll();
+  }
 }

@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:fe/core/services/toast_service.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/media_url_resolver.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/dicom_upload_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
+import '../../viewmodels/doctor_profile_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
 import '../../viewmodels/notification_viewmodel.dart';
+import '../../widgets/authenticated_avatar_image.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/notification_entity.dart';
 import '../../../domain/entities/user_entity.dart';
@@ -47,7 +51,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      context.read<NotificationViewModel>().loadUnreadNotifications(_token);
+      context.read<NotificationViewModel>().loadNotifications(_token);
+      context.read<DoctorProfileViewModel>().loadProfile(token: _token);
     });
   }
 
@@ -124,11 +129,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   IconData _permissionIcon(String permissionName) {
     final normalized = normalizePermissionKey(permissionName);
-    if (normalized == 'doctor_dashboard_page' ||
-        normalized == 'doctor_homepage' ||
-        normalized == 'dashboard' ||
-        normalized == 'home_page' ||
-        normalized == 'trang_chu') {
+    if (normalized == 'doctor_dashboard_page') {
       return Icons.home_outlined;
     }
     if (normalized == 'examination_list_page') {
@@ -140,11 +141,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         normalized == 'patient_detail_page') {
       return Icons.people_outline;
     }
-    if (normalized == 'dicom_upload_page' ||
-        normalized == 'file_upload_page' ||
-        normalized.contains('xray') ||
-        normalized.contains('x_quang') ||
-        normalized.contains('diagnosis')) {
+    if (normalized == 'dicom_upload_page' || normalized == 'file_upload_page') {
       return Icons.medical_information_outlined;
     }
     if (normalized.contains('report')) {
@@ -401,13 +398,13 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
     final selectedPermission = selectedItem?.routeKey ?? '';
 
-    if (selectedPermission == 'doctor_dashboard_page' ||
-        selectedPermission == 'doctor_homepage' ||
-        selectedPermission == 'dashboard' ||
-        selectedPermission == 'home_page' ||
-        selectedPermission == 'trang_chu') {
+    if (selectedPermission == 'doctor_dashboard_page') {
       return DoctorDashboardPage(
         embedded: true,
+        canOpenExaminationList: _hasPermission(
+          context,
+          'examination_list_page',
+        ),
         onOpenExaminationList: _openExaminationListTab,
       );
     }
@@ -687,6 +684,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   // TOP BAR
   // ─────────────────────────────────────────────
   Widget _buildTopBar(BuildContext context) {
+    final canSearchPatients =
+        _hasPermission(context, 'patient_list_page') ||
+        _hasPermission(context, 'patient_detail_page');
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -708,12 +708,17 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
               height: 38,
               child: TextField(
                 controller: _searchController,
-                onChanged: (v) => context
-                    .read<DoctorViewModel>()
-                    .searchByNameDebounced(v, _token),
+                readOnly: !canSearchPatients,
+                onChanged: canSearchPatients
+                    ? (v) => context
+                          .read<DoctorViewModel>()
+                          .searchByNameDebounced(v, _token)
+                    : null,
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
-                  hintText: 'Tìm kiếm bệnh nhân, hồ sơ, mã số...',
+                  hintText: canSearchPatients
+                      ? 'Tìm kiếm bệnh nhân, hồ sơ, mã số...'
+                      : 'Không có quyền tìm kiếm bệnh nhân',
                   hintStyle: const TextStyle(
                     color: Color(0xFFADB5BD),
                     fontSize: 13,
@@ -799,19 +804,40 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        CircleAvatar(
-                          radius: 15,
-                          backgroundColor: const Color(0xFFE6F4F1),
-                          child: Text(
-                            vm.currentUser?.displayName.isNotEmpty == true
+                        Consumer<DoctorProfileViewModel>(
+                          builder: (context, profileVm, _) {
+                            final avatarUrl = resolveMediaUrl(
+                              profileVm.profile?.avatarUrl ?? '',
+                            );
+                            final token = vm.currentUser?.token ?? '';
+                            final initial =
+                                vm.currentUser?.displayName.isNotEmpty == true
                                 ? vm.currentUser!.displayName[0].toUpperCase()
-                                : 'B',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: _primaryGreen,
-                            ),
-                          ),
+                                : 'B';
+                            final fallback = Text(
+                              initial,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: _primaryGreen,
+                              ),
+                            );
+                            return CircleAvatar(
+                              radius: 15,
+                              backgroundColor: const Color(0xFFE6F4F1),
+                              child: avatarUrl.isEmpty
+                                  ? fallback
+                                  : ClipOval(
+                                      child: SizedBox.expand(
+                                        child: AuthenticatedAvatarImage(
+                                          imageUrl: avatarUrl,
+                                          token: token,
+                                          fallback: fallback,
+                                        ),
+                                      ),
+                                    ),
+                            );
+                          },
                         ),
                         const SizedBox(width: 8),
                         Column(
@@ -1384,22 +1410,47 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   Widget _buildPatientRow(BuildContext context, PatientEntity p) {
     final canOpenDetail = _hasPermission(context, 'patient_detail_page');
-    return InkWell(
-      onTap: () {
-        if (!canOpenDetail) {
-          _showPermissionDeniedToast('Không có quyền xem chi tiết bệnh nhân');
-          return;
-        }
-        setState(() {
-          _showChangePassword = false;
-          _showDoctorProfile = false;
-          _selectedPatientDetail = p;
-        });
-      },
-      hoverColor: const Color(0xFFF0F4F3),
-      child: Container(
-        color: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+    var isHovered = false;
+    return StatefulBuilder(
+      builder: (context, setHoverState) {
+        return InkWell(
+          onTap: () {
+            if (!canOpenDetail) {
+              _showPermissionDeniedToast('Không có quyền xem chi tiết bệnh nhân');
+              return;
+            }
+            setState(() {
+              _showChangePassword = false;
+              _showDoctorProfile = false;
+              _selectedPatientDetail = p;
+            });
+          },
+          onHover: (hovering) => setHoverState(() => isHovered = hovering),
+          hoverColor: Colors.transparent,
+          splashColor: _primaryGreen.withValues(alpha: 0.08),
+          highlightColor: _primaryGreen.withValues(alpha: 0.04),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 140),
+            curve: Curves.easeOut,
+            transform: Matrix4.translationValues(0, isHovered ? -1 : 0, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+            decoration: BoxDecoration(
+              color: isHovered ? const Color(0xFFF8FCFA) : Colors.white,
+              border: Border.all(
+                color: isHovered
+                    ? const Color(0xFFCFE3DC)
+                    : Colors.transparent,
+              ),
+              boxShadow: isHovered
+                  ? [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, 3),
+                      ),
+                    ]
+                  : const [],
+            ),
         child: Row(
           children: [
             Expanded(
@@ -1666,7 +1717,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           elevation: 12,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           constraints: const BoxConstraints.tightFor(width: 380),
-          onOpened: () => vm.loadUnreadNotifications(_token),
+          onOpened: () => vm.loadNotifications(_token),
           itemBuilder: (context) => [
             PopupMenuItem<void>(
               enabled: false,
@@ -1748,8 +1799,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   bool _hasUploadPermission(BuildContext context) {
     final auth = context.read<AuthViewModel>();
     return auth.hasPermissionPresentation('dicom_upload_page') ||
-        auth.hasPermissionPresentation('file_upload_page') ||
-        auth.hasPermissionPresentation('upload_dicom_image');
+        auth.hasPermissionPresentation('file_upload_page');
   }
 
   /*
@@ -1920,8 +1970,14 @@ class _NotificationDropdown extends StatelessWidget {
                       tooltip: 'Tải lại',
                       onPressed: vm.isLoading
                           ? null
-                          : () => vm.loadUnreadNotifications(token),
+                          : () => vm.loadNotifications(token),
                       icon: const Icon(Icons.refresh, size: 18),
+                    ),
+                    TextButton(
+                      onPressed: vm.unreadCount == 0
+                          ? null
+                          : () => vm.markAllAsRead(token),
+                      child: const Text('Đã đọc tất cả'),
                     ),
                   ],
                 ),
@@ -1949,7 +2005,7 @@ class _NotificationDropdown extends StatelessWidget {
                 const Expanded(
                   child: Center(
                     child: Text(
-                      'Không có thông báo chưa đọc',
+                      'Không có thông báo',
                       style: TextStyle(color: Color(0xFF718096)),
                     ),
                   ),
@@ -1971,8 +2027,12 @@ class _NotificationDropdown extends StatelessWidget {
                       final notification = vm.visibleNotifications[index];
                       return _NotificationTile(
                         notification: notification,
-                        onTap: () =>
-                            vm.markAsRead(id: notification.id, token: token),
+                        onTap: notification.isRead
+                            ? null
+                            : () => vm.markAsRead(
+                                id: notification.id,
+                                token: token,
+                              ),
                       );
                     },
                   ),
@@ -1989,16 +2049,22 @@ class _NotificationTile extends StatelessWidget {
   const _NotificationTile({required this.notification, required this.onTap});
 
   final NotificationEntity notification;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final color = _notificationColor(notification.type);
+    final isUnread = !notification.isRead;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
-      child: Padding(
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 2),
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        decoration: BoxDecoration(
+          color: isUnread ? const Color(0xFFF0F7FF) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+        ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -2022,10 +2088,10 @@ class _NotificationTile extends StatelessWidget {
                         : notification.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF1F2937),
+                      fontWeight: isUnread ? FontWeight.w800 : FontWeight.w600,
+                      color: const Color(0xFF1F2937),
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -2033,24 +2099,31 @@ class _NotificationTile extends StatelessWidget {
                     notification.message,
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       height: 1.3,
-                      color: Color(0xFF4B5563),
+                      color: isUnread
+                          ? const Color(0xFF4B5563)
+                          : const Color(0xFF718096),
                     ),
                   ),
                 ],
               ),
             ),
             const SizedBox(width: 8),
-            Container(
+            SizedBox(
               width: 8,
-              height: 8,
-              margin: const EdgeInsets.only(top: 6),
-              decoration: const BoxDecoration(
-                color: Color(0xFFE53E3E),
-                shape: BoxShape.circle,
-              ),
+              child: isUnread
+                  ? Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE53E3E),
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  : null,
             ),
           ],
         ),
@@ -2143,6 +2216,7 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
         width: 560,
         child: Form(
           key: _formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2188,11 +2262,20 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
                         _phoneCtrl,
                         Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
                         validator: (v) {
                           if (v != null &&
                               v.isNotEmpty &&
                               !RegExp(r'^\d+$').hasMatch(v)) {
                             return 'Chỉ nhập số';
+                          }
+                          if (v != null &&
+                              v.trim().isNotEmpty &&
+                              v.trim().length != 10) {
+                            return 'Số điện thoại phải có đúng 10 chữ số';
                           }
                           return null;
                         },
@@ -2238,6 +2321,18 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
                         _ecPhoneCtrl,
                         Icons.phone_in_talk_outlined,
                         keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        validator: (v) {
+                          if (v != null &&
+                              v.trim().isNotEmpty &&
+                              v.trim().length != 10) {
+                            return 'Số điện thoại phải có đúng 10 chữ số';
+                          }
+                          return null;
+                        },
                       ),
                     ),
                   ],
@@ -2301,13 +2396,36 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
     IconData icon, {
     String? Function(String?)? validator,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
+    final isRequired = label.trimRight().endsWith('*');
+    final cleanLabel = isRequired
+        ? label
+              .trimRight()
+              .substring(0, label.trimRight().length - 1)
+              .trimRight()
+        : label;
+
     return TextFormField(
       controller: ctrl,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       validator: validator,
       decoration: InputDecoration(
-        labelText: label,
+        label: isRequired
+            ? RichText(
+                text: TextSpan(
+                  text: cleanLabel,
+                  style: const TextStyle(color: Color(0xFF4A5568)),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(color: Color(0xFFE53E3E)),
+                    ),
+                  ],
+                ),
+              )
+            : Text(cleanLabel),
         prefixIcon: Icon(icon, size: 18, color: const Color(0xFF718096)),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,

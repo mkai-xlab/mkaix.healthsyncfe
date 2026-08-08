@@ -16,6 +16,7 @@ import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
 import 'patient_detail_page.dart';
+import '../../../core/utils/error_message_utils.dart';
 
 enum _ImageMode { original, annotated, roi, gradcam }
 
@@ -665,6 +666,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
 
   Widget _aiPanel() {
     final result = _selectedAiResult;
+    final image = _selectedImage;
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -672,7 +674,62 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: const Color(0xFFE2E8F0)),
       ),
-      child: result == null ? _aiProcessingState() : _aiResultState(result),
+      child: image?.hasFailedAiAnalysis == true
+          ? _aiFailedState(image!)
+          : result == null
+          ? _aiProcessingState()
+          : _aiResultState(result),
+    );
+  }
+
+  Widget _aiFailedState(ExaminationImageEntity image) {
+    final message = image.aiErrorMessage.trim();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _panelTitle(Icons.analytics_outlined, 'Kết quả phân tích'),
+        const SizedBox(height: 22),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+            color: AppColors.errorLight.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.error.withValues(alpha: 0.24)),
+          ),
+          child: Column(
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                size: 34,
+                color: AppColors.error,
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Phân tích không thành công',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.error,
+                ),
+              ),
+              if (message.isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    height: 1.45,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 
@@ -941,7 +998,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       AppToast.showError(message);
     } catch (e) {
       if (!mounted) return;
-      AppToast.showError(e.toString().replaceAll('Exception: ', ''));
+      AppToast.showError(userFriendlyErrorMessage(e));
     } finally {
       if (mounted) setState(() => _isReviewSubmitting = false);
     }
@@ -1393,15 +1450,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       final uri = Uri.parse(
         ApiConstants.examinationReportEndpoint(examinationId),
       );
-      final response = await http
-          .post(
-            uri,
-            headers: {
-              'Accept': 'application/json',
-              'Authorization': 'Bearer $token',
-            },
-          )
-          .timeout(const Duration(seconds: 30));
+      final response = await _requestReportGeneration(uri, token);
 
       if (!mounted) return;
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -1415,7 +1464,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     } catch (e) {
       if (!mounted) return;
       _showReportMessage(
-        'Không thể tạo báo cáo: ${e.toString().replaceAll('Exception: ', '')}',
+        'Không thể tạo báo cáo: ${userFriendlyErrorMessage(e)}',
         isError: true,
       );
     } finally {
@@ -1438,6 +1487,30 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       successMessage: 'Đã mở báo cáo.',
       failurePrefix: 'Không thể xem báo cáo',
     );
+  }
+
+  Future<http.Response> _requestReportGeneration(Uri uri, String token) async {
+    final headers = {
+      'Accept': 'application/json',
+      'Authorization': 'Bearer $token',
+    };
+
+    final postResponse = await http
+        .post(uri, headers: headers)
+        .timeout(const Duration(seconds: 30));
+    if (!_isUnsupportedPostResponse(postResponse)) {
+      return postResponse;
+    }
+
+    return http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
+  }
+
+  bool _isUnsupportedPostResponse(http.Response response) {
+    if (response.statusCode != 405) return false;
+    final body = utf8.decode(response.bodyBytes).toLowerCase();
+    return body.contains('request method') &&
+        body.contains('post') &&
+        body.contains('not supported');
   }
 
   Future<void> _downloadReport() async {
@@ -1503,7 +1576,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     } catch (e) {
       if (!mounted) return;
       _showReportMessage(
-        '$failurePrefix: ${e.toString().replaceAll('Exception: ', '')}',
+        '$failurePrefix: ${userFriendlyErrorMessage(e)}',
         isError: true,
       );
     } finally {

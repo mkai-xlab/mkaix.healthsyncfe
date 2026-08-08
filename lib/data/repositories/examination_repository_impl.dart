@@ -18,6 +18,7 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
     String mode = 'all',
     String direction = 'desc',
     String? date,
+    bool isPersonal = false,
   }) {
     return remoteDataSource.getExaminationsPage(
       token: token,
@@ -26,6 +27,7 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
       mode: mode,
       direction: direction,
       date: date,
+      isPersonal: isPersonal,
     );
   }
 
@@ -57,8 +59,12 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
   @override
   Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
     required String token,
+    bool isPersonal = false,
   }) {
-    return remoteDataSource.getPatientGradeStatistics(token: token);
+    return remoteDataSource.getPatientGradeStatistics(
+      token: token,
+      isPersonal: isPersonal,
+    );
   }
 
   @override
@@ -80,6 +86,21 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
     return remoteDataSource.getPatientExaminations(
       patientId: patientId,
       token: token,
+    );
+  }
+
+  @override
+  Future<ExaminationPageEntity> getPatientExaminationsPage({
+    required String patientId,
+    required String token,
+    int page = 0,
+    int size = 10,
+  }) {
+    return remoteDataSource.getPatientExaminationsPage(
+      patientId: patientId,
+      token: token,
+      page: page,
+      size: size,
     );
   }
 

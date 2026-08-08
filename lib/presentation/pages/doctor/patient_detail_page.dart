@@ -7,6 +7,7 @@ import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
+import '../../widgets/pagination_bar.dart';
 
 class PatientDetailPage extends StatefulWidget {
   final PatientEntity patient;
@@ -27,6 +28,7 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
   static const Color _pageBg = AppColors.surface1;
 
   bool _didLoad = false;
+  int? _hoveredExaminationId;
 
   String get _patientDetailId {
     return widget.patient.id.toString();
@@ -112,6 +114,32 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
                     ],
                   ),
                 ),
+              ),
+              PaginationBar(
+                currentPage: vm.currentPage,
+                totalPages: vm.totalPages,
+                totalElements: vm.totalElements,
+                pageSize: vm.pageSize,
+                isLoading: vm.isLoading,
+                itemLabel: 'ca khám',
+                onPageChanged: (page) {
+                  final token =
+                      context.read<AuthViewModel>().currentUser?.token ?? '';
+                  vm.goToPatientPage(
+                    patientId: _patientDetailId,
+                    token: token,
+                    page: page,
+                  );
+                },
+                onPageSizeChanged: (size) {
+                  final token =
+                      context.read<AuthViewModel>().currentUser?.token ?? '';
+                  vm.changePatientPageSize(
+                    patientId: _patientDetailId,
+                    token: token,
+                    size: size,
+                  );
+                },
               ),
             ],
           );
@@ -290,15 +318,40 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
     ExaminationEntity examination, {
     required VoidCallback onTap,
   }) {
+    final isHovered = _hoveredExaminationId == examination.examinationId;
     return InkWell(
       onTap: onTap,
+      onHover: (hovering) {
+        setState(() {
+          _hoveredExaminationId = hovering ? examination.examinationId : null;
+        });
+      },
+      hoverColor: Colors.transparent,
+      splashColor: _primaryGreen.withValues(alpha: 0.08),
+      highlightColor: _primaryGreen.withValues(alpha: 0.04),
       borderRadius: BorderRadius.circular(10),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(0, isHovered ? -1 : 0, 0),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isHovered ? const Color(0xFFF8FCFA) : Colors.white,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
+          border: Border.all(
+            color: isHovered
+                ? const Color(0xFFCFE3DC)
+                : const Color(0xFFE2E8F0),
+          ),
+          boxShadow: isHovered
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : const [],
         ),
         child: Row(
           children: [

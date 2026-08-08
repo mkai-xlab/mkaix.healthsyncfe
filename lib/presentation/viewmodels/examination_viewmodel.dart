@@ -4,6 +4,7 @@ import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/entities/patient_grade_stats_entity.dart';
 import '../../domain/usecases/get_patient_examinations_usecase.dart';
+import '../../core/utils/error_message_utils.dart';
 
 enum ExaminationListMode {
   all,
@@ -19,6 +20,7 @@ enum ExaminationListMode {
   grade3,
   grade4,
   statusAiProcessing,
+  statusAiFailed,
   statusNeedVerify,
   statusVerified,
   statusReportGenerated,
@@ -97,13 +99,14 @@ class ExaminationViewModel extends ChangeNotifier {
         mode: _listMode.name,
         direction: _listMode.name.endsWith('Asc') ? 'asc' : 'desc',
         date: _filterDate == null ? null : _formatApiDate(_filterDate!),
+        isPersonal: true,
       );
       _examinations = result.content;
       _totalElements = result.totalElements;
       _totalPages = result.totalPages;
       _currentPage = result.pageNumber;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -137,21 +140,21 @@ class ExaminationViewModel extends ChangeNotifier {
             .executeMyRecentPage(token: token, page: 0, size: 5);
         _examinations = recentPage.content;
       } catch (e) {
-        final recentError = e.toString().replaceAll('Exception: ', '');
+        final recentError = userFriendlyErrorMessage(e);
         _errorMessage = _appendDashboardError(_errorMessage, recentError);
         _examinations = [];
       }
 
       try {
         _patientGradeStats = await getPatientExaminationsUseCase
-            .executePatientGradeStatistics(token: token);
+            .executePatientGradeStatistics(token: token, isPersonal: true);
       } catch (e) {
-        final gradeError = e.toString().replaceAll('Exception: ', '');
+        final gradeError = userFriendlyErrorMessage(e);
         _errorMessage = _appendDashboardError(_errorMessage, gradeError);
         _patientGradeStats = [];
       }
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       _examinations = [];
       _patientGradeStats = [];
       _totalElements = 0;
@@ -230,7 +233,7 @@ class ExaminationViewModel extends ChangeNotifier {
       _totalPages = 1;
       _currentPage = 0;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -240,7 +243,11 @@ class ExaminationViewModel extends ChangeNotifier {
   Future<void> loadPatientExaminations({
     required String patientId,
     required String token,
+    int? page,
+    int? size,
   }) async {
+    if (page != null) _currentPage = page;
+    if (size != null) _pageSize = size;
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
@@ -249,19 +256,52 @@ class ExaminationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _examinations = await getPatientExaminationsUseCase.execute(
+      final result = await getPatientExaminationsUseCase.executePatientPage(
         patientId: patientId,
         token: token,
+        page: _currentPage,
+        size: _pageSize,
       );
-      _totalElements = _examinations.length;
-      _totalPages = 1;
-      _currentPage = 0;
+      _examinations = result.content;
+      _totalElements = result.totalElements;
+      _totalPages = result.totalPages;
+      _currentPage = result.pageNumber;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> goToPatientPage({
+    required String patientId,
+    required String token,
+    required int page,
+  }) async {
+    if (_isLoading) return;
+    final safePage = page
+        .clamp(0, (_totalPages <= 0 ? 1 : _totalPages) - 1)
+        .toInt();
+    await loadPatientExaminations(
+      patientId: patientId,
+      token: token,
+      page: safePage,
+    );
+  }
+
+  Future<void> changePatientPageSize({
+    required String patientId,
+    required String token,
+    required int size,
+  }) async {
+    if (_pageSize == size) return;
+    await loadPatientExaminations(
+      patientId: patientId,
+      token: token,
+      page: 0,
+      size: size,
+    );
   }
 
   Future<bool> openExaminationDetail({
@@ -302,7 +342,7 @@ class ExaminationViewModel extends ChangeNotifier {
       _markExaminationViewedLocally(examinationId);
       return true;
     } catch (e) {
-      _detailErrorMessage = e.toString().replaceAll('Exception: ', '');
+      _detailErrorMessage = userFriendlyErrorMessage(e);
       return true;
     } finally {
       _isLoadingDetail = false;

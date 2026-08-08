@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/services/dicom_websocket_service.dart';
 import '../../data/datasources/notification_remote_datasource.dart';
 import '../../domain/entities/notification_entity.dart';
+import '../../core/utils/error_message_utils.dart';
 
 class NotificationViewModel extends ChangeNotifier {
   final NotificationRemoteDataSource remoteDataSource;
@@ -34,7 +35,8 @@ class NotificationViewModel extends ChangeNotifier {
   int _visibleCount = 10;
   int get visibleCount => _visibleCount;
 
-  int get unreadCount => _notifications.length;
+  int get unreadCount =>
+      _notifications.where((notification) => !notification.isRead).length;
 
   List<NotificationEntity> get visibleNotifications =>
       _notifications.take(_visibleCount).toList();
@@ -46,7 +48,7 @@ class NotificationViewModel extends ChangeNotifier {
     try {
       await webSocketService.connect(token);
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       notifyListeners();
     }
   }
@@ -55,7 +57,16 @@ class NotificationViewModel extends ChangeNotifier {
     webSocketService.disconnect();
   }
 
-  Future<void> loadUnreadNotifications(String token) async {
+  void reset() {
+    webSocketService.disconnect();
+    _notifications = [];
+    _visibleCount = 10;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
+
+  Future<void> loadNotifications(String token) async {
     if (token.trim().isEmpty || _isLoading) return;
 
     _isLoading = true;
@@ -63,9 +74,7 @@ class NotificationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await remoteDataSource.getUnreadNotifications(
-        token: token,
-      );
+      final result = await remoteDataSource.getNotifications(token: token);
       result.sort((a, b) {
         final bTime = b.createdAt ?? DateTime(1900);
         final aTime = a.createdAt ?? DateTime(1900);
@@ -74,12 +83,15 @@ class NotificationViewModel extends ChangeNotifier {
       _notifications = result;
       _normalizeVisibleCount();
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();
     }
   }
+
+  Future<void> loadUnreadNotifications(String token) =>
+      loadNotifications(token);
 
   void showMore() {
     if (!canShowMore) return;
@@ -89,21 +101,42 @@ class NotificationViewModel extends ChangeNotifier {
 
   Future<void> markAsRead({required int id, required String token}) async {
     if (id <= 0 || token.trim().isEmpty) return;
-    final removed = _notifications.where((item) => item.id == id).toList();
-    _notifications = _notifications.where((item) => item.id != id).toList();
-    _normalizeVisibleCount();
+    final index = _notifications.indexWhere((item) => item.id == id);
+    if (index < 0 || _notifications[index].isRead) return;
+
+    final previous = _notifications[index];
+    _notifications = [
+      for (final item in _notifications)
+        if (item.id == id) item.copyWith(isRead: true) else item,
+    ];
     notifyListeners();
 
     try {
       await remoteDataSource.markAsRead(id: id, token: token);
     } catch (e) {
-      _notifications = [...removed, ..._notifications];
-      _notifications.sort((a, b) {
-        final bTime = b.createdAt ?? DateTime(1900);
-        final aTime = a.createdAt ?? DateTime(1900);
-        return bTime.compareTo(aTime);
-      });
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _notifications = [
+        for (final item in _notifications)
+          if (item.id == id) previous else item,
+      ];
+      _errorMessage = userFriendlyErrorMessage(e);
+      notifyListeners();
+    }
+  }
+
+  Future<void> markAllAsRead(String token) async {
+    if (token.trim().isEmpty || unreadCount == 0) return;
+    final previous = _notifications;
+    _notifications = [
+      for (final item in _notifications)
+        if (item.isRead) item else item.copyWith(isRead: true),
+    ];
+    notifyListeners();
+
+    try {
+      await remoteDataSource.markAllAsRead(token: token);
+    } catch (e) {
+      _notifications = previous;
+      _errorMessage = userFriendlyErrorMessage(e);
       notifyListeners();
     }
   }

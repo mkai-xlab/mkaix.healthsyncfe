@@ -1,11 +1,11 @@
 {
-    "name": "fe",
-    "short_name": "fe",
+    "name": "HealthSync",
+    "short_name": "HealthSync",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "HealthSync web application.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

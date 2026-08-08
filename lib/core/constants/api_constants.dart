@@ -1,7 +1,8 @@
 class ApiConstants {
-  static const String swaggerUiUrl =
-      'http://54.254.113.71:8000/api/v1/swagger-ui/index.html#/';
-  static const String baseUrl = 'http://54.254.113.71:8000/api/v1';
+  static const String baseUrl = String.fromEnvironment(
+    'API_BASE_URL',
+    defaultValue: 'http://47.131.63.48:8000/api/v1',
+  );
   static const String loginEndpoint = '$baseUrl/auth/login';
   static const String logoutEndpoint = '$baseUrl/auth/logout';
   static const String forgotPasswordEndpoint = '$baseUrl/auth/forgot-password';
@@ -57,14 +58,21 @@ class ApiConstants {
       '$examinationsEndpoint/my-total-unverified';
   static const String myTotalSevereExaminationsEndpoint =
       '$examinationsEndpoint/my-total-severe';
+  static const String myTotalLast7DaysExaminationsEndpoint =
+      '$examinationsEndpoint/my-total-last-7-days';
   static const String userAccountsEndpoint = '$baseUrl/users';
   static const String staffUsersEndpoint = '$baseUrl/users/staff';
+  static const String doctorCountEndpoint = '$baseUrl/users/count/doctors';
+  static const String headCountEndpoint = '$baseUrl/users/count/heads';
+  static const String rolesEndpoint = '$baseUrl/roles';
 
   // doctors endpoints
   static const String doctorsEndpoint = '$baseUrl/doctors';
   static const String createDoctorsEndpoint = '$baseUrl/doctors';
   static const String activeDoctorsEndpoint = '$baseUrl/doctors/active';
   static const String doctorProfileEndpoint = '$baseUrl/doctors/profile';
+  static const String doctorProfileAvatarEndpoint =
+      '$doctorProfileEndpoint/avatar';
   static String doctorByIdEndpoint(int id) => '$doctorsEndpoint/$id';
   static String activateDoctorEndpoint(int id) =>
       '$doctorsEndpoint/$id/activate';
@@ -75,23 +83,43 @@ class ApiConstants {
   static const String permissionsEndpoint = '$baseUrl/permissions';
   static const String permissionsTreeEndpoint = '$baseUrl/permissions/tree';
   static const String rolePermissionsEndpoint = '$baseUrl/permissions/role';
-  static const String rolesEndpoint = '$baseUrl/roles';
   static const String featuresEndpoint = '$baseUrl/features';
   static String featureByIdEndpoint(String id) => '$featuresEndpoint/$id';
   static String permissionByIdEndpoint(String id) => '$permissionsEndpoint/$id';
+
+  // AI chat and knowledge endpoints
+  static const String chatAskEndpoint = '$baseUrl/chat/ask';
+  static const String knowledgeDocumentsEndpoint =
+      '$baseUrl/knowledge-documents';
+  static const String knowledgeDocumentUploadEndpoint =
+      '$knowledgeDocumentsEndpoint/upload';
+  static const String knowledgeDocumentBatchUploadEndpoint =
+      '$knowledgeDocumentsEndpoint/upload/batch';
+  static const String knowledgeDocumentUrlEndpoint =
+      '$knowledgeDocumentsEndpoint/url';
+  static String knowledgeDocumentByIdEndpoint(int id) =>
+      '$knowledgeDocumentsEndpoint/$id';
+  static String knowledgeDocumentReindexEndpoint(int id) =>
+      '$knowledgeDocumentsEndpoint/$id/reindex';
+  static String knowledgeReportSyncEndpoint(int reportId) =>
+      '$knowledgeDocumentsEndpoint/reports/$reportId/sync';
 
   // AI endpoints
   static const String aiPredictBatchEndpoint = '$baseUrl/ai/predict-batch';
   static String aiHeatmapEndpoint(int aiResultId) =>
       '$baseUrl/ai/heatmap/$aiResultId';
+  static String aiImageEndpoint(int imageId) => '$baseUrl/ai/image/$imageId';
   static String aiResultConfirmEndpoint(int aiResultId) =>
       '$baseUrl/ai/results/$aiResultId/confirm';
   static String aiResultKlGradeEndpoint(int aiResultId) =>
       '$baseUrl/ai/results/$aiResultId/kl-grade';
 
   // DICOM endpoints
+  static const String notificationsEndpoint = '$baseUrl/notifications';
   static const String notificationsUnreadEndpoint =
       '$baseUrl/notifications/unread';
+  static const String markAllNotificationsReadEndpoint =
+      '$baseUrl/notifications/read-all';
   static const String notificationsSendEndpoint = '$baseUrl/notifications/send';
   static String markNotificationReadEndpoint(int id) =>
       '$baseUrl/notifications/$id/read';
@@ -108,6 +136,7 @@ class ApiConstants {
       '$baseUrl/dicom/instances/$id/image';
   static String dicomInstanceRawEndpoint(int id) =>
       '$baseUrl/dicom/instances/$id/raw';
+  static const String avatarUploadEndpoint = '$baseUrl/files/upload-avatar';
 
   // Audit endpoints
   static const String auditLogsEndpoint = '$baseUrl/audit-logs';

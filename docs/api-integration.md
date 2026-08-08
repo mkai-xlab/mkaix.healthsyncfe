@@ -3,35 +3,73 @@
 ## Source
 
 - OpenAPI version: `3.1.0`
-- API version: `v0`
-- Base URL: `http://54.254.113.71:8000/api/v1`
+- API version: `v1`
+- Base URL: `http://47.131.63.48:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-07-30`
+- Last OpenAPI refresh: `2026-08-08`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
-- `GET /examinations/total`, `/total-verified`, `/total-unverified`, and `/total-severe` now require query `userId`.
-- `GET /audit-logs` only documents Spring `pageable`; no `keyword`, `actor`, `action`, `status`, or `sort` filters are documented in the latest spec.
-- New/confirmed upload endpoints: `PUT /doctors/profile/avatar`, `POST /files/upload-avatar`, and `POST /s3/test-upload`.
-- Report generation returns `ReportResponse`: `POST /examinations/{id}/generate-report`.
-- Report file endpoints use examination id: `GET /reports/{examinationId}/preview` and `GET /reports/{examinationId}/download`.
-- Examination status filter enum is `AI_PROCESSING`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`.
-- New/confirmed image endpoint: `GET /ai/image/{imageId}`.
-- New/confirmed patient date endpoint: `GET /patients/filter/upload-date`.
-- New/confirmed mail test endpoint: `GET /mail-test/send`.
+- OpenAPI is now `3.1.0` / API `v1` and uses base URL `http://47.131.63.48:8000/api/v1`.
+- The `2026-08-08` spec confirms the current v1 contract and adds AI chat plus medical knowledge indexing endpoints.
+- Auth is bearer-token based. Login returns `accessToken`, `refreshToken`, `role`, `username`, `fullName`, and a full `permissions` array.
+- First-time login is explicitly modeled as `FirstTimeLoginRequired` with body `{ error: "FIRST_TIME_LOGIN_REQUIRED", message: "..." }`.
+- `GET /examinations/total`, `/total-verified`, `/total-unverified`, and `/total-severe` require query `userId` and optionally accept `isPersonal`.
+- For doctor/current-user views, every endpoint that supports `isPersonal` must send `isPersonal=true`.
+- The current-user dashboard counters remain available as `/examinations/my-total*`, which do not require `userId`.
+- Current-user dashboard also has `GET /examinations/my-total-last-7-days`.
+- New AI chat endpoint: `POST /chat/ask`, request `{ question }`, response `ChatAnswerResponse` with `route`, `answer`, `sources`, `warning`, and `generatedAt`.
+- New medical knowledge endpoints under `/knowledge-documents` support listing documents, single/batch upload, URL registration, report sync, reindex, and delete.
+- Knowledge indexing upload/reindex/sync endpoints use `202 Accepted` when the document is queued for asynchronous indexing.
+- Examination status filter enum is `AI_PROCESSING`, `AI_FAILED`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`.
+- Examination responses now include richer clinical/report fields: `studyTime`, `visitTime`, `chiefComplaint`, `clinicalNotes`, `priority`, `finalDiagnosis`, `description`, `patient`, `doctorId`, `images`, `isViewed`, and `maxPredictedGrade`.
+- `ExaminationImageDto` now exposes DICOM-level AI status and error: `aiAnalysisStatus`, `aiErrorMessage`, plus nested `aiResults`.
+- `AiPredictionResultDto` includes review-aware fields: `confirmedGrade`, `effectiveGrade`, `reviewDecision`, `reviewNote`, `reviewedByDoctorId`, `reviewedAt`, and image URLs.
+- New diagnosis review flow is documented: `PUT /ai/results/{aiResultId}/confirm` and `PUT /ai/results/{aiResultId}/kl-grade` return `DiagnosisReviewResponse`.
+- New/confirmed image endpoint: `GET /ai/image/{imageId}` for clinical/ROI/annotated images, beside `GET /ai/heatmap/{aiResultId}` and `GET /dicom/instances/{id}/image`.
+- Report generation returns `ReportResponse`: `POST /examinations/{id}/generate-report`; preview/download use examination id via `/reports/{examinationId}/preview|download`.
+- Doctors now support profile editing and avatar upload through `GET|PUT /doctors/profile` and `PUT /doctors/profile/avatar`.
+- Users now expose count helpers: `GET /users/count/doctors` and `GET /users/count/heads`.
+- Doctor deactivation is available both as `DELETE /doctors/{id}` with optional `reason` query and as `POST /doctors/{id}/deactivate`; activation uses `POST /doctors/{id}/activate`.
+- Doctor `fullName` validation is stricter on create/edit/profile update: it must match `^[\p{L}\s]+$`, so names with numbers or punctuation can fail validation.
+- Patient create requires `patientCode` and `fullName`; patient responses expose both `patientCode` and compatibility alias `patient_id`.
+- Permission management is feature-based: `/permissions/tree`, `/features`, and role assignment through `/permissions/role/{roleName}`. Role assignment replaces the whole permission list and uses numeric permission IDs.
 - Delete endpoints are documented for permissions, features, patients, and doctors.
-- `AuditLogResponse` fields are `id`, `username`, `title`, `description`, `ipAddress`, `userAgent`, `timeStamp`.
-- `LoginResponse` includes `fullName`.
-- `CreateDoctorRequest` requires `fullName`, `email`, and `phone`.
-- `ChangePasswordRequest` requires `username`, `oldPassword`, and `newPassword`.
+- `GET /audit-logs` returns `PageResponseAuditLogResponse`; `AuditLogResponse` fields are `id`, `username`, `title`, `description`, `ipAddress`, `userAgent`, and `timeStamp`.
+- Notification APIs now include `GET /notifications` for all notifications, `GET /notifications/unread`, `PUT /notifications/{id}/read`, and test send `POST /notifications/send`.
+- New notification bulk-read endpoint: `PUT /notifications/read-all`, returning `MarkAllNotificationsReadResponse` with `updatedCount`.
+- `GET /roles` is now documented and returns `RoleDto[]` for administrator role assignment.
+- Utility/test endpoints are documented: `GET /mail-test/send`, `POST /files/upload-avatar`, and `POST /s3/test-upload`.
+
+## Frontend Change Checklist
+
+- `ApiConstants` is aligned with the v1 spec for auth, DICOM, AI, AI chat, medical knowledge, reports, notifications, permissions, users, doctors, roles, and examinations.
+- Use `ApiConstants.aiImageEndpoint(imageId)` if the UI needs to render ROI/clinical/annotated images by image id.
+- `DoctorProfileRemoteDataSource` already supports `PUT /doctors/profile/avatar`; use `ApiConstants.avatarUploadEndpoint` only for the standalone `POST /files/upload-avatar` utility endpoint.
+- Add frontend validation for doctor `fullName` before create/edit/profile update: allow letters and spaces only, and avoid punctuation or numeric suffixes that backend now rejects.
+- Decide whether admin doctor deactivate should use `DELETE /doctors/{id}?reason=...` or the existing `POST /doctors/{id}/deactivate`. The spec supports both, but `DELETE` is now documented as a soft deactivate with an optional reason.
+- Add create/update/delete patient methods in `PatientRemoteDataSource` if patient management screens need them. Current patient datasource only fetches the paged list.
+- Update `PatientModel.fromJson` to fall back from `patientCode` to `patient_id`; the new response may include both, but existing parser currently ignores `patient_id`.
+- Add patient upload-date filter support for `GET /patients/filter/upload-date` if the patient list has upload-date filtering.
+- Doctor patient and examination lists must include `isPersonal=true` on supported endpoints so backend scopes data to the logged-in doctor.
+- Review examination image parsing: `ExaminationImageModel` currently ignores `aiAnalysisStatus` and `aiErrorMessage`. Add fields to the entity/model if the UI should show AI progress or per-image AI failures.
+- Use `confirmedGrade` or `effectiveGrade` for final clinical display when available. `predictedGrade` alone is no longer enough after doctor review.
+- Confirm KL-grade UI should call `PUT /ai/results/{aiResultId}/confirm` for accept and `PUT /ai/results/{aiResultId}/kl-grade` for adjustment with `confirmedKlGrade` and required `reviewNote`.
+- Admin dashboard counters using `/examinations/total*` must send `userId` and optional `isPersonal`. Doctor dashboard should keep using `/examinations/my-total*`.
+- Permission role management already sends numeric `permissionIds`; keep that behavior. Add delete calls for permissions/features if the admin UI exposes deletion.
+- `PermissionRemoteDataSource` currently assumes known roles `ADMIN` and `DOCTOR`. If backend adds more medical/staff roles through `/users/staff` or other role sources, replace the hardcoded role list.
+- `CreateDoctorRequest` only requires `fullName`, `email`, and `phone`; optional fields `yearsOfExperience`, `degree`, and `biography` can be added to the create/edit UI without contract changes.
+- Error handling should parse standard `ErrorResponse.message` for `400`, `401`, `403`, `415`, and `500`. Keep the special first-time-login branch for `FIRST_TIME_LOGIN_REQUIRED`.
+- Add a notification datasource method for `PUT /notifications/read-all` if the notification panel needs a "mark all as read" action. Parse `updatedCount` and refresh unread count/list after success.
+- Add chat and knowledge datasources before wiring those admin/assistant screens. Constants already exist as `ApiConstants.chatAskEndpoint` and `ApiConstants.knowledgeDocument*Endpoint`.
 
 ## Authentication
 
 | Method | Path | Purpose | Request | Response |
 | --- | --- | --- | --- | --- |
-| `POST` | `/auth/login` | Sign in | `LoginRequest` with `username`, `password` | `LoginResponse` with `accessToken`, `refreshToken`, `role`, `username`, `permissions` |
+| `POST` | `/auth/login` | Sign in | `LoginRequest` with `username`, `password` | `LoginResponse` with `accessToken`, `refreshToken`, `role`, `username`, `fullName`, `permissions` |
 | `POST` | `/auth/forgot-password` | Request reset token | `ForgotPasswordRequest` | `200 OK` |
 | `POST` | `/auth/reset-password` | Reset password | `ResetPasswordRequest` | `200 OK` |
 | `POST` | `/auth/change-password` | Change first-time/current password | `ChangePasswordRequest` | `200 OK` |
@@ -45,6 +83,9 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | --- | --- | --- | --- |
 | `POST` | `/users` | Create user account | `UserResponse` |
 | `GET` | `/users/staff` | Get staff users | `UserResponse[]` |
+| `GET` | `/users/count/doctors` | Count doctor users | `number` |
+| `GET` | `/users/count/heads` | Count department-head users | `number` |
+| `GET` | `/roles` | Get all roles for role assignment | `RoleDto[]` |
 | `GET` | `/doctors` | Paginated doctors, optional `keyword`, `specialization`, `status`, `page`, `size`, `sort` | `PageResponseDoctorResponse` |
 | `POST` | `/doctors` | Create doctor | `DoctorResponse` |
 | `PUT` | `/doctors/{id}` | Edit doctor | `DoctorResponse` |
@@ -78,7 +119,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/examinations/patient/{patientId}` | Get examinations by patient | `ExaminationDto[]` or paged response |
 | `GET` | `/examinations/patient/{patientId}/filter/study-month` | Filter patient examinations by study month | `PageResponseExaminationDto` |
 | `GET` | `/examinations/doctor/{doctorId}` | Get examinations by doctor | `PageResponseExaminationDto` |
-| `GET` | `/examinations/status` | Filter by status. Required `status` enum: `AI_PROCESSING`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`; required `pageable` | `PageResponseExaminationDto` |
+| `GET` | `/examinations/status` | Filter by status. Required `status` enum: `AI_PROCESSING`, `AI_FAILED`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`; required `pageable` | `PageResponseExaminationDto` |
 | `GET` | `/examinations/grade` | Filter by AI grade | `PageResponseExaminationDto` |
 | `GET` | `/examinations/filter/upload-date` | Filter by upload date | `PageResponseExaminationDto` |
 | `GET` | `/examinations/filter/study-date` | Filter by study date | `PageResponseExaminationDto` |
@@ -92,6 +133,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/examinations/my-total-verified` | Current doctor's verified examinations | `number` |
 | `GET` | `/examinations/my-total-unverified` | Current doctor's unverified examinations | `number` |
 | `GET` | `/examinations/my-total-severe` | Current doctor's severe examinations | `number` |
+| `GET` | `/examinations/my-total-last-7-days` | Current doctor's examinations in the last 7 days | `number` |
 | `GET` | `/examinations/statistics/patients-by-grade` | Patient count by predicted grade | `PatientGradeStatsDto[]` |
 
 ## Examination Statistics
@@ -106,6 +148,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/examinations/my-total-verified` | Current doctor's verified examinations | number |
 | `GET` | `/examinations/my-total-unverified` | Current doctor's unverified examinations | number |
 | `GET` | `/examinations/my-total-severe` | Current doctor's severe examinations | number |
+| `GET` | `/examinations/my-total-last-7-days` | Current doctor's examinations in the last 7 days | number |
 | `GET` | `/examinations/statistics/patients-by-grade` | Patient count by predicted grade | `PatientGradeStatsDto[]` |
 
 ## DICOM And AI
@@ -127,6 +170,27 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `PUT` | `/ai/results/{aiResultId}/confirm` | Confirm AI grade | `DiagnosisReviewResponse` |
 | `POST` | `/files/upload-avatar` | Upload avatar as multipart `file` | `Map<String, String>` |
 | `POST` | `/s3/test-upload` | Test S3 upload with required `folderName`, `fileName`, multipart `file` | `string` |
+
+## AI Chat And Medical Knowledge
+
+| Method | Path | Purpose | Request | Response |
+| --- | --- | --- | --- | --- |
+| `POST` | `/chat/ask` | Ask a business or medical RAG question | `ChatQuestionRequest` with required `question`, max 2000 chars | `ChatAnswerResponse` |
+| `GET` | `/knowledge-documents` | List knowledge sources and indexing status | none | `KnowledgeDocumentResponse[]` |
+| `POST` | `/knowledge-documents/upload` | Upload one medical knowledge file for async indexing | multipart `file`, optional query `title`, `accessScope` | `202 Accepted`, `KnowledgeDocumentResponse` |
+| `POST` | `/knowledge-documents/upload/batch` | Upload multiple knowledge files for async indexing | multipart `files`, optional query `accessScope` | `202 Accepted`, `KnowledgeBatchUploadResponse` |
+| `POST` | `/knowledge-documents/url` | Register a URL as a knowledge source | `KnowledgeUrlRequest` with `title`, `url`, optional `accessScope` | `202 Accepted`, `KnowledgeDocumentResponse` |
+| `POST` | `/knowledge-documents/{id}/reindex` | Queue an existing knowledge document for indexing again | path `id` | `202 Accepted`, `KnowledgeDocumentResponse` |
+| `POST` | `/knowledge-documents/reports/{reportId}/sync` | Queue an approved report as a knowledge source | path `reportId` | `202 Accepted`, `KnowledgeDocumentResponse` |
+| `DELETE` | `/knowledge-documents/{id}` | Delete a knowledge document and indexed content | path `id` | `204 No Content` |
+
+`ChatAnswerResponse` fields: `route`, `answer`, `sources`, `warning`, `generatedAt`.
+
+`ChatSourceResponse` fields: `sourceId`, `title`, `sourceType`, `locator`, `score`.
+
+`KnowledgeDocumentResponse` fields: `id`, `title`, `sourceType`, `sourceUrl`, `originalName`, `accessScope`, `status`, `chunkCount`, `errorMessage`, `createdAt`, `indexedAt`.
+
+`KnowledgeUrlRequest.accessScope` enum: `ALL`, `DOCTOR`, `ADMIN`, `OWNER`.
 
 ## Permissions And Features
 
@@ -165,6 +229,7 @@ Export report flow:
 | `GET` | `/notifications` | Get all notifications | `NotificationDto[]` |
 | `GET` | `/notifications/unread` | Get unread notifications | `NotificationDto[]` |
 | `PUT` | `/notifications/{id}/read` | Mark notification as read | `string` |
+| `PUT` | `/notifications/read-all` | Mark all current-user unread notifications as read | `MarkAllNotificationsReadResponse` |
 | `POST` | `/notifications/send` | Send test notification | `string` |
 | `GET` | `/mail-test/send` | Send test email. Required query: `to`, `title`, `message` | `string` |
 | `GET` | `/audit-logs` | Get audit logs. Latest spec documents only Spring `pageable` query | `PageResponseAuditLogResponse` |

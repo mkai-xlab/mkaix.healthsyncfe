@@ -1,8 +1,13 @@
+import 'dart:math' as math;
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:fe/core/services/toast_service.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/media_url_resolver.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_dashboard_viewmodel.dart';
@@ -17,6 +22,7 @@ import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart
 import 'package:fe/presentation/pages/admin/audit_log_page.dart';
 import 'package:fe/presentation/pages/auth/account_change_password_page.dart';
 import 'package:fe/presentation/widgets/pagination_bar.dart';
+import 'package:fe/presentation/widgets/authenticated_avatar_image.dart';
 import 'package:http/http.dart' as http;
 
 class AdminHomepage extends StatefulWidget {
@@ -27,11 +33,49 @@ class AdminHomepage extends StatefulWidget {
 }
 
 class _AdminHomepageState extends State<AdminHomepage> {
+  static const Color _pageBackground = Color(0xFFF0F4F3);
+
   int _selectedNavIndex = 0;
   DoctorAccountEntity? _selectedUser;
+  int? _hoveredUserId;
   bool _showChangePassword = false;
+  bool _isSystemSettingsExpanded = false;
 
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
+
+  Widget _buildAccountAvatar({
+    required String name,
+    required String? avatarUrl,
+    required double radius,
+    Color color = AppColors.primary,
+  }) {
+    final initial = name.trim().isNotEmpty ? name.trim()[0].toUpperCase() : 'U';
+    final imageUrl = resolveMediaUrl(avatarUrl ?? '');
+    final fallback = Text(
+      initial,
+      style: TextStyle(
+        fontSize: radius * 0.7,
+        fontWeight: FontWeight.bold,
+        color: color,
+      ),
+    );
+
+    return CircleAvatar(
+      radius: radius,
+      backgroundColor: color.withValues(alpha: 0.15),
+      child: imageUrl.isEmpty
+          ? fallback
+          : ClipOval(
+              child: SizedBox.expand(
+                child: AuthenticatedAvatarImage(
+                  imageUrl: imageUrl,
+                  token: _token,
+                  fallback: fallback,
+                ),
+              ),
+            ),
+    );
+  }
 
   @override
   void initState() {
@@ -165,35 +209,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   Icons.admin_panel_settings_outlined,
                 ),
                 _buildNavItem(3, 'Lịch sử hoạt động', Icons.history_outlined),
-                _buildNavItem(
-                  4,
-                  'Thông báo hệ thống',
-                  Icons.notifications_outlined,
-                ),
                 _buildNavItem(5, 'Cấu hình hệ thống', Icons.settings_outlined),
               ],
-            ),
-          ),
-          const Divider(color: Colors.white24),
-          // Logout Button
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Material(
-              color: Colors.transparent,
-              child: ListTile(
-                leading: const Icon(
-                  Icons.logout,
-                  color: Colors.white70,
-                  size: 20,
-                ),
-                title: const Text(
-                  'Đăng xuất',
-                  style: TextStyle(color: Colors.white70, fontSize: 14),
-                ),
-                onTap: () {
-                  context.read<AuthViewModel>().logout();
-                },
-              ),
             ),
           ),
         ],
@@ -202,7 +219,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildNavItem(int index, String label, IconData icon) {
-    final isSelected = _selectedNavIndex == index;
+    final isSelected =
+        _selectedNavIndex == index || (index == 5 && _selectedNavIndex == 6);
     final borderRadius = BorderRadius.circular(8);
     return Material(
       color: isSelected
@@ -231,6 +249,111 @@ class _AdminHomepageState extends State<AdminHomepage> {
         },
         shape: RoundedRectangleBorder(borderRadius: borderRadius),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      ),
+    );
+  }
+
+  // ignore: unused_element
+  Widget _buildSystemSettingsNavGroup() {
+    final isSelected = _selectedNavIndex == 5 || _selectedNavIndex == 6;
+    final borderRadius = BorderRadius.circular(8);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Material(
+          color: isSelected
+              ? Colors.white.withValues(alpha: 0.1)
+              : Colors.transparent,
+          borderRadius: borderRadius,
+          child: ListTile(
+            leading: Icon(
+              Icons.settings_outlined,
+              color: isSelected ? Colors.white : Colors.white70,
+              size: 20,
+            ),
+            title: Text(
+              'Cấu hình hệ thống',
+              style: TextStyle(
+                color: isSelected ? Colors.white : Colors.white70,
+                fontSize: 14,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
+            ),
+            trailing: Icon(
+              _isSystemSettingsExpanded
+                  ? Icons.expand_less_rounded
+                  : Icons.expand_more_rounded,
+              color: Colors.white70,
+              size: 18,
+            ),
+            onTap: () {
+              setState(() {
+                _isSystemSettingsExpanded = !_isSystemSettingsExpanded;
+                _selectedNavIndex = 5;
+                _showChangePassword = false;
+              });
+            },
+            shape: RoundedRectangleBorder(borderRadius: borderRadius),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 16,
+              vertical: 4,
+            ),
+          ),
+        ),
+        if (_isSystemSettingsExpanded || _selectedNavIndex == 6)
+          _buildSystemSettingsChildNavItem(
+            index: 6,
+            label: 'Quản lý tài liệu',
+            icon: Icons.description_outlined,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildSystemSettingsChildNavItem({
+    required int index,
+    required String label,
+    required IconData icon,
+  }) {
+    final isSelected = _selectedNavIndex == index;
+    final borderRadius = BorderRadius.circular(8);
+
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, top: 4),
+      child: Material(
+        color: isSelected
+            ? Colors.white.withValues(alpha: 0.12)
+            : Colors.transparent,
+        borderRadius: borderRadius,
+        child: ListTile(
+          dense: true,
+          leading: Icon(
+            icon,
+            color: isSelected ? Colors.white : Colors.white70,
+            size: 18,
+          ),
+          title: Text(
+            label,
+            style: TextStyle(
+              color: isSelected ? Colors.white : Colors.white70,
+              fontSize: 13,
+              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+            ),
+          ),
+          onTap: () {
+            setState(() {
+              _selectedNavIndex = index;
+              _isSystemSettingsExpanded = true;
+              _showChangePassword = false;
+            });
+          },
+          shape: RoundedRectangleBorder(borderRadius: borderRadius),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 2,
+          ),
+        ),
       ),
     );
   }
@@ -313,33 +436,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   ),
                   _buildNavItem(3, 'Lịch sử hoạt động', Icons.history_outlined),
                   _buildNavItem(
-                    4,
-                    'Thông báo hệ thống',
-                    Icons.notifications_outlined,
-                  ),
-                  _buildNavItem(
                     5,
                     'Cấu hình hệ thống',
                     Icons.settings_outlined,
                   ),
                 ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Material(
-                color: Colors.transparent,
-                child: ListTile(
-                  leading: const Icon(Icons.logout, color: Colors.white70),
-                  title: const Text(
-                    'Đăng xuất',
-                    style: TextStyle(color: Colors.white70),
-                  ),
-                  onTap: () {
-                    context.read<AuthViewModel>().logout();
-                    Navigator.pop(context);
-                  },
-                ),
               ),
             ),
           ],
@@ -351,13 +452,15 @@ class _AdminHomepageState extends State<AdminHomepage> {
   Widget _buildMainContent(BuildContext context) {
     if (_showChangePassword) {
       return Container(
-        color: const Color(0xFFF0F4F3),
+        color: _pageBackground,
         child: Column(
           children: [
             _buildTopBar(context),
             Expanded(
               child: AccountChangePasswordPage(
-                onCancel: () => setState(() => _showChangePassword = false),
+                onCancel: () => setState(() {
+                  _showChangePassword = false;
+                }),
               ),
             ),
           ],
@@ -371,7 +474,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     if (_selectedNavIndex == 2) {
       final token = context.read<AuthViewModel>().currentUser?.token ?? '';
       return Container(
-        color: const Color(0xFFF0F4F3),
+        color: _pageBackground,
         child: Column(
           children: [
             _buildTopBar(context),
@@ -391,7 +494,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     // Mặc định hiển thị Dashboard (index 0)
     if (_selectedNavIndex == 3) {
       return Container(
-        color: const Color(0xFFF0F4F3),
+        color: _pageBackground,
         child: Column(
           children: [
             _buildTopBar(context),
@@ -400,9 +503,15 @@ class _AdminHomepageState extends State<AdminHomepage> {
         ),
       );
     }
+    if (_selectedNavIndex == 5) {
+      return _buildSystemSettingsPage(context);
+    }
+    if (_selectedNavIndex == 6) {
+      return _buildKnowledgeDocumentsPage(context);
+    }
 
     return Container(
-      color: const Color(0xFFF5F5F5),
+      color: _pageBackground,
       child: Column(
         children: [
           // Top Bar
@@ -438,16 +547,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   _buildStatisticsSection(),
                   const SizedBox(height: 24),
                   // Charts Section
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // KL Grade Distribution
-                      Expanded(flex: 1, child: _buildKLGradeDistribution()),
-                      const SizedBox(width: 20),
-                      // System Status Section
-                      Expanded(flex: 1, child: _buildSystemStatus()),
-                    ],
-                  ),
+                  SizedBox(height: 410, child: _buildKLGradeDistribution()),
                   const SizedBox(height: 24),
                   // Activity Log
                   _buildActivityLog(),
@@ -460,9 +560,511 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
+  Widget _buildSystemSettingsPage(BuildContext context) {
+    return Container(
+      color: _pageBackground,
+      child: Column(
+        children: [
+          _buildTopBar(context),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Cấu hình hệ thống',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Quản lý các chức năng vận hành, dữ liệu nền và thiết lập hệ thống.',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                  ),
+                  const SizedBox(height: 24),
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      _buildSettingsFeatureCard(
+                        icon: Icons.description_outlined,
+                        title: 'Quản lý tài liệu',
+                        description:
+                            'Quản lý tài liệu lâm sàng, tài liệu AI và bài báo khoa học.',
+                        onTap: () => setState(() {
+                          _selectedNavIndex = 6;
+                        }),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSettingsFeatureCard({
+    required IconData icon,
+    required String title,
+    required String description,
+    required VoidCallback onTap,
+  }) {
+    return SizedBox(
+      width: double.infinity,
+      child: Material(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 22),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 54,
+                  height: 54,
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(icon, color: AppColors.primary, size: 26),
+                ),
+                const SizedBox(width: 18),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF111827),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        description,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          height: 1.35,
+                          color: Color(0xFF6B7280),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Icon(
+                    Icons.chevron_right_rounded,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildKnowledgeDocumentsPage(BuildContext context) {
+    return Container(
+      color: _pageBackground,
+      child: Column(
+        children: [
+          _buildTopBar(context),
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 24, 24, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Danh sách tài liệu & bài báo khoa học',
+                              style: TextStyle(
+                                fontSize: 34,
+                                height: 1.08,
+                                fontWeight: FontWeight.w900,
+                                color: Color(0xFF111827),
+                              ),
+                            ),
+                            SizedBox(height: 10),
+                            Text(
+                              'Quản lý và xem xét các tài liệu lâm sàng, tài liệu về AI và tài liệu nghiên cứu.',
+                              style: TextStyle(
+                                fontSize: 15,
+                                color: Color(0xFF4B5563),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      FilledButton.icon(
+                        onPressed: () =>
+                            _showUploadKnowledgeDocumentDialog(context),
+                        icon: const Icon(Icons.upload_file_outlined, size: 18),
+                        label: const Text('Tải lên tài liệu mới'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primaryLight,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 16,
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 28),
+                  _buildDocumentFilterBar(),
+                  const SizedBox(height: 18),
+                  _buildEmptyDocumentTable(),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentFilterBar() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: TextField(
+              enabled: false,
+              decoration: InputDecoration(
+                prefixIcon: const Icon(Icons.search, size: 20),
+                hintText: 'Tìm kiếm tài liệu...',
+                filled: true,
+                fillColor: const Color(0xFFF8FAFC),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.borderStrong),
+                ),
+                disabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: AppColors.borderStrong),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          _buildDocumentFilterChip('Tất cả', selected: true),
+          _buildDocumentFilterChip('Bài báo khoa học'),
+          _buildDocumentFilterChip('Hồ sơ bệnh án'),
+          _buildDocumentFilterChip('Kết quả xét nghiệm'),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDocumentFilterChip(String label, {bool selected = false}) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 8),
+      child: Chip(
+        label: Text(label),
+        backgroundColor: selected ? AppColors.primaryLight : Colors.white,
+        labelStyle: TextStyle(
+          color: selected ? Colors.white : const Color(0xFF4B5563),
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+        ),
+        side: BorderSide(
+          color: selected ? AppColors.primaryLight : AppColors.borderStrong,
+        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(999)),
+      ),
+    );
+  }
+
+  Widget _buildEmptyDocumentTable() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.border),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        children: [
+          Container(
+            color: const Color(0xFFEFF4FA),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+            child: const Row(
+              children: [
+                Expanded(flex: 3, child: _DocumentHeaderCell('TÊN TÀI LIỆU')),
+                Expanded(child: _DocumentHeaderCell('LOẠI')),
+                Expanded(child: _DocumentHeaderCell('BỆNH NHÂN\nLIÊN QUAN')),
+                Expanded(child: _DocumentHeaderCell('NGÀY TẢI')),
+                Expanded(child: _DocumentHeaderCell('TRẠNG THÁI\nAI')),
+                SizedBox(width: 72, child: _DocumentHeaderCell('THAO\nTÁC')),
+              ],
+            ),
+          ),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 64),
+            child: const Column(
+              children: [
+                Icon(
+                  Icons.folder_open_outlined,
+                  size: 56,
+                  color: Color(0xFF9CA3AF),
+                ),
+                SizedBox(height: 14),
+                Text(
+                  'Chưa có tài liệu nào',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF111827),
+                  ),
+                ),
+                SizedBox(height: 6),
+                Text(
+                  'Tải lên tài liệu đầu tiên để bắt đầu quản lý kho tri thức.',
+                  style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              border: Border(top: BorderSide(color: AppColors.border)),
+            ),
+            child: const Row(
+              children: [
+                Text(
+                  'Showing 0 to 0 of 0 results',
+                  style: TextStyle(fontSize: 13, color: Color(0xFF4B5563)),
+                ),
+                Spacer(),
+                Icon(Icons.chevron_left_rounded, color: Color(0xFFCBD5E1)),
+                SizedBox(width: 8),
+                Text('1', style: TextStyle(color: Color(0xFF9CA3AF))),
+                SizedBox(width: 8),
+                Icon(Icons.chevron_right_rounded, color: Color(0xFFCBD5E1)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showUploadKnowledgeDocumentDialog(BuildContext context) async {
+    const allowedExtensions = ['pdf', 'doc', 'docx', 'docs'];
+    PlatformFile? selectedFile;
+    String? validationError;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            Future<void> pickFile() async {
+              final result = await FilePicker.platform.pickFiles(
+                type: FileType.custom,
+                allowedExtensions: allowedExtensions,
+                allowMultiple: false,
+                withData: true,
+              );
+              if (result == null || result.files.isEmpty) return;
+
+              final file = result.files.first;
+              final extension = _fileExtension(file.name);
+              if (!allowedExtensions.contains(extension)) {
+                setDialogState(() {
+                  selectedFile = null;
+                  validationError =
+                      'Chỉ hỗ trợ file PDF, DOC, DOCX hoặc DOCS. Vui lòng chọn lại.';
+                });
+                return;
+              }
+
+              setDialogState(() {
+                selectedFile = file;
+                validationError = null;
+              });
+            }
+
+            final file = selectedFile;
+
+            return AlertDialog(
+              backgroundColor: Colors.white,
+              surfaceTintColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              title: const Text(
+                'Tải lên tài liệu',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+              content: SizedBox(
+                width: 460,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Chọn tài liệu để bổ sung vào kho tri thức. Hệ thống hiện hỗ trợ PDF, DOC, DOCX và DOCS.',
+                      style: TextStyle(color: Color(0xFF6B7280), height: 1.35),
+                    ),
+                    const SizedBox(height: 16),
+                    InkWell(
+                      onTap: pickFile,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 22,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: validationError == null
+                                ? AppColors.borderStrong
+                                : AppColors.error,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            const Icon(
+                              Icons.cloud_upload_outlined,
+                              size: 36,
+                              color: AppColors.primaryLight,
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              file == null ? 'Nhấn để chọn file' : file.name,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF111827),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              file == null
+                                  ? 'Định dạng: .pdf, .doc, .docx, .docs'
+                                  : _formatFileSize(file.size),
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF6B7280),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (validationError != null) ...[
+                      const SizedBox(height: 10),
+                      Text(
+                        validationError!,
+                        style: const TextStyle(
+                          color: AppColors.error,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  child: const Text('Hủy'),
+                ),
+                FilledButton.icon(
+                  onPressed: file == null
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Đã chọn ${file.name}. API upload sẽ được tích hợp ở bước tiếp theo.',
+                              ),
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.upload_file_outlined, size: 18),
+                  label: const Text('Tải lên'),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primaryLight,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _fileExtension(String fileName) {
+    final parts = fileName.toLowerCase().trim().split('.');
+    if (parts.length < 2) return '';
+    return parts.last;
+  }
+
+  String _formatFileSize(int bytes) {
+    if (bytes <= 0) return 'Không rõ dung lượng';
+    const kb = 1024;
+    const mb = kb * 1024;
+    if (bytes >= mb) return '${(bytes / mb).toStringAsFixed(1)} MB';
+    return '${(bytes / kb).toStringAsFixed(1)} KB';
+  }
+
   Widget _buildUserManagementPage(BuildContext context) {
     return Container(
-      color: const Color(0xFFF0F4F3),
+      color: _pageBackground,
       child: Column(
         children: [
           _buildTopBar(context),
@@ -479,7 +1081,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                     ),
                     // ── RIGHT: detail panel ──
                     Container(
-                      width: 260,
+                      width: 320,
                       color: Colors.white,
                       child: _buildUserDetailSidebar(context, viewModel),
                     ),
@@ -571,7 +1173,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
           // const SizedBox(height: 20),
 
           // Filter bar
-          _buildFilterBar(context, viewModel),
+          _buildFilterBar(),
           const SizedBox(height: 16),
 
           // Table header
@@ -634,7 +1236,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
         ),
         const SizedBox(width: 10),
         _buildUMStatCard(
-          label: 'KỸ THUẬT VIÊN',
+          label: 'KỸ THUẬT VIA?N',
           value: ktv.toString(),
           sub: 'Hỗ trợ CDHA',
         ),
@@ -712,58 +1314,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
-  Widget _buildFilterBar(
-    BuildContext context,
-    AdminAccountViewModel viewModel,
-  ) {
-    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+  Widget _buildFilterBar() {
     return Row(
       children: [
-        Expanded(
-          flex: 3,
-          child: SizedBox(
-            height: 40,
-            child: TextField(
-              onChanged: (v) {
-                viewModel.searchByNameDebounced(v, token);
-              },
-              style: const TextStyle(fontSize: 13),
-              decoration: InputDecoration(
-                hintText: 'Tìm theo tên...',
-                hintStyle: const TextStyle(
-                  fontSize: 13,
-                  color: Color(0xFFADB5BD),
-                ),
-                prefixIcon: const Icon(
-                  Icons.tune,
-                  size: 18,
-                  color: Color(0xFF718096),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-                contentPadding: EdgeInsets.zero,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                  borderSide: const BorderSide(
-                    color: Color(0xFF2D7E6E),
-                    width: 1.5,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(width: 10),
-        _buildFilterChip('Tất cả vai trò'),
-        const SizedBox(width: 8),
         _buildFilterChip('Trạng thái'),
         const SizedBox(width: 8),
         _buildFilterChip('Khoa phòng'),
@@ -808,7 +1361,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: const [
-          Expanded(flex: 5, child: Text('NGƯỜI DÙNG', style: style)),
+          Expanded(flex: 2, child: Text('VAI TRÒ', style: style)),
           Expanded(flex: 3, child: Text('TÀI KHOẢN', style: style)),
           Expanded(flex: 2, child: Text('VAI TRÒ', style: style)),
           Expanded(flex: 2, child: Text('KHOA', style: style)),
@@ -819,13 +1372,19 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
+  String _userStatusLabel(String status) {
+    return status == 'ACTIVE' ? 'active' : 'deactive';
+  }
+
   Widget _buildUserRow(
     BuildContext context,
     DoctorAccountEntity account,
     AdminAccountViewModel viewModel,
   ) {
     final isActive = account.status == 'ACTIVE';
+    final statusLabel = _userStatusLabel(account.status);
     final isSelected = _selectedUser?.id == account.id;
+    final isHovered = _hoveredUserId == account.id;
 
     Color roleColor;
     Color roleBg;
@@ -849,216 +1408,240 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
     return GestureDetector(
       onTap: () => setState(() => _selectedUser = account),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 6),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFFE6F4F1) : Colors.white,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _hoveredUserId = account.id),
+        onExit: (_) => setState(() => _hoveredUserId = null),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 140),
+          curve: Curves.easeOut,
+          transform: Matrix4.translationValues(0, isHovered ? -1 : 0, 0),
+          margin: const EdgeInsets.only(bottom: 6),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          decoration: BoxDecoration(
             color: isSelected
-                ? const Color(0xFF2D7E6E)
-                : const Color(0xFFEDF2F7),
+                ? const Color(0xFFE6F4F1)
+                : isHovered
+                ? const Color(0xFFF8FCFA)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF2D7E6E)
+                  : isHovered
+                  ? const Color(0xFFCFE3DC)
+                  : const Color(0xFFEDF2F7),
+            ),
+            boxShadow: isHovered
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                : const [],
           ),
-        ),
-        child: Row(
-          children: [
-            // Avatar + name
-            Expanded(
-              flex: 5,
-              child: Row(
-                children: [
-                  Stack(
-                    children: [
-                      CircleAvatar(
-                        radius: 20,
-                        backgroundColor: const Color(
-                          0xFF2D7E6E,
-                        ).withValues(alpha: 0.15),
-                        child: Text(
-                          account.fullName.isNotEmpty
-                              ? account.fullName[0]
-                              : 'U',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF2D7E6E),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 0,
-                        bottom: 0,
-                        child: Container(
-                          width: 10,
-                          height: 10,
-                          decoration: BoxDecoration(
-                            color: isActive
-                                ? const Color(0xFF48BB78)
-                                : Colors.grey.shade400,
-                            shape: BoxShape.circle,
-                            border: Border.all(color: Colors.white, width: 1.5),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+          child: Row(
+            children: [
+              // Avatar + name
+              Expanded(
+                flex: 5,
+                child: Row(
+                  children: [
+                    Stack(
                       children: [
-                        Text(
-                          account.fullName,
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF1A2B3C),
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        _buildAccountAvatar(
+                          name: account.fullName,
+                          avatarUrl: account.avatarUrl,
+                          radius: 20,
+                          color: const Color(0xFF2D7E6E),
                         ),
-                        Text(
-                          account.specialization ?? roleLabel,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF718096),
+                        Positioned(
+                          right: 0,
+                          bottom: 0,
+                          child: Container(
+                            width: 10,
+                            height: 10,
+                            decoration: BoxDecoration(
+                              color: isActive
+                                  ? const Color(0xFF48BB78)
+                                  : Colors.grey.shade400,
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: Colors.white,
+                                width: 1.5,
+                              ),
+                            ),
                           ),
-                          overflow: TextOverflow.ellipsis,
                         ),
+                      ],
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            account.fullName,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF1A2B3C),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            account.specialization ?? roleLabel,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              color: Color(0xFF718096),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // Username
+              Expanded(
+                flex: 3,
+                child: Text(
+                  account.username,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF4A5568),
+                  ),
+                ),
+              ),
+              // Role badge
+              Expanded(
+                flex: 2,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: roleBg,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    roleLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: roleColor,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+              // Department
+              Expanded(
+                flex: 2,
+                child: Text(
+                  account.hospitalName?.split(' ').last ?? '—',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    color: Color(0xFF4A5568),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              // Status
+              Expanded(
+                flex: 3,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? const Color(0xFF48BB78)
+                            : Colors.red.shade400,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      statusLabel,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: isActive
+                            ? const Color(0xFF2D7E6E)
+                            : Colors.red.shade500,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              // More menu
+              PopupMenuButton<String>(
+                icon: const Icon(
+                  Icons.more_vert,
+                  size: 18,
+                  color: Color(0xFF718096),
+                ),
+                onSelected: (v) {
+                  if (v == 'detail') {
+                    _showAccountDetailDialog(context, account);
+                  } else if (v == 'permission') {
+                    _showRolePermissionDialog(context);
+                  } else if (v == 'toggle') {
+                    _showToggleStatusDialog(context, account);
+                  }
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(
+                    value: 'detail',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.visibility_outlined,
+                          size: 16,
+                          color: Colors.blue,
+                        ),
+                        SizedBox(width: 8),
+                        Text('Xem chi tiết'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem(
+                    value: 'permission',
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.admin_panel_settings_outlined,
+                          size: 16,
+                          color: Color(0xFF2D7E6E),
+                        ),
+                        SizedBox(width: 8),
+                        Text('Phan quyen'),
+                      ],
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: 'toggle',
+                    child: Row(
+                      children: [
+                        Icon(
+                          isActive ? Icons.block : Icons.check_circle_outline,
+                          size: 16,
+                          color: isActive ? Colors.red : Colors.green,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(isActive ? 'Khóa tài khoản' : 'Kích hoạt'),
                       ],
                     ),
                   ),
                 ],
               ),
-            ),
-            // Username
-            Expanded(
-              flex: 3,
-              child: Text(
-                account.username,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF4A5568)),
-              ),
-            ),
-            // Role badge
-            Expanded(
-              flex: 2,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: roleBg,
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  roleLabel,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: roleColor,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            ),
-            // Department
-            Expanded(
-              flex: 2,
-              child: Text(
-                account.hospitalName?.split(' ').last ?? '—',
-                style: const TextStyle(fontSize: 12, color: Color(0xFF4A5568)),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            // Status
-            Expanded(
-              flex: 3,
-              child: Row(
-                children: [
-                  Container(
-                    width: 7,
-                    height: 7,
-                    decoration: BoxDecoration(
-                      color: isActive
-                          ? const Color(0xFF48BB78)
-                          : Colors.red.shade400,
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    isActive ? 'Online' : 'Tạm khóa',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: isActive
-                          ? const Color(0xFF2D7E6E)
-                          : Colors.red.shade500,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            // More menu
-            PopupMenuButton<String>(
-              icon: const Icon(
-                Icons.more_vert,
-                size: 18,
-                color: Color(0xFF718096),
-              ),
-              onSelected: (v) {
-                if (v == 'detail') {
-                  _showAccountDetailDialog(context, account);
-                } else if (v == 'permission') {
-                  _showRolePermissionDialog(context);
-                } else if (v == 'toggle') {
-                  _showToggleStatusDialog(context, account);
-                }
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                  value: 'detail',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.visibility_outlined,
-                        size: 16,
-                        color: Colors.blue,
-                      ),
-                      SizedBox(width: 8),
-                      Text('Xem chi tiết'),
-                    ],
-                  ),
-                ),
-                const PopupMenuItem(
-                  value: 'permission',
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.admin_panel_settings_outlined,
-                        size: 16,
-                        color: Color(0xFF2D7E6E),
-                      ),
-                      SizedBox(width: 8),
-                      Text('Phan quyen'),
-                    ],
-                  ),
-                ),
-                PopupMenuItem(
-                  value: 'toggle',
-                  child: Row(
-                    children: [
-                      Icon(
-                        isActive ? Icons.block : Icons.check_circle_outline,
-                        size: 16,
-                        color: isActive ? Colors.red : Colors.green,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(isActive ? 'Khóa tài khoản' : 'Kích hoạt'),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -1122,19 +1705,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
               child: Stack(
                 alignment: Alignment.bottomRight,
                 children: [
-                  CircleAvatar(
+                  _buildAccountAvatar(
+                    name: user.fullName,
+                    avatarUrl: user.avatarUrl,
                     radius: 36,
-                    backgroundColor: const Color(
-                      0xFF2D7E6E,
-                    ).withValues(alpha: 0.15),
-                    child: Text(
-                      user.fullName.isNotEmpty ? user.fullName[0] : 'U',
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF2D7E6E),
-                      ),
-                    ),
+                    color: const Color(0xFF2D7E6E),
                   ),
                   Container(
                     width: 14,
@@ -1177,22 +1752,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
               ),
             ),
             const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildSidebarInfoBox(
-                    'CA TRỰC',
-                    user.position == 'DEPARTMENT_HEAD' ? 'Sáng' : '—',
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: _buildSidebarInfoBox(
-                    'THÂM NIÊN',
-                    '${user.yearsOfExperience} Năm',
-                  ),
-                ),
-              ],
+            _buildSidebarInfoBox(
+              'EMAIL',
+              user.email.isEmpty ? '—' : user.email,
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -1256,6 +1818,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   Widget _buildSidebarInfoBox(String label, String value) {
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       decoration: BoxDecoration(
         color: const Color(0xFFF7FAFC),
@@ -1277,6 +1840,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
           const SizedBox(height: 4),
           Text(
             value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               fontSize: 13,
               fontWeight: FontWeight.w600,
@@ -1384,275 +1949,296 @@ class _AdminHomepageState extends State<AdminHomepage> {
     bool isSubmitting = false;
     String? submitError;
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) {
-          return AlertDialog(
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.white,
-            insetPadding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 24,
-            ),
-            titlePadding: EdgeInsets.zero,
-            contentPadding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
-            actionsPadding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: Container(
-              padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
-              decoration: const BoxDecoration(
-                color: Color(0xFFE6F4F1),
-                borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-              ),
-              child: const Row(
-                children: [
-                  CircleAvatar(
-                    radius: 20,
-                    backgroundColor: Colors.white,
-                    child: Icon(
-                      Icons.person_add_outlined,
-                      color: Color(0xFF2D7E6E),
+    showDialog<bool>(
+          context: context,
+          barrierDismissible: false,
+          builder: (dialogContext) => StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                backgroundColor: Colors.white,
+                surfaceTintColor: Colors.white,
+                insetPadding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 24,
+                ),
+                titlePadding: EdgeInsets.zero,
+                contentPadding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
+                actionsPadding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Container(
+                  padding: const EdgeInsets.fromLTRB(28, 24, 28, 20),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFE6F4F1),
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(16),
                     ),
                   ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Thêm bác sĩ mới',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w700,
-                            color: Color(0xFF1A2B3C),
-                          ),
-                        ),
-                        SizedBox(height: 3),
-                        Text(
-                          'Tạo hồ sơ bác sĩ theo API mới',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF4F6F68),
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            content: SizedBox(
-              width: 500,
-              child: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  child: const Row(
                     children: [
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF7FBFA),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: const Color(0xFFD8E7E3)),
+                      CircleAvatar(
+                        radius: 20,
+                        backgroundColor: Colors.white,
+                        child: Icon(
+                          Icons.person_add_outlined,
+                          color: Color(0xFF2D7E6E),
                         ),
-                        child: const Row(
+                      ),
+                      SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Icon(
-                              Icons.info_outline,
-                              color: Color(0xFF2D7E6E),
-                              size: 18,
+                            Text(
+                              'Thêm bác sĩ mới',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF1A2B3C),
+                              ),
                             ),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'API mới tạo bác sĩ qua /doctors với họ tên, email và số điện thoại.',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  height: 1.4,
-                                  color: Color(0xFF4F6F68),
-                                ),
+                            SizedBox(height: 3),
+                            Text(
+                              'Tạo hồ sơ bác sĩ theo API mới',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Color(0xFF4F6F68),
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 20),
-                      _buildFieldLabel('Họ và tên *'),
-                      TextFormField(
-                        controller: nameController,
-                        decoration: _buildInputDecoration(
-                          'Nhập họ và tên',
-                          Icons.person_outline,
-                        ),
-                        validator: (v) => (v == null || v.trim().isEmpty)
-                            ? 'Vui lòng nhập họ tên'
-                            : null,
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Email *'),
-                      TextFormField(
-                        controller: emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        decoration: _buildInputDecoration(
-                          'example@email.com',
-                          Icons.email_outlined,
-                        ),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'Vui lòng nhập email';
-                          }
-                          if (!RegExp(
-                            r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
-                          ).hasMatch(v.trim())) {
-                            return 'Email không hợp lệ';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-                      _buildFieldLabel('Số điện thoại *'),
-                      TextFormField(
-                        controller: phoneController,
-                        keyboardType: TextInputType.phone,
-                        decoration: _buildInputDecoration(
-                          'Số điện thoại',
-                          Icons.phone_outlined,
-                        ),
-                        validator: (v) {
-                          if (v == null || v.trim().isEmpty) {
-                            return 'Vui lòng nhập số điện thoại';
-                          }
-                          if (!RegExp(r'^\d+$').hasMatch(v.trim())) {
-                            return 'Số điện thoại chỉ chứa chữ số';
-                          }
-                          return null;
-                        },
-                      ),
-                      if (submitError != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 12),
-                          child: Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFFFF0F0),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: const Color(0xFFFFCDD2),
-                              ),
-                            ),
-                            child: Text(
-                              submitError!,
-                              style: const TextStyle(
-                                color: Color(0xFFE53E3E),
-                                fontSize: 12,
-                              ),
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () => Navigator.pop(dialogContext),
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFF2D7E6E),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 12,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                ),
-                child: const Text(
-                  'Hủy',
-                  style: TextStyle(fontWeight: FontWeight.w600),
-                ),
-              ),
-              ElevatedButton(
-                onPressed: isSubmitting
-                    ? null
-                    : () async {
-                        if (formKey.currentState!.validate()) {
-                          setDialogState(() {
-                            isSubmitting = true;
-                            submitError = null;
-                          });
-                          final success = await viewModel.createDoctorSilently(
-                            doctorData: {
-                              'fullName': nameController.text.trim(),
-                              'email': emailController.text.trim(),
-                              'phone': phoneController.text.trim(),
+                content: SizedBox(
+                  width: 500,
+                  child: Form(
+                    key: formKey,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF7FBFA),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: const Color(0xFFD8E7E3),
+                              ),
+                            ),
+                            child: const Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Icon(
+                                  Icons.info_outline,
+                                  color: Color(0xFF2D7E6E),
+                                  size: 18,
+                                ),
+                                SizedBox(width: 10),
+                                Expanded(
+                                  child: Text(
+                                    'API mới tạo bác sĩ qua /doctors với họ tên, email và số điện thoại.',
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      height: 1.4,
+                                      color: Color(0xFF4F6F68),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _buildFieldLabel('Họ và tên *'),
+                          TextFormField(
+                            controller: nameController,
+                            decoration: _buildInputDecoration(
+                              'Nhập họ và tên',
+                              Icons.person_outline,
+                            ),
+                            validator: (v) => (v == null || v.trim().isEmpty)
+                                ? 'Vui lòng nhập họ tên'
+                                : null,
+                          ),
+                          const SizedBox(height: 16),
+                          _buildFieldLabel('Email *'),
+                          TextFormField(
+                            controller: emailController,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: _buildInputDecoration(
+                              'example@email.com',
+                              Icons.email_outlined,
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Vui lòng nhập email';
+                              }
+                              if (!RegExp(
+                                r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
+                              ).hasMatch(v.trim())) {
+                                return 'Email không hợp lệ';
+                              }
+                              return null;
                             },
-                            token: token,
-                          );
-                          if (!mounted ||
-                              !context.mounted ||
-                              !dialogContext.mounted) {
-                            return;
-                          }
-                          if (success) {
-                            Navigator.pop(dialogContext);
-                            await viewModel.fetchFirstPage(token);
-                            AppToast.showSuccess('Tạo bác sĩ thành công');
-                          }
-                          if (!success && context.mounted) {
-                            setDialogState(() {
-                              isSubmitting = false;
-                              submitError =
-                                  viewModel.errorMessage ??
-                                  'Không thể tạo bác sĩ';
-                            });
-                          }
-                        }
-                      },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2D7E6E),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 20,
-                    vertical: 13,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+                          ),
+                          const SizedBox(height: 16),
+                          _buildFieldLabel('Số điện thoại *'),
+                          TextFormField(
+                            controller: phoneController,
+                            keyboardType: TextInputType.phone,
+                            inputFormatters: [
+                              FilteringTextInputFormatter.digitsOnly,
+                              LengthLimitingTextInputFormatter(10),
+                            ],
+                            decoration: _buildInputDecoration(
+                              'Số điện thoại',
+                              Icons.phone_outlined,
+                            ),
+                            validator: (v) {
+                              if (v == null || v.trim().isEmpty) {
+                                return 'Vui lòng nhập số điện thoại';
+                              }
+                              if (!RegExp(r'^\d+$').hasMatch(v.trim())) {
+                                return 'Số điện thoại chỉ chứa chữ số';
+                              }
+                              if (v.trim().length != 10) {
+                                return 'Số điện thoại phải có đúng 10 chữ số';
+                              }
+                              return null;
+                            },
+                          ),
+                          if (submitError != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFFFF0F0),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(
+                                    color: const Color(0xFFFFCDD2),
+                                  ),
+                                ),
+                                child: Text(
+                                  submitError!,
+                                  style: const TextStyle(
+                                    color: Color(0xFFE53E3E),
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
                 ),
-                child: isSubmitting
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Text('Xác nhận tạo'),
-              ),
-            ],
-          );
-        },
-      ),
-    ).whenComplete(() {
-      nameController.dispose();
-      emailController.dispose();
-      phoneController.dispose();
-    });
+                actions: [
+                  TextButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () => Navigator.pop(dialogContext),
+                    style: TextButton.styleFrom(
+                      foregroundColor: const Color(0xFF2D7E6E),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: const Text(
+                      'Hủy',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                  ElevatedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            if (formKey.currentState!.validate()) {
+                              setDialogState(() {
+                                isSubmitting = true;
+                                submitError = null;
+                              });
+                              final success = await viewModel
+                                  .createDoctorSilently(
+                                    doctorData: {
+                                      'fullName': nameController.text.trim(),
+                                      'email': emailController.text.trim(),
+                                      'phone': phoneController.text.trim(),
+                                    },
+                                    token: token,
+                                  );
+                              if (!mounted ||
+                                  !context.mounted ||
+                                  !dialogContext.mounted) {
+                                return;
+                              }
+                              if (success) {
+                                Navigator.pop(dialogContext, true);
+                                return;
+                              }
+                              if (!success && context.mounted) {
+                                setDialogState(() {
+                                  isSubmitting = false;
+                                  submitError =
+                                      viewModel.errorMessage ??
+                                      'Không thể tạo bác sĩ';
+                                });
+                              }
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF2D7E6E),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 13,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text('Xác nhận tạo'),
+                  ),
+                ],
+              );
+            },
+          ),
+        )
+        .whenComplete(() {
+          nameController.dispose();
+          emailController.dispose();
+          phoneController.dispose();
+        })
+        .then((created) async {
+          if (created == true && mounted && pageContext.mounted) {
+            await viewModel.fetchFirstPage(token);
+            if (mounted && pageContext.mounted) {
+              AppToast.showSuccess('Tạo bác sĩ thành công');
+            }
+          }
+        });
   }
 
   void _showCreateAccountDialog(BuildContext context) {
@@ -1666,7 +2252,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
     // Danh sách role tạm thời — khi có API roles thì thay bằng dữ liệu thực
     final roles = [
-      {'id': 1, 'name': 'Bác sĩ'},
+      {'id': 3, 'name': 'Quản trị viên'},
       {'id': 2, 'name': 'Kỹ thuật viên'},
       {'id': 3, 'name': 'Quản trị viên'},
     ];
@@ -1706,6 +2292,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 width: 480,
                 child: Form(
                   key: formKey,
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
                   child: SingleChildScrollView(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
@@ -1730,7 +2317,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                               SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  'Dien thong tin de tao user. He thong se gan tai khoan theo vai tro da chon.',
+                                  'Điền thông tin để tạo tài khoản. Hệ thống sẽ gán tài khoản theo vai trò đã chọn.',
                                   style: TextStyle(
                                     fontSize: 13,
                                     height: 1.4,
@@ -1791,6 +2378,10 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         TextFormField(
                           controller: phoneController,
                           keyboardType: TextInputType.phone,
+                          inputFormatters: [
+                            FilteringTextInputFormatter.digitsOnly,
+                            LengthLimitingTextInputFormatter(10),
+                          ],
                           decoration: _buildInputDecoration(
                             'Số điện thoại',
                             Icons.phone_outlined,
@@ -1800,6 +2391,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
                                 v.isNotEmpty &&
                                 !RegExp(r'^\d+$').hasMatch(v)) {
                               return 'Số điện thoại chỉ chứa chữ số';
+                            }
+                            if (v != null &&
+                                v.trim().isNotEmpty &&
+                                v.trim().length != 10) {
+                              return 'Số điện thoại phải có đúng 10 chữ số';
                             }
                             return null;
                           },
@@ -1929,14 +2525,31 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildFieldLabel(String label) {
+    final isRequired = label.trimRight().endsWith('*');
+    final cleanLabel = isRequired
+        ? label
+              .trimRight()
+              .substring(0, label.trimRight().length - 1)
+              .trimRight()
+        : label;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w600,
-          color: Colors.black87,
+      child: RichText(
+        text: TextSpan(
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+          children: [
+            TextSpan(text: cleanLabel),
+            if (isRequired)
+              const TextSpan(
+                text: ' *',
+                style: TextStyle(color: Color(0xFFE53E3E)),
+              ),
+          ],
         ),
       ),
     );
@@ -1978,7 +2591,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
     DoctorAccountEntity account,
   ) {
     final bool isActive = account.status == 'ACTIVE';
-    final String actionText = isActive ? 'Khóa' : 'Kích hoạt';
+    if (isActive) {
+      _showDeactivateDoctorDialog(context, account);
+      return;
+    }
+    const actionText = 'Kích hoạt';
 
     showDialog(
       context: context,
@@ -2003,7 +2620,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               if (context.mounted) {
                 Navigator.pop(context);
                 if (success) {
-                  AppToast.showSuccess('${actionText} tài khoản thành công!');
+                  AppToast.showSuccess('$actionText tài khoản thành công!');
                 } else {
                   AppToast.showError('Có lỗi xảy ra, vui lòng thử lại.');
                 }
@@ -2020,11 +2637,94 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
+  void _showDeactivateDoctorDialog(
+    BuildContext context,
+    DoctorAccountEntity account,
+  ) {
+    final reasonController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Khóa tài khoản'),
+        content: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Bạn có chắc chắn muốn khóa tài khoản của bác sĩ ${account.fullName} không?',
+              ),
+              const SizedBox(height: 16),
+              TextFormField(
+                controller: reasonController,
+                minLines: 3,
+                maxLines: 5,
+                textInputAction: TextInputAction.newline,
+                decoration: _buildInputDecoration(
+                  'Nhập lý do vô hiệu hóa',
+                  Icons.notes_outlined,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Vui lòng nhập lý do vô hiệu hóa';
+                  }
+                  return null;
+                },
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Hủy', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (!(formKey.currentState?.validate() ?? false)) return;
+
+              final token =
+                  context.read<AuthViewModel>().currentUser?.token ?? '';
+              final success = await context
+                  .read<AdminAccountViewModel>()
+                  .toggleDoctorStatus(
+                    account.id,
+                    false,
+                    token,
+                    reason: reasonController.text.trim(),
+                  );
+
+              if (dialogContext.mounted) {
+                Navigator.pop(dialogContext);
+              }
+              if (context.mounted) {
+                if (success) {
+                  AppToast.showSuccess('Khóa tài khoản thành công!');
+                } else {
+                  AppToast.showError('Có lỗi xảy ra, vui lòng thử lại.');
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xác nhận khóa'),
+          ),
+        ],
+      ),
+    ).whenComplete(reasonController.dispose);
+  }
+
   void _showAccountDetailDialog(
     BuildContext context,
     DoctorAccountEntity account,
   ) {
     final isActive = account.status == 'ACTIVE';
+    final statusLabel = _userStatusLabel(account.status);
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -2047,21 +2747,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   ),
                   child: Column(
                     children: [
-                      CircleAvatar(
+                      _buildAccountAvatar(
+                        name: account.fullName,
+                        avatarUrl: account.avatarUrl,
                         radius: 50,
-                        backgroundColor: const Color(
-                          0xFF2D7E6E,
-                        ).withOpacity(0.1),
-                        child: Text(
-                          account.fullName.isNotEmpty
-                              ? account.fullName[0]
-                              : 'U',
-                          style: const TextStyle(
-                            fontSize: 40,
-                            color: Color(0xFF2D7E6E),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        color: const Color(0xFF2D7E6E),
                       ),
                       const SizedBox(height: 20),
                       Text(
@@ -2098,7 +2788,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           ),
                         ),
                         child: Text(
-                          account.status,
+                          statusLabel,
                           style: TextStyle(
                             fontSize: 12,
                             color: isActive
@@ -2374,19 +3064,10 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    CircleAvatar(
+                    _buildAccountAvatar(
+                      name: vm.currentUser?.displayName ?? 'Admin',
+                      avatarUrl: vm.currentUser?.avatarUrl,
                       radius: 15,
-                      backgroundColor: const Color(0xFFE6F4F1),
-                      child: Text(
-                        vm.currentUser?.displayName.isNotEmpty == true
-                            ? vm.currentUser!.displayName[0].toUpperCase()
-                            : 'A',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primary,
-                        ),
-                      ),
                     ),
                     const SizedBox(width: 8),
                     Column(
@@ -2518,7 +3199,9 @@ class _AdminHomepageState extends State<AdminHomepage> {
   void _handleAdminUserMenuAction(_AdminUserMenuAction action) {
     switch (action) {
       case _AdminUserMenuAction.changePassword:
-        setState(() => _showChangePassword = true);
+        setState(() {
+          _showChangePassword = true;
+        });
         break;
       case _AdminUserMenuAction.logout:
         context.read<AuthViewModel>().logout();
@@ -2537,7 +3220,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
           elevation: 12,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
           constraints: const BoxConstraints.tightFor(width: 380),
-          onOpened: () => vm.loadUnreadNotifications(_token),
+          onOpened: () => vm.loadNotifications(_token),
           itemBuilder: (context) => [
             PopupMenuItem<void>(
               enabled: false,
@@ -2798,80 +3481,149 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Widget _buildKLGradeDistribution() {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Phân bố KL Grade',
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Colors.black87,
-            ),
-          ),
-          const SizedBox(height: 20),
-          Center(
-            child: SizedBox(
-              height: 180,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  // Donut Chart
-                  CustomPaint(
-                    size: const Size(180, 180),
-                    painter: DonutChartPainter(),
-                  ),
-                  // Center text
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text(
-                        '2.8k',
-                        style: TextStyle(
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      Text(
-                        'Tổng số',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
+    return Consumer<AdminDashboardViewModel>(
+      builder: (context, vm, _) {
+        final segments = _adminGradeSegments(vm.stats.gradeCounts);
+        final total = segments.fold<int>(0, (sum, item) => sum + item.value);
+
+        return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-            ),
+            ],
           ),
-          const SizedBox(height: 20),
-          // Legend
-          _buildLegendItem('KL0-KL1', '62%', const Color(0xFF4CAF50)),
-          const SizedBox(height: 12),
-          _buildLegendItem('KL2-KL3', '28%', const Color(0xFFFFC107)),
-          const SizedBox(height: 12),
-          _buildLegendItem('KL4', '10%', const Color(0xFFF44336)),
-        ],
-      ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Phân bổ bệnh nhân theo KL Grade',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 18),
+              Expanded(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  children: [
+                    Expanded(
+                      flex: 5,
+                      child: Center(
+                        child: SizedBox(
+                          width: 220,
+                          height: 220,
+                          child: Stack(
+                            alignment: Alignment.center,
+                            children: [
+                              CustomPaint(
+                                size: const Size(220, 220),
+                                painter: _DonutChartPainter(
+                                  segments: segments,
+                                  emptyColor: const Color(0xFFE7F5F1),
+                                ),
+                              ),
+                              Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    _formatCount(total),
+                                    style: const TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  Text(
+                                    'Tổng số',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 28),
+                    Expanded(
+                      flex: 6,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          for (final segment in segments) ...[
+                            _buildLegendItem(
+                              segment.label,
+                              segment.value,
+                              total,
+                              segment.color,
+                            ),
+                            if (segment != segments.last)
+                              const SizedBox(height: 16),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildLegendItem(String label, String percentage, Color color) {
+  List<_AdminGradeSegment> _adminGradeSegments(Map<int, int> gradeCounts) {
+    return [
+      _AdminGradeSegment(
+        label: 'KL 0',
+        value: gradeCounts[0] ?? 0,
+        color: const Color(0xFF2F855A),
+      ),
+      _AdminGradeSegment(
+        label: 'KL 1',
+        value: gradeCounts[1] ?? 0,
+        color: const Color(0xFF38A169),
+      ),
+      _AdminGradeSegment(
+        label: 'KL 2',
+        value: gradeCounts[2] ?? 0,
+        color: const Color(0xFFD4A017),
+      ),
+      _AdminGradeSegment(
+        label: 'KL 3',
+        value: gradeCounts[3] ?? 0,
+        color: const Color(0xFFE67E22),
+      ),
+      _AdminGradeSegment(
+        label: 'KL 4',
+        value: gradeCounts[4] ?? 0,
+        color: const Color(0xFFD71920),
+      ),
+    ];
+  }
+
+  int _percentOf(int value, int denominator) {
+    if (denominator <= 0) return 0;
+    return ((value / denominator) * 100).round();
+  }
+
+  Widget _buildLegendItem(String label, int value, int total, Color color) {
+    final percent = _percentOf(value, total);
+    final progress = total <= 0 ? 0.0 : (value / total).clamp(0.0, 1.0);
+
     return Row(
       children: [
         Container(
@@ -2880,14 +3632,28 @@ class _AdminHomepageState extends State<AdminHomepage> {
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
         const SizedBox(width: 8),
-        Expanded(
+        SizedBox(
+          width: 48,
           child: Text(
             label,
             style: const TextStyle(fontSize: 12, color: Colors.black87),
           ),
         ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(999),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: color.withValues(alpha: 0.12),
+              valueColor: AlwaysStoppedAnimation<Color>(color),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
         Text(
-          percentage,
+          '$percent%',
           style: const TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
@@ -2898,18 +3664,21 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
+  // ignore: unused_element
   Widget _buildSystemStatus() {
     return Column(
       children: [
-        _buildStatusBox(
-          'Trạng thái PACS',
-          '4/4 Online',
-          'DICOM Nodes',
-          Colors.green,
-          Icons.cloud_done,
+        Expanded(
+          child: _buildStatusBox(
+            'Trạng thái PACS',
+            '4/4 Online',
+            'DICOM Nodes',
+            Colors.green,
+            Icons.cloud_done,
+          ),
         ),
         const SizedBox(height: 16),
-        _buildStorageBox(),
+        Expanded(child: _buildStorageBox()),
       ],
     );
   }
@@ -3140,7 +3909,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
         'time': '14:25:31, 24/05/2024',
         'user': 'Bác sĩ Mai Tiến',
         'avatar': 'M',
-        'action': 'Chạy phân tích AI - Case #92110',
         'status': 'THÀNH CÔNG',
       },
       {
@@ -3154,7 +3922,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
         'time': '13:55:12, 24/05/2024',
         'user': 'Hệ thống',
         'avatar': 'S',
-        'action': 'Backup dữ liệu tự động hàng ngày',
         'status': 'CẢNH BÁO',
       },
     ];
@@ -3588,8 +4355,14 @@ class _AdminNotificationDropdown extends StatelessWidget {
                       iconSize: 18,
                       onPressed: vm.isLoading
                           ? null
-                          : () => vm.loadUnreadNotifications(token),
+                          : () => vm.loadNotifications(token),
                       icon: const Icon(Icons.refresh_outlined),
+                    ),
+                    TextButton(
+                      onPressed: vm.unreadCount == 0
+                          ? null
+                          : () => vm.markAllAsRead(token),
+                      child: const Text('Đã đọc tất cả'),
                     ),
                   ],
                 ),
@@ -3628,7 +4401,7 @@ class _AdminNotificationBody extends StatelessWidget {
     if (vm.notifications.isEmpty) {
       return const _AdminNotificationEmpty(
         icon: Icons.notifications_none_outlined,
-        message: 'Chưa có thông báo mới.',
+        message: 'Chưa có thông báo.',
       );
     }
 
@@ -3646,7 +4419,7 @@ class _AdminNotificationBody extends StatelessWidget {
         final notification = vm.visibleNotifications[index];
         return _AdminNotificationTile(
           notification: notification,
-          onTap: notification.id <= 0
+          onTap: notification.id <= 0 || notification.isRead
               ? null
               : () => vm.markAsRead(id: notification.id, token: token),
         );
@@ -3666,9 +4439,11 @@ class _AdminNotificationTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isUnread = !notification.isRead;
     return InkWell(
       onTap: onTap,
-      child: Padding(
+      child: Container(
+        color: isUnread ? const Color(0xFFF0F7FF) : Colors.transparent,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -3697,9 +4472,9 @@ class _AdminNotificationTile extends StatelessWidget {
                         : notification.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 13,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: isUnread ? FontWeight.w800 : FontWeight.w600,
                       color: AppColors.textPrimary,
                     ),
                   ),
@@ -3708,14 +4483,31 @@ class _AdminNotificationTile extends StatelessWidget {
                     notification.message,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       height: 1.35,
-                      color: AppColors.textSecondary,
+                      color: isUnread
+                          ? AppColors.textSecondary
+                          : const Color(0xFF94A3B8),
                     ),
                   ),
                 ],
               ),
+            ),
+            const SizedBox(width: 8),
+            SizedBox(
+              width: 8,
+              child: isUnread
+                  ? Container(
+                      width: 8,
+                      height: 8,
+                      margin: const EdgeInsets.only(top: 6),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFE53E3E),
+                        shape: BoxShape.circle,
+                      ),
+                    )
+                  : null,
             ),
           ],
         ),
@@ -3750,6 +4542,28 @@ class _AdminNotificationEmpty extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _DocumentHeaderCell extends StatelessWidget {
+  final String label;
+
+  const _DocumentHeaderCell(this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      label,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+      style: const TextStyle(
+        fontSize: 12,
+        height: 1.25,
+        fontWeight: FontWeight.w800,
+        color: Color(0xFF4B5563),
+        letterSpacing: 0.4,
       ),
     );
   }
@@ -3801,68 +4615,55 @@ class _MiniDonutPainter extends CustomPainter {
   bool shouldRepaint(_MiniDonutPainter old) => false;
 }
 
+class _AdminGradeSegment {
+  final String label;
+  final int value;
+  final Color color;
+
+  const _AdminGradeSegment({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+}
+
 // Custom Painter for Donut Chart
-class DonutChartPainter extends CustomPainter {
+class _DonutChartPainter extends CustomPainter {
+  final List<_AdminGradeSegment> segments;
+  final Color emptyColor;
+
+  const _DonutChartPainter({required this.segments, required this.emptyColor});
+
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2;
-
-    // Draw segments
-    _drawSegment(
-      canvas,
-      center,
-      radius,
-      0,
-      220,
-      const Color(0xFF4CAF50),
-    ); // 62%
-    _drawSegment(
-      canvas,
-      center,
-      radius,
-      220,
-      100,
-      const Color(0xFFFFC107),
-    ); // 28%
-    _drawSegment(
-      canvas,
-      center,
-      radius,
-      320,
-      40,
-      const Color(0xFFF44336),
-    ); // 10%
-  }
-
-  void _drawSegment(
-    Canvas canvas,
-    Offset center,
-    double radius,
-    double startAngle,
-    double sweepAngle,
-    Color color,
-  ) {
+    final radius = math.min(size.width, size.height) / 2 - 10;
+    final rect = Rect.fromCircle(center: center, radius: radius);
     final paint = Paint()
-      ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 20;
+      ..strokeWidth = 20
+      ..strokeCap = StrokeCap.butt;
+    final total = segments.fold<int>(0, (sum, item) => sum + item.value);
 
-    final rect = Rect.fromCenter(
-      center: center,
-      width: radius * 2,
-      height: radius * 2,
-    );
+    if (total <= 0) {
+      paint.color = emptyColor;
+      canvas.drawCircle(center, radius, paint);
+      return;
+    }
 
-    canvas.drawArc(
-      rect,
-      startAngle * 3.14159 / 180,
-      sweepAngle * 3.14159 / 180,
-      false,
-      paint,
-    );
+    var startAngle = -math.pi / 2;
+    for (final segment in segments) {
+      if (segment.value <= 0) continue;
+      final sweepAngle = (segment.value / total) * math.pi * 2;
+      paint.color = segment.color;
+      canvas.drawArc(rect, startAngle, sweepAngle, false, paint);
+      startAngle += sweepAngle;
+    }
   }
 
   @override
-  bool shouldRepaint(DonutChartPainter oldDelegate) => false;
+  bool shouldRepaint(_DonutChartPainter oldDelegate) {
+    return oldDelegate.segments != segments ||
+        oldDelegate.emptyColor != emptyColor;
+  }
 }

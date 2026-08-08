@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import 'package:fe/core/services/toast_service.dart';
@@ -29,6 +30,7 @@ class _PatientListPageState extends State<PatientListPage> {
 
   bool _hasRequestedPatientList = false;
   String _filterGender = '';
+  String? _hoveredPatientKey;
 
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
 
@@ -222,12 +224,38 @@ class _PatientListPageState extends State<PatientListPage> {
   }
 
   Widget _buildPatientRow(BuildContext context, PatientEntity p) {
+    final patientKey = p.id.toString();
+    final isHovered = _hoveredPatientKey == patientKey;
     return InkWell(
       onTap: () => _openPatientDetail(p),
-      hoverColor: const Color(0xFFF0F4F3),
-      child: Container(
-        color: Colors.white,
+      onHover: (hovering) {
+        setState(() {
+          _hoveredPatientKey = hovering ? patientKey : null;
+        });
+      },
+      hoverColor: Colors.transparent,
+      splashColor: _primaryGreen.withValues(alpha: 0.08),
+      highlightColor: _primaryGreen.withValues(alpha: 0.04),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(0, isHovered ? -1 : 0, 0),
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+        decoration: BoxDecoration(
+          color: isHovered ? const Color(0xFFF8FCFA) : Colors.white,
+          border: Border.all(
+            color: isHovered ? const Color(0xFFCFE3DC) : Colors.transparent,
+          ),
+          boxShadow: isHovered
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : const [],
+        ),
         child: Row(
           children: [
             Expanded(
@@ -553,6 +581,7 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
         width: 560,
         child: Form(
           key: _formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           child: SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -598,11 +627,20 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
                         _phoneCtrl,
                         Icons.phone_outlined,
                         keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
                         validator: (v) {
                           if (v != null &&
                               v.isNotEmpty &&
                               !RegExp(r'^\d+$').hasMatch(v)) {
                             return 'Chỉ nhập số';
+                          }
+                          if (v != null &&
+                              v.trim().isNotEmpty &&
+                              v.trim().length != 10) {
+                            return 'Số điện thoại phải có đúng 10 chữ số';
                           }
                           return null;
                         },
@@ -648,6 +686,18 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
                         _ecPhoneCtrl,
                         Icons.phone_in_talk_outlined,
                         keyboardType: TextInputType.phone,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        validator: (v) {
+                          if (v != null &&
+                              v.trim().isNotEmpty &&
+                              v.trim().length != 10) {
+                            return 'Số điện thoại phải có đúng 10 chữ số';
+                          }
+                          return null;
+                        },
                       ),
                     ),
                   ],
@@ -711,13 +761,36 @@ class _CreatePatientDialogState extends State<_CreatePatientDialog> {
     IconData icon, {
     String? Function(String?)? validator,
     TextInputType? keyboardType,
+    List<TextInputFormatter>? inputFormatters,
   }) {
+    final isRequired = label.trimRight().endsWith('*');
+    final cleanLabel = isRequired
+        ? label
+              .trimRight()
+              .substring(0, label.trimRight().length - 1)
+              .trimRight()
+        : label;
+
     return TextFormField(
       controller: ctrl,
       keyboardType: keyboardType,
+      inputFormatters: inputFormatters,
       validator: validator,
       decoration: InputDecoration(
-        labelText: label,
+        label: isRequired
+            ? RichText(
+                text: TextSpan(
+                  text: cleanLabel,
+                  style: const TextStyle(color: Color(0xFF4A5568)),
+                  children: const [
+                    TextSpan(
+                      text: ' *',
+                      style: TextStyle(color: Color(0xFFE53E3E)),
+                    ),
+                  ],
+                ),
+              )
+            : Text(cleanLabel),
         prefixIcon: Icon(icon, size: 18, color: const Color(0xFF718096)),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 12,

@@ -79,6 +79,8 @@ class ExaminationImageEntity {
   final String bodyPart;
   final String imageUrl;
   final String annotatedImageUrl;
+  final String aiAnalysisStatus;
+  final String aiErrorMessage;
   final List<AiPredictionResultEntity> aiResults;
 
   const ExaminationImageEntity({
@@ -90,8 +92,12 @@ class ExaminationImageEntity {
     this.bodyPart = '',
     required this.imageUrl,
     this.annotatedImageUrl = '',
+    this.aiAnalysisStatus = '',
+    this.aiErrorMessage = '',
     this.aiResults = const [],
   });
+
+  bool get hasFailedAiAnalysis => aiAnalysisStatus.toUpperCase() == 'FAILED';
 }
 
 class ExaminationEntity {

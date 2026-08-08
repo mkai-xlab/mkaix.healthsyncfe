@@ -40,9 +40,7 @@ class DoctorAccountModel extends DoctorAccountEntity {
     }
 
     return DoctorAccountModel(
-      id: json['id'] is int
-          ? json['id'] as int
-          : int.tryParse(json['id']?.toString() ?? '') ?? 0,
+      id: _parseId(json),
       username: json['username'] as String? ?? '',
       fullName: json['fullName'] as String? ?? '',
       role: roleName,
@@ -72,5 +70,15 @@ class DoctorAccountModel extends DoctorAccountEntity {
       return DateTime.tryParse(value) ?? DateTime.now();
     }
     return DateTime.now();
+  }
+
+  static int _parseId(Map<String, dynamic> json) {
+    for (final key in const ['doctorId', 'id', 'userId']) {
+      final value = json[key];
+      if (value is int) return value;
+      final parsed = int.tryParse(value?.toString() ?? '');
+      if (parsed != null) return parsed;
+    }
+    return 0;
   }
 }

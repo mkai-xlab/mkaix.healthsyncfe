@@ -15,11 +15,13 @@ import 'examination_detail_page.dart';
 
 class DoctorDashboardPage extends StatefulWidget {
   final bool embedded;
+  final bool canOpenExaminationList;
   final ValueChanged<ExaminationListMode>? onOpenExaminationList;
 
   const DoctorDashboardPage({
     super.key,
     this.embedded = false,
+    this.canOpenExaminationList = true,
     this.onOpenExaminationList,
   });
 
@@ -73,12 +75,18 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
           return _DashboardContent(
             stats: stats,
             warning: vm.errorMessage,
-            onOpenExamination: (examination) {
-              final token =
-                  context.read<AuthViewModel>().currentUser?.token ?? '';
-              vm.openExaminationDetail(examination: examination, token: token);
-            },
+            onOpenExamination: widget.canOpenExaminationList
+                ? (examination) {
+                    final token =
+                        context.read<AuthViewModel>().currentUser?.token ?? '';
+                    vm.openExaminationDetail(
+                      examination: examination,
+                      token: token,
+                    );
+                  }
+                : null,
             onOpenExaminationList: widget.onOpenExaminationList,
+            canOpenExaminationList: widget.canOpenExaminationList,
             onRetry: () {
               final token =
                   context.read<AuthViewModel>().currentUser?.token ?? '';
@@ -97,14 +105,16 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
 class _DashboardContent extends StatelessWidget {
   final _DashboardStats stats;
   final String? warning;
-  final ValueChanged<ExaminationEntity> onOpenExamination;
+  final ValueChanged<ExaminationEntity>? onOpenExamination;
   final ValueChanged<ExaminationListMode>? onOpenExaminationList;
+  final bool canOpenExaminationList;
   final VoidCallback? onRetry;
 
   const _DashboardContent({
     required this.stats,
-    required this.onOpenExamination,
+    this.onOpenExamination,
     this.onOpenExaminationList,
+    this.canOpenExaminationList = true,
     this.warning,
     this.onRetry,
   });
@@ -170,8 +180,11 @@ class _DashboardContent extends StatelessWidget {
                     trend: '+${stats.todayCount} hôm nay',
                     icon: Icons.groups_2_outlined,
                     accent: _primary,
-                    onTap: () =>
-                        onOpenExaminationList?.call(ExaminationListMode.all),
+                    onTap: canOpenExaminationList
+                        ? () => onOpenExaminationList?.call(
+                            ExaminationListMode.all,
+                          )
+                        : null,
                   ),
                   _StatCard(
                     title: 'Ca khám nặng',
@@ -179,8 +192,11 @@ class _DashboardContent extends StatelessWidget {
                     trend: '${stats.severePercent}%',
                     icon: Icons.priority_high_rounded,
                     accent: AppColors.error,
-                    onTap: () =>
-                        onOpenExaminationList?.call(ExaminationListMode.grade4),
+                    onTap: canOpenExaminationList
+                        ? () => onOpenExaminationList?.call(
+                            ExaminationListMode.grade4,
+                          )
+                        : null,
                   ),
                   _StatCard(
                     title: 'Đã hoàn thành',
@@ -188,9 +204,11 @@ class _DashboardContent extends StatelessWidget {
                     trend: '${stats.completedPercent}%',
                     icon: Icons.verified_outlined,
                     accent: AppColors.success,
-                    onTap: () => onOpenExaminationList?.call(
-                      ExaminationListMode.statusReportGenerated,
-                    ),
+                    onTap: canOpenExaminationList
+                        ? () => onOpenExaminationList?.call(
+                            ExaminationListMode.statusReportGenerated,
+                          )
+                        : null,
                   ),
                   _StatCard(
                     title: 'Chờ xác nhận',
@@ -198,9 +216,11 @@ class _DashboardContent extends StatelessWidget {
                     trend: 'cần xử lý',
                     icon: Icons.pending_actions_outlined,
                     accent: AppColors.warning,
-                    onTap: () => onOpenExaminationList?.call(
-                      ExaminationListMode.statusNeedVerify,
-                    ),
+                    onTap: canOpenExaminationList
+                        ? () => onOpenExaminationList?.call(
+                            ExaminationListMode.statusNeedVerify,
+                          )
+                        : null,
                   ),
                 ],
               );
@@ -230,15 +250,17 @@ class _DashboardContent extends StatelessWidget {
                   ],
                 );
               }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 4, child: left),
-                  const SizedBox(width: 20),
-                  Expanded(flex: 5, child: middle),
-                  const SizedBox(width: 20),
-                  Expanded(flex: 3, child: right),
-                ],
+              return IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(flex: 4, child: left),
+                    const SizedBox(width: 20),
+                    Expanded(flex: 5, child: middle),
+                    const SizedBox(width: 20),
+                    Expanded(flex: 3, child: right),
+                  ],
+                ),
               );
             },
           ),
@@ -707,7 +729,7 @@ class _TrendCard extends StatelessWidget {
 
 class _SevereAlertCard extends StatelessWidget {
   final _DashboardStats stats;
-  final ValueChanged<ExaminationEntity> onOpenExamination;
+  final ValueChanged<ExaminationEntity>? onOpenExamination;
 
   const _SevereAlertCard({
     required this.stats,
@@ -752,7 +774,9 @@ class _SevereAlertCard extends StatelessWidget {
                   .map(
                     (item) => _SevereItem(
                       examination: item,
-                      onTap: () => onOpenExamination(item),
+                      onTap: onOpenExamination == null
+                          ? null
+                          : () => onOpenExamination!(item),
                     ),
                   )
                   .toList(),
@@ -763,7 +787,7 @@ class _SevereAlertCard extends StatelessWidget {
 
 class _RecentTable extends StatelessWidget {
   final _DashboardStats stats;
-  final ValueChanged<ExaminationEntity> onOpenExamination;
+  final ValueChanged<ExaminationEntity>? onOpenExamination;
 
   const _RecentTable({required this.stats, required this.onOpenExamination});
 
@@ -788,7 +812,9 @@ class _RecentTable extends StatelessWidget {
                 .map(
                   (item) => _TableRow(
                     examination: item,
-                    onTap: () => onOpenExamination(item),
+                    onTap: onOpenExamination == null
+                        ? null
+                        : () => onOpenExamination!(item),
                   ),
                 ),
           const Divider(height: 24),
@@ -907,7 +933,7 @@ class _SmallBadge extends StatelessWidget {
 
 class _SevereItem extends StatelessWidget {
   final ExaminationEntity examination;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _SevereItem({required this.examination, required this.onTap});
 
@@ -1015,7 +1041,7 @@ class _TableHeader extends StatelessWidget {
 
 class _TableRow extends StatelessWidget {
   final ExaminationEntity examination;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _TableRow({required this.examination, required this.onTap});
 

@@ -10,6 +10,7 @@ import '../../domain/entities/user_entity.dart';
 import '../../domain/interface_repositories/auth_repository.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
+import '../../core/utils/error_message_utils.dart';
 
 class AuthViewModel extends ChangeNotifier {
   static const Duration _sessionDuration = Duration(minutes: 14);
@@ -124,6 +125,7 @@ class AuthViewModel extends ChangeNotifier {
   /// Đăng nhập — trả về true nếu thành công, false nếu lỗi thường,
   /// và set isFirstTimeLogin = true nếu cần đổi mật khẩu lần đầu
   Future<bool> login(String email, String password) async {
+    if (_isLoading) return false;
     _isLoading = true;
     _errorMessage = null;
     _isFirstTimeLogin = false;
@@ -147,7 +149,7 @@ class AuthViewModel extends ChangeNotifier {
       return false;
     } catch (e) {
       _isLoading = false;
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       notifyListeners();
       return false;
     }
@@ -163,7 +165,7 @@ class AuthViewModel extends ChangeNotifier {
         refreshToken: refreshToken,
       );
     } catch (_) {}
-    await sessionStorage.clearUser();
+    await sessionStorage.clearAll();
     _currentUser = null;
     _sessionStartedAt = null;
     _errorMessage = null;
@@ -180,6 +182,7 @@ class AuthViewModel extends ChangeNotifier {
       'fullName': user.fullName,
       'token': user.token,
       'refreshToken': user.refreshToken,
+      'avatarUrl': user.avatarUrl,
       'roles': user.roles,
       'permissions': user.permissionItems.isNotEmpty
           ? user.permissionItems
@@ -279,7 +282,7 @@ class AuthViewModel extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _changeError = e.toString().replaceAll('Exception: ', '');
+      _changeError = userFriendlyErrorMessage(e);
       _isChangeLoading = false;
       notifyListeners();
       return false;
@@ -307,7 +310,7 @@ class AuthViewModel extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _forgotError = e.toString().replaceAll('Exception: ', '');
+      _forgotError = userFriendlyErrorMessage(e);
       _isForgotLoading = false;
       notifyListeners();
       return false;
@@ -336,7 +339,7 @@ class AuthViewModel extends ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      _resetError = e.toString().replaceAll('Exception: ', '');
+      _resetError = userFriendlyErrorMessage(e);
       _isResetLoading = false;
       notifyListeners();
       return false;

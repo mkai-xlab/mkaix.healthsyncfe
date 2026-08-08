@@ -10,6 +10,7 @@ import '../../core/services/toast_service.dart';
 import '../../core/services/dicom_websocket_service.dart';
 import '../../data/datasources/dicom_remote_datasource.dart';
 import '../../data/models/dicom_upload_model.dart';
+import '../../core/utils/error_message_utils.dart';
 
 enum DicomUploadStage {
   idle,
@@ -379,15 +380,11 @@ class DicomUploadViewModel extends ChangeNotifier {
 
       final results = <BatchDicomUploadModel>[];
       if (isZipBatch) {
-        for (var index = 0; index < uploadingFiles.length; index++) {
-          final file = uploadingFiles[index];
-          _uploadStatusMessage =
-              'Đang upload ZIP ${index + 1}/${uploadingFiles.length}: ${file.name}';
-          _progress = null;
-          notifyListeners();
-          final result = await _uploadZipAndResolve(file: file, token: token);
-          results.add(result);
-        }
+        final result = await _uploadZipBatchAndResolve(
+          files: uploadingFiles,
+          token: token,
+        );
+        results.add(result);
       } else {
         final result = await _uploadDicomBatchAndResolve(
           files: uploadingFiles,
@@ -417,7 +414,7 @@ class DicomUploadViewModel extends ChangeNotifier {
         _uploadStatusMessage = _errorMessage;
       }
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       _stage = DicomUploadStage.failed;
       _progress = null;
     } finally {
@@ -427,14 +424,14 @@ class DicomUploadViewModel extends ChangeNotifier {
     }
   }
 
-  Future<BatchDicomUploadModel> _uploadZipAndResolve({
-    required DicomUploadFile file,
+  Future<BatchDicomUploadModel> _uploadZipBatchAndResolve({
+    required List<DicomUploadFile> files,
     required String token,
   }) async {
     final pendingBatchResult = _startBatchResultWait();
     try {
       final submission = await remoteDataSource.uploadZipBatch(
-        file: file,
+        files: files,
         token: token,
       );
       return _resolveUploadResult(
@@ -628,7 +625,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       _uploadStatusMessage = 'Đã xác nhận $verifiedPatientCount bệnh nhân.';
       _stopUploadTimer();
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isUploading = false;
       notifyListeners();
@@ -675,13 +672,6 @@ class DicomUploadViewModel extends ChangeNotifier {
     _verifiedPatientKeys
       ..clear()
       ..addAll(_successfulPatients.map(_patientKey));
-    debugPrint(
-      '[DICOM upload viewmodel batch] '
-      'session=$_uploadSessionId, '
-      'patients=${_successfulPatients.length}, '
-      'errors=${_batchErrors.length}, '
-      'dicomInstanceCount=${dicomInstanceIdsForVerification.length}',
-    );
     _showBatchSuccessToast();
     _showBatchErrorToast();
     if (_successfulPatients.isEmpty) {

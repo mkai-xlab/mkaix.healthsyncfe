@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../data/datasources/admin_remote_datasource.dart';
 import '../../data/models/role_model.dart';
 import '../../domain/entities/doctor_account_entity.dart';
+import '../../core/utils/error_message_utils.dart';
 
 class AdminAccountViewModel extends ChangeNotifier {
   final AdminRemoteDataSource dataSource;
@@ -101,7 +102,7 @@ class AdminAccountViewModel extends ChangeNotifier {
       await dataSource.createDoctor(doctorData: doctorData, token: token);
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       return false;
     } finally {
       _isLoading = false;
@@ -119,7 +120,7 @@ class AdminAccountViewModel extends ChangeNotifier {
       await dataSource.createDoctor(doctorData: doctorData, token: token);
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       return false;
     }
   }
@@ -147,7 +148,7 @@ class AdminAccountViewModel extends ChangeNotifier {
       await fetchFirstPage(token);
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       return false;
     } finally {
       _isLoading = false;
@@ -159,7 +160,12 @@ class AdminAccountViewModel extends ChangeNotifier {
     return dataSource.getRoles(token: token);
   }
 
-  Future<bool> toggleDoctorStatus(int id, bool activate, String token) async {
+  Future<bool> toggleDoctorStatus(
+    int id,
+    bool activate,
+    String token, {
+    String? reason,
+  }) async {
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
@@ -169,11 +175,12 @@ class AdminAccountViewModel extends ChangeNotifier {
         id: id,
         activate: activate,
         token: token,
+        reason: reason,
       );
       await fetchFirstPage(token);
       return true;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
       notifyListeners();
       return false;
     } finally {
@@ -198,7 +205,7 @@ class AdminAccountViewModel extends ChangeNotifier {
       _isLastPage = result.isLast;
       _errorMessage = null;
     } catch (e) {
-      _errorMessage = e.toString().replaceAll('Exception: ', '');
+      _errorMessage = userFriendlyErrorMessage(e);
     } finally {
       _isLoading = false;
       notifyListeners();

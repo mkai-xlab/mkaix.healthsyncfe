@@ -32,6 +32,7 @@ abstract class AdminRemoteDataSource {
     required int id,
     required bool activate,
     required String token,
+    String? reason,
   });
 }
 
@@ -222,17 +223,23 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     required int id,
     required bool activate,
     required String token,
+    String? reason,
   }) async {
-    final action = activate ? 'activate' : 'deactivate';
-    final uri = Uri.parse('${ApiConstants.doctorsEndpoint}/$id/$action');
+    final uri = Uri.parse(
+      activate
+          ? ApiConstants.activateDoctorEndpoint(id)
+          : ApiConstants.deactivateDoctorEndpoint(id),
+    );
 
     try {
       final response = await client.post(
         uri,
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=UTF-8',
+          'Accept': 'application/json',
           'Authorization': 'Bearer $token',
         },
+        body: activate ? null : jsonEncode({'reason': reason?.trim() ?? ''}),
       );
 
       if (response.statusCode != 200 && response.statusCode != 204) {

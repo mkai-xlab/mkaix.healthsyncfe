@@ -64,6 +64,11 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       mode: ExaminationListMode.statusAiProcessing,
     ),
     _StatusOption(
+      label: 'Phân tích thất bại',
+      status: 'AI_FAILED',
+      mode: ExaminationListMode.statusAiFailed,
+    ),
+    _StatusOption(
       label: 'Cần xác nhận',
       status: 'NEED_VERIFY',
       mode: ExaminationListMode.statusNeedVerify,
@@ -81,6 +86,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
   ];
 
   bool _didLoad = false;
+  int? _hoveredExaminationId;
 
   String get _patientDetailId {
     final patient = widget.patient;
@@ -600,7 +606,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
                   padding: const EdgeInsets.all(24),
                   itemCount: examinations.length,
                   separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
+                      const SizedBox(height: 8),
                   itemBuilder: (context, index) =>
                       _examinationCard(examinations[index]),
                 ),
@@ -656,58 +662,107 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
 
   Widget _examinationCard(ExaminationEntity examination) {
     final isNew = !examination.isViewed;
+    final isHovered = _hoveredExaminationId == examination.examinationId;
     return InkWell(
       onTap: () => _openExaminationDetail(examination),
+      onHover: (hovering) {
+        setState(() {
+          _hoveredExaminationId = hovering ? examination.examinationId : null;
+        });
+      },
+      hoverColor: Colors.transparent,
+      splashColor: _primaryGreen.withValues(alpha: 0.08),
+      highlightColor: _primaryGreen.withValues(alpha: 0.04),
       borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(0, isHovered ? -1 : 0, 0),
+        clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: isNew ? const Color(0xFFEAF7F3) : Colors.white,
+          color: isHovered
+              ? isNew
+                    ? const Color(0xFFEFF8F4)
+                    : const Color(0xFFF8FCFA)
+              : isNew
+              ? const Color(0xFFF6FBF9)
+              : Colors.white,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isNew ? _primaryGreen : const Color(0xFFE2E8F0),
-            width: isNew ? 1.4 : 1,
+            color: isHovered
+                ? const Color(0xFFCFE3DC)
+                : isNew
+                ? const Color(0xFFD8E7E3)
+                : const Color(0xFFE2E8F0),
           ),
+          boxShadow: isHovered
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : const [],
         ),
-        child: Row(
+        child: Stack(
           children: [
-            if (isNew) ...[_newIndicator(), const SizedBox(width: 12)],
-            Expanded(
-              flex: 2,
-              child: _cell(
-                'ID ca khám',
-                examination.examinationId > 0
-                    ? examination.examinationId.toString()
-                    : '---',
-                isStrong: true,
-                isNew: isNew,
+            if (isNew)
+              const Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: ColoredBox(
+                  color: _primaryGreen,
+                  child: SizedBox(width: 4),
+                ),
+              ),
+            Padding(
+              padding: EdgeInsets.fromLTRB(isNew ? 18 : 16, 14, 16, 14),
+              child: Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: _cell(
+                      'ID ca khám',
+                      examination.examinationId > 0
+                          ? examination.examinationId.toString()
+                          : '---',
+                      isStrong: true,
+                      trailing: isNew ? _newMarker() : null,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 4,
+                    child: _cell(
+                      'Tên bệnh nhân',
+                      examination.patientName.isEmpty
+                          ? widget.patient?.fullName ?? '---'
+                          : examination.patientName,
+                      isStrong: true,
+                      isNew: isNew,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 1,
+                    child: _cell(
+                      'Ngày sinh',
+                      examination.patientDateOfBirthDisplay,
+                    ),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: _cell('Giới tính', examination.patientGenderDisplay),
+                  ),
+                  Expanded(
+                    flex: 2,
+                    child: _cell('Ngày chụp', examination.studyDateDisplay),
+                  ),
+                  const SizedBox(width: 12),
+                  _statusBadge(examination),
+                ],
               ),
             ),
-            Expanded(
-              flex: 4,
-              child: _cell(
-                'Tên bệnh nhân',
-                examination.patientName.isEmpty
-                    ? widget.patient?.fullName ?? '---'
-                    : examination.patientName,
-                isStrong: true,
-                isNew: isNew,
-              ),
-            ),
-            Expanded(
-              flex: 1,
-              child: _cell('Ngày sinh', examination.patientDateOfBirthDisplay),
-            ),
-            Expanded(
-              flex: 2,
-              child: _cell('Giới tính', examination.patientGenderDisplay),
-            ),
-            Expanded(
-              flex: 2,
-              child: _cell('Ngày chụp', examination.studyDateDisplay),
-            ),
-            const SizedBox(width: 12),
-            _statusBadge(examination),
           ],
         ),
       ),
@@ -719,6 +774,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     String value, {
     bool isStrong = false,
     bool isNew = false,
+    Widget? trailing,
   }) {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
@@ -731,41 +787,54 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
             style: const TextStyle(fontSize: 11, color: Color(0xFF8A9A96)),
           ),
           const SizedBox(height: 5),
-          Text(
-            value,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: isNew
-                  ? FontWeight.w800
-                  : isStrong
-                  ? FontWeight.w700
-                  : FontWeight.w500,
-              color: const Color(0xFF1A2B3C),
-            ),
+          Row(
+            children: [
+              Flexible(
+                child: Text(
+                  value,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: isNew
+                        ? FontWeight.w800
+                        : isStrong
+                        ? FontWeight.w700
+                        : FontWeight.w500,
+                    color: const Color(0xFF1A2B3C),
+                  ),
+                ),
+              ),
+              if (trailing != null) ...[const SizedBox(width: 8), trailing],
+            ],
           ),
         ],
       ),
     );
   }
 
-  Widget _newIndicator() {
+  Widget _newMarker() {
     return Container(
-      width: 38,
-      height: 26,
-      alignment: Alignment.center,
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: _primaryGreen,
-        borderRadius: BorderRadius.circular(7),
+        color: const Color(0xFFFFF0F0),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: const Color(0xFFFFCDD2)),
       ),
-      child: const Text(
-        'NEW',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 10,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0,
-        ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.circle, size: 6, color: Color(0xFFE53E3E)),
+          SizedBox(width: 4),
+          Text(
+            'Mới',
+            style: TextStyle(
+              color: Color(0xFFE53E3E),
+              fontSize: 10,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0,
+            ),
+          ),
+        ],
       ),
     );
   }

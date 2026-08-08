@@ -14,14 +14,30 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _passwordFocusNode = FocusNode();
   bool _showPassword = false;
   bool _rememberMe = false;
+  bool _usernameTouched = false;
+  bool _passwordTouched = false;
+  String? _localErrorMessage;
   late AnimationController _pulseController;
   late Animation<double> _pulseAnimation;
 
   static const Color _primaryGreen = AppColors.primary;
   static const Color _darkGreen = Color(0xFF1A5C4E);
   static const Color _lightGreen = Color(0xFF3A9E8A);
+
+  String? get _usernameError {
+    if (!_usernameTouched) return null;
+    return _usernameController.text.trim().isEmpty
+        ? 'Vui lòng nhập tên đăng nhập'
+        : null;
+  }
+
+  String? get _passwordError {
+    if (!_passwordTouched) return null;
+    return _passwordController.text.isEmpty ? 'Vui lòng nhập mật khẩu' : null;
+  }
 
   @override
   void initState() {
@@ -39,6 +55,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _passwordFocusNode.dispose();
     _pulseController.dispose();
     super.dispose();
   }
@@ -504,10 +521,27 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   Widget _buildLoginForm(BuildContext context, AuthViewModel vm) {
+    final errorMessage = _localErrorMessage ?? vm.errorMessage;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
+        TextButton.icon(
+          onPressed: () => context.go('/'),
+          style: TextButton.styleFrom(
+            foregroundColor: _primaryGreen,
+            padding: EdgeInsets.zero,
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+          icon: const Icon(Icons.arrow_back_rounded, size: 18),
+          label: const Text(
+            'Về trang giới thiệu',
+            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+        ),
+        const SizedBox(height: 18),
         // Title
         const Text(
           'Đăng nhập hệ thống',
@@ -525,7 +559,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         const SizedBox(height: 28),
 
         // Username
-        _buildInputLabel('Tên đăng nhập'),
+        _buildInputLabel('Tên đăng nhập', required: true),
         const SizedBox(height: 6),
         _buildTextField(
           controller: _usernameController,
@@ -535,7 +569,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         const SizedBox(height: 18),
 
         // Password
-        _buildInputLabel('Mật khẩu'),
+        _buildInputLabel('Mật khẩu', required: true),
         const SizedBox(height: 6),
         _buildPasswordField(),
         const SizedBox(height: 14),
@@ -580,7 +614,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
         const SizedBox(height: 24),
 
         // Error message
-        if (vm.errorMessage != null) ...[
+        if (errorMessage != null) ...[
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -599,7 +633,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    vm.errorMessage!,
+                    errorMessage,
                     style: const TextStyle(
                       color: Color(0xFFE53E3E),
                       fontSize: 13,
@@ -635,10 +669,28 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                 )
               : ElevatedButton(
                   onPressed: () async {
-                    await vm.login(
+                    setState(() {
+                      _usernameTouched = true;
+                      _passwordTouched = true;
+                    });
+                    if (_usernameError != null || _passwordError != null) {
+                      setState(() {
+                        _localErrorMessage =
+                            'Tên đăng nhập hoặc mật khẩu không được để trống!';
+                      });
+                      return;
+                    }
+                    setState(() => _localErrorMessage = null);
+                    final success = await vm.login(
                       _usernameController.text.trim(),
                       _passwordController.text,
                     );
+                    if (!mounted || success || vm.isFirstTimeLogin) return;
+                    setState(() {
+                      _passwordController.clear();
+                      _passwordTouched = false;
+                    });
+                    _passwordFocusNode.requestFocus();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen,
@@ -703,13 +755,22 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildInputLabel(String label) {
-    return Text(
-      label,
-      style: const TextStyle(
-        fontSize: 13,
-        fontWeight: FontWeight.w600,
-        color: Color(0xFF2D3748),
+  Widget _buildInputLabel(String label, {bool required = false}) {
+    return RichText(
+      text: TextSpan(
+        style: const TextStyle(
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF2D3748),
+        ),
+        children: [
+          TextSpan(text: label),
+          if (required)
+            const TextSpan(
+              text: ' *',
+              style: TextStyle(color: Color(0xFFE53E3E)),
+            ),
+        ],
       ),
     );
   }
@@ -721,9 +782,11 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }) {
     return TextField(
       controller: controller,
+      onChanged: (_) => setState(() => _usernameTouched = true),
       style: const TextStyle(fontSize: 14, color: Color(0xFF1A2B3C)),
       decoration: InputDecoration(
         hintText: hint,
+        errorText: _usernameError,
         hintStyle: const TextStyle(color: Color(0xFFADB5BD), fontSize: 13),
         prefixIcon: Icon(prefixIcon, color: const Color(0xFF718096), size: 20),
         filled: true,
@@ -751,10 +814,16 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   Widget _buildPasswordField() {
     return TextField(
       controller: _passwordController,
+      focusNode: _passwordFocusNode,
       obscureText: !_showPassword,
+      onChanged: (_) => setState(() {
+        _passwordTouched = true;
+        _localErrorMessage = null;
+      }),
       style: const TextStyle(fontSize: 14, color: Color(0xFF1A2B3C)),
       decoration: InputDecoration(
         hintText: 'Nhập mật khẩu',
+        errorText: _passwordError,
         hintStyle: const TextStyle(color: Color(0xFFADB5BD), fontSize: 13),
         prefixIcon: const Icon(
           Icons.lock_outline_rounded,

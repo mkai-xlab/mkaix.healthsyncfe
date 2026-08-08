@@ -16,6 +16,10 @@ class AuditLogPage extends StatefulWidget {
 }
 
 class _AuditLogPageState extends State<AuditLogPage> {
+  static const Color _pageBackground = Color(0xFFF0F4F3);
+
+  int? _hoveredLogId;
+
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
 
   @override
@@ -32,7 +36,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
     return Consumer<AuditLogViewModel>(
       builder: (context, vm, _) {
         return Container(
-          color: AppColors.surface1,
+          color: _pageBackground,
           padding: const EdgeInsets.fromLTRB(24, 20, 24, 18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,12 +176,40 @@ class _AuditLogPageState extends State<AuditLogPage> {
   }
 
   Widget _logRow(AuditLogEntity log, bool selected, VoidCallback onTap) {
+    final isHovered = _hoveredLogId == log.id;
     return InkWell(
       onTap: onTap,
-      child: Container(
-        color: selected
-            ? AppColors.primaryXLight.withValues(alpha: 0.16)
-            : null,
+      onHover: (hovering) {
+        setState(() {
+          _hoveredLogId = hovering ? log.id : null;
+        });
+      },
+      hoverColor: Colors.transparent,
+      splashColor: AppColors.primary.withValues(alpha: 0.08),
+      highlightColor: AppColors.primary.withValues(alpha: 0.04),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(0, isHovered ? -1 : 0, 0),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColors.primaryXLight.withValues(alpha: 0.16)
+              : isHovered
+              ? const Color(0xFFF8FCFA)
+              : Colors.white,
+          border: Border.all(
+            color: isHovered ? const Color(0xFFCFE3DC) : Colors.transparent,
+          ),
+          boxShadow: isHovered
+              ? [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 10,
+                    offset: const Offset(0, 3),
+                  ),
+                ]
+              : const [],
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         child: Row(
           children: [

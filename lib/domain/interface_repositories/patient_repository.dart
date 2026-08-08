@@ -6,6 +6,7 @@ abstract class PatientRepository {
     String? fullName,
     String? patientCode,
     String? gender,
+    bool isPersonal = false,
     int page = 0,
     int size = 10,
   });

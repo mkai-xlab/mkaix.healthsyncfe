@@ -12,6 +12,7 @@ class PatientRepositoryImpl implements PatientRepository {
     String? fullName,
     String? patientCode,
     String? gender,
+    bool isPersonal = false,
     int page = 0,
     int size = 10,
   }) async {
@@ -20,6 +21,7 @@ class PatientRepositoryImpl implements PatientRepository {
       fullName: fullName,
       patientCode: patientCode,
       gender: gender,
+      isPersonal: isPersonal,
       page: page,
       size: size,
     );

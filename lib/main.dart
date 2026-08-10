@@ -22,12 +22,14 @@ import 'package:fe/data/datasources/audit_log_remote_datasource.dart';
 import 'package:fe/data/datasources/chat_remote_datasource.dart';
 import 'package:fe/data/datasources/dicom_remote_datasource.dart';
 import 'package:fe/data/datasources/doctor_profile_remote_datasource.dart';
+import 'package:fe/data/datasources/knowledge_document_remote_datasource.dart';
 import 'package:fe/data/datasources/notification_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_dashboard_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/audit_log_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/dicom_upload_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/doctor_profile_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/knowledge_document_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/chat_viewmodel.dart';
 import 'package:fe/presentation/widgets/ai_chat/ai_chat_widget.dart';
@@ -93,6 +95,12 @@ Future<void> main() async {
   );
   final chatRemoteDataSource = ChatRemoteDataSource(httpClient);
   final chatViewModel = ChatViewModel(remoteDataSource: chatRemoteDataSource);
+  final knowledgeDocumentRemoteDataSource = KnowledgeDocumentRemoteDataSource(
+    httpClient,
+  );
+  final knowledgeDocumentViewModel = KnowledgeDocumentViewModel(
+    knowledgeDocumentRemoteDataSource,
+  );
 
   // ViewModels
   final authViewModel = AuthViewModel(
@@ -122,6 +130,7 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: doctorProfileViewModel),
         ChangeNotifierProvider.value(value: notificationViewModel),
         ChangeNotifierProvider.value(value: chatViewModel),
+        ChangeNotifierProvider.value(value: knowledgeDocumentViewModel),
       ],
       child: MyApp(appRouter: appRouter),
     ),

@@ -19,6 +19,7 @@ import '../../../domain/entities/patient_entity.dart';
 import '../auth/account_change_password_page.dart';
 import 'doctor_dashboard_page.dart';
 import 'doctor_profile_page.dart';
+import 'examination_detail_page.dart';
 import 'examination_list_page.dart';
 import 'file_upload_page.dart';
 import 'patient_detail_page.dart';
@@ -42,6 +43,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   ExaminationListMode? _pendingExaminationListMode;
   int _examinationListRefreshVersion = 0;
   PatientEntity? _selectedPatientDetail;
+  ExaminationEntity? _selectedExaminationDetail;
 
   static const Color _primaryGreen = AppColors.primary;
   static const Color _darkGreen = AppColors.primary;
@@ -278,6 +280,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _showChangePassword = false;
             _showUploadExaminationList = false;
             _selectedPatientDetail = null;
+            _selectedExaminationDetail = null;
           });
           if (closeDrawer) {
             Navigator.pop(context);
@@ -359,6 +362,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _showDoctorProfile = true;
             _showUploadExaminationList = false;
             _selectedPatientDetail = null;
+            _selectedExaminationDetail = null;
           });
         },
       );
@@ -366,6 +370,18 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
     if (_showDoctorProfile) {
       return const DoctorProfilePage(embedded: true);
+    }
+
+    final selectedExaminationDetail = _selectedExaminationDetail;
+    if (selectedExaminationDetail != null) {
+      return ExaminationDetailPage(
+        examination: selectedExaminationDetail,
+        onBack: () => setState(() => _selectedExaminationDetail = null),
+        onOpenPatientDetail: (patient) => setState(() {
+          _selectedExaminationDetail = null;
+          _selectedPatientDetail = patient;
+        }),
+      );
     }
 
     final selectedPatientDetail = _selectedPatientDetail;
@@ -377,7 +393,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           icon: Icons.lock_outline,
         );
       }
-      return PatientDetailPage(patient: selectedPatientDetail, embedded: true);
+      return PatientDetailPage(
+        patient: selectedPatientDetail,
+        embedded: true,
+        onOpenExaminationDetail: (examination) =>
+            setState(() => _selectedExaminationDetail = examination),
+      );
     }
 
     if (_showUploadExaminationList) {
@@ -474,6 +495,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _showUploadExaminationList = false;
       _pendingExaminationListMode = mode;
       _selectedPatientDetail = null;
+      _selectedExaminationDetail = null;
     });
   }
 
@@ -676,6 +698,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _showChangePassword = false;
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
+      _selectedExaminationDetail = null;
       _isUploadMiniProgressCollapsed = false;
     });
   }
@@ -888,6 +911,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           _showChangePassword = false;
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
+          _selectedExaminationDetail = null;
         });
         break;
       case _DoctorUserMenuAction.changePassword:
@@ -896,6 +920,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           _showDoctorProfile = false;
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
+          _selectedExaminationDetail = null;
         });
         break;
       case _DoctorUserMenuAction.logout:

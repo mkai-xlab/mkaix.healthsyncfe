@@ -20,6 +20,7 @@ import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 import 'package:fe/presentation/pages/admin/permission_page.dart';
 import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart';
 import 'package:fe/presentation/pages/admin/audit_log_page.dart';
+import 'package:fe/presentation/pages/admin/knowledge_documents_page.dart';
 import 'package:fe/presentation/pages/auth/account_change_password_page.dart';
 import 'package:fe/presentation/widgets/pagination_bar.dart';
 import 'package:fe/presentation/widgets/authenticated_avatar_image.dart';
@@ -507,7 +508,15 @@ class _AdminHomepageState extends State<AdminHomepage> {
       return _buildSystemSettingsPage(context);
     }
     if (_selectedNavIndex == 6) {
-      return _buildKnowledgeDocumentsPage(context);
+      return Container(
+        color: _pageBackground,
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            const Expanded(child: KnowledgeDocumentsPage()),
+          ],
+        ),
+      );
     }
 
     return Container(

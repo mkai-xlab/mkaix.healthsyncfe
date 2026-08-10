@@ -6,14 +6,14 @@
 - API version: `v1`
 - Base URL: `http://47.131.63.48:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-08-08`
+- Last OpenAPI refresh: `2026-08-10`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
 - OpenAPI is now `3.1.0` / API `v1` and uses base URL `http://47.131.63.48:8000/api/v1`.
-- The `2026-08-08` spec confirms the current v1 contract and adds AI chat plus medical knowledge indexing endpoints.
+- The `2026-08-10` spec confirms the current v1 contract, including AI chat and medical knowledge indexing endpoints.
 - Auth is bearer-token based. Login returns `accessToken`, `refreshToken`, `role`, `username`, `fullName`, and a full `permissions` array.
 - First-time login is explicitly modeled as `FirstTimeLoginRequired` with body `{ error: "FIRST_TIME_LOGIN_REQUIRED", message: "..." }`.
 - `GET /examinations/total`, `/total-verified`, `/total-unverified`, and `/total-severe` require query `userId` and optionally accept `isPersonal`.
@@ -54,7 +54,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - Update `PatientModel.fromJson` to fall back from `patientCode` to `patient_id`; the new response may include both, but existing parser currently ignores `patient_id`.
 - Add patient upload-date filter support for `GET /patients/filter/upload-date` if the patient list has upload-date filtering.
 - Doctor patient and examination lists must include `isPersonal=true` on supported endpoints so backend scopes data to the logged-in doctor.
-- Review examination image parsing: `ExaminationImageModel` currently ignores `aiAnalysisStatus` and `aiErrorMessage`. Add fields to the entity/model if the UI should show AI progress or per-image AI failures.
+- Examination image parsing now keeps `aiAnalysisStatus` and `aiErrorMessage`; show `FAILED` as an AI failure state with the backend error message instead of a processing state.
 - Use `confirmedGrade` or `effectiveGrade` for final clinical display when available. `predictedGrade` alone is no longer enough after doctor review.
 - Confirm KL-grade UI should call `PUT /ai/results/{aiResultId}/confirm` for accept and `PUT /ai/results/{aiResultId}/kl-grade` for adjustment with `confirmedKlGrade` and required `reviewNote`.
 - Admin dashboard counters using `/examinations/total*` must send `userId` and optional `isPersonal`. Doctor dashboard should keep using `/examinations/my-total*`.
@@ -63,7 +63,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - `CreateDoctorRequest` only requires `fullName`, `email`, and `phone`; optional fields `yearsOfExperience`, `degree`, and `biography` can be added to the create/edit UI without contract changes.
 - Error handling should parse standard `ErrorResponse.message` for `400`, `401`, `403`, `415`, and `500`. Keep the special first-time-login branch for `FIRST_TIME_LOGIN_REQUIRED`.
 - Add a notification datasource method for `PUT /notifications/read-all` if the notification panel needs a "mark all as read" action. Parse `updatedCount` and refresh unread count/list after success.
-- Add chat and knowledge datasources before wiring those admin/assistant screens. Constants already exist as `ApiConstants.chatAskEndpoint` and `ApiConstants.knowledgeDocument*Endpoint`.
+- AI chat is wired through `ChatRemoteDataSource` and `ChatViewModel`. Knowledge document constants exist; add a remote datasource when the admin document list needs real backend data.
 
 ## Authentication
 

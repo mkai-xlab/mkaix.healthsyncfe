@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/password_validation_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
 class ResetPasswordPage extends StatefulWidget {
@@ -459,16 +460,10 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
             style: const TextStyle(fontSize: 14, color: Color(0xFF1A2B3C)),
             onChanged: (_) => setState(() {}),
             validator: (v) {
-              if (v == null || v.isEmpty) {
-                return 'Vui lòng nhập mật khẩu mới';
-              }
-              if (v.length < 8 || v.length > 32) {
-                return 'Mật khẩu phải có từ 8 đến 32 ký tự';
-              }
-              return null;
+              return PasswordValidationUtils.validateNewPassword(v);
             },
             decoration: _buildInputDecoration(
-              hint: '8-32 ký tự',
+              hint: '8-32 ký tự, Aa, 0-9, @#!',
               icon: Icons.lock_outline_rounded,
               suffix: IconButton(
                 icon: Icon(

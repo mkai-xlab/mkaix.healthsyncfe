@@ -26,6 +26,18 @@ class UserEntity {
 
   bool get isAdmin => roles.contains('ADMIN');
   bool get isDoctor => roles.contains('DOCTOR');
+  bool get isDepartmentHead {
+    return roles.any((role) {
+      final normalized = role.trim().toUpperCase();
+      return normalized == 'HEAD' ||
+          normalized == 'DEPARTMENT_HEAD' ||
+          normalized == 'HEAD_DOCTOR' ||
+          normalized == 'TRUONG_KHOA' ||
+          normalized.contains('DEPARTMENT_HEAD') ||
+          normalized.contains('HEAD_OF_DEPARTMENT') ||
+          normalized.contains('TRUONG_KHOA');
+    });
+  }
 }
 
 class UserPermissionEntity {

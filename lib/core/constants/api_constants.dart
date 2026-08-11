@@ -60,11 +60,14 @@ class ApiConstants {
       '$examinationsEndpoint/my-total-severe';
   static const String myTotalLast7DaysExaminationsEndpoint =
       '$examinationsEndpoint/my-total-last-7-days';
+  static const String dailyLast7DaysExaminationsEndpoint =
+      '$examinationsEndpoint/stats/daily-last-7-days';
   static const String userAccountsEndpoint = '$baseUrl/users';
   static const String staffUsersEndpoint = '$baseUrl/users/staff';
   static const String doctorCountEndpoint = '$baseUrl/users/count/doctors';
   static const String headCountEndpoint = '$baseUrl/users/count/heads';
   static const String rolesEndpoint = '$baseUrl/roles';
+  static String userRoleEndpoint(int userId) => '$baseUrl/users/$userId/role';
 
   // doctors endpoints
   static const String doctorsEndpoint = '$baseUrl/doctors';
@@ -89,6 +92,11 @@ class ApiConstants {
 
   // AI chat and knowledge endpoints
   static const String chatAskEndpoint = '$baseUrl/chat/ask';
+  static const String chatSessionsEndpoint = '$baseUrl/chat/sessions';
+  static String chatSessionEndpoint(int sessionId) =>
+      '$chatSessionsEndpoint/$sessionId';
+  static String chatSessionMessagesEndpoint(int sessionId) =>
+      '${chatSessionEndpoint(sessionId)}/messages';
   static const String knowledgeDocumentsEndpoint =
       '$baseUrl/knowledge-documents';
   static const String knowledgeDocumentUploadEndpoint =

@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/examination_status_utils.dart';
+import '../../../domain/entities/daily_examination_stat_entity.dart';
 import '../../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_grade_stats_entity.dart';
@@ -40,9 +41,11 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
     _didLoad = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+      final auth = context.read<AuthViewModel>();
+      final token = auth.currentUser?.token ?? '';
       context.read<ExaminationViewModel>().loadDashboardExaminations(
         token: token,
+        isPersonal: auth.isPersonalView,
       );
     });
   }
@@ -71,6 +74,7 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
             totalElements: vm.totalElements,
             dashboardTotals: vm.dashboardTotals,
             patientGradeStats: vm.patientGradeStats,
+            dailyLast7DaysStats: vm.dailyLast7DaysStats,
           );
           return _DashboardContent(
             stats: stats,
@@ -90,7 +94,11 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
             onRetry: () {
               final token =
                   context.read<AuthViewModel>().currentUser?.token ?? '';
-              vm.loadDashboardExaminations(token: token);
+              final isPersonal = context.read<AuthViewModel>().isPersonalView;
+              vm.loadDashboardExaminations(
+                token: token,
+                isPersonal: isPersonal,
+              );
             },
           );
         },
@@ -1211,6 +1219,7 @@ class _DashboardStats {
     int? totalElements,
     ExaminationDashboardTotalsEntity? dashboardTotals,
     List<PatientGradeStatsEntity> patientGradeStats = const [],
+    List<DailyExaminationStatEntity> dailyLast7DaysStats = const [],
   }) {
     final sorted = [...source]
       ..sort((a, b) {
@@ -1221,14 +1230,18 @@ class _DashboardStats {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final weekStart = today.subtract(const Duration(days: 6));
-    final weeklyCounts = List<int>.filled(7, 0);
     const labels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
     final weekdayLabels = List.generate(7, (i) {
       final date = weekStart.add(Duration(days: i));
       return labels[date.weekday - 1];
     });
+    final weeklyCounts = _weeklyCountsFromDailyStats(
+      dailyLast7DaysStats,
+      weekStart,
+    );
+    final hasDailyStats = dailyLast7DaysStats.isNotEmpty;
 
-    var todayCount = 0;
+    var todayCount = hasDailyStats ? weeklyCounts.last : 0;
     var completed = 0;
     var pending = 0;
     var grade0 = 0;
@@ -1242,9 +1255,11 @@ class _DashboardStats {
       final date = item.visitTime ?? item.studyDate;
       if (date != null) {
         final day = DateTime(date.year, date.month, date.day);
-        if (day == today) todayCount++;
-        final diff = day.difference(weekStart).inDays;
-        if (diff >= 0 && diff < 7) weeklyCounts[diff]++;
+        if (!hasDailyStats) {
+          if (day == today) todayCount++;
+          final diff = day.difference(weekStart).inDays;
+          if (diff >= 0 && diff < 7) weeklyCounts[diff]++;
+        }
       }
       if (item.statusGroup == ExaminationStatusUtils.reportGenerated) {
         completed++;
@@ -1401,6 +1416,21 @@ class _DashboardStats {
       grade4: grade4,
       unknown: unknown,
     );
+  }
+
+  static List<int> _weeklyCountsFromDailyStats(
+    List<DailyExaminationStatEntity> stats,
+    DateTime weekStart,
+  ) {
+    final counts = List<int>.filled(7, 0);
+    for (final item in stats) {
+      final day = DateTime(item.date.year, item.date.month, item.date.day);
+      final diff = day.difference(weekStart).inDays;
+      if (diff >= 0 && diff < 7) {
+        counts[diff] = item.count < 0 ? 0 : item.count;
+      }
+    }
+    return counts;
   }
 }
 

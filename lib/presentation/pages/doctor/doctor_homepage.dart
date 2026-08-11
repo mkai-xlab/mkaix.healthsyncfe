@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/utils/media_url_resolver.dart';
 import '../../../core/utils/permission_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/chat_viewmodel.dart';
 import '../../viewmodels/dicom_upload_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
 import '../../viewmodels/doctor_profile_viewmodel.dart';
@@ -16,7 +17,9 @@ import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/notification_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
+import '../admin/knowledge_documents_page.dart';
 import '../auth/account_change_password_page.dart';
+import 'ai_clinical_chat_page.dart';
 import 'doctor_dashboard_page.dart';
 import 'doctor_profile_page.dart';
 import 'examination_detail_page.dart';
@@ -42,8 +45,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   final List<ExaminationEntity> _newUploadExaminations = const [];
   ExaminationListMode? _pendingExaminationListMode;
   int _examinationListRefreshVersion = 0;
+  int _handledAiChatPageRequestVersion = 0;
   PatientEntity? _selectedPatientDetail;
   ExaminationEntity? _selectedExaminationDetail;
+  ChatViewModel? _chatViewModel;
 
   static const Color _primaryGreen = AppColors.primary;
   static const Color _darkGreen = AppColors.primary;
@@ -51,6 +56,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   @override
   void initState() {
     super.initState();
+    _chatViewModel = context.read<ChatViewModel>();
+    _handledAiChatPageRequestVersion =
+        _chatViewModel?.fullPageRequestVersion ?? 0;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<NotificationViewModel>().loadNotifications(_token);
@@ -60,6 +68,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   @override
   void dispose() {
+    _chatViewModel?.setFullPageVisible(false);
     _searchController.dispose();
     super.dispose();
   }
@@ -69,6 +78,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
+    _handleAiChatPageRequest();
     return Scaffold(
       body: Row(
         children: [
@@ -152,6 +162,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     if (normalized.contains('notification') ||
         normalized.contains('thong_bao')) {
       return Icons.notifications_outlined;
+    }
+    if (normalized == 'ai_clinical_chat_page') {
+      return Icons.smart_toy_outlined;
+    }
+    if (normalized == 'knowledge_documents_page') {
+      return Icons.library_books_outlined;
     }
     return Icons.lock_outline;
   }
@@ -271,6 +287,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           ),
         ),
         onTap: () {
+          _setAiChatFloatingHidden(item.routeKey == 'ai_clinical_chat_page');
           setState(() {
             _selectedNavIndex = index;
             if (item.routeKey == 'examination_list_page') {
@@ -418,7 +435,14 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         : null;
 
     final selectedPermission = selectedItem?.routeKey ?? '';
+    _syncAiChatFloatingVisibility(selectedPermission);
 
+    if (selectedPermission == 'ai_clinical_chat_page') {
+      return const AiClinicalChatPage();
+    }
+    if (selectedPermission == 'knowledge_documents_page') {
+      return const KnowledgeDocumentsPage();
+    }
     if (selectedPermission == 'doctor_dashboard_page') {
       return DoctorDashboardPage(
         embedded: true,
@@ -479,6 +503,57 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       subtitle: 'Tính năng này đang được cập nhật.',
       icon: selectedItem?.icon ?? Icons.construction_outlined,
     );
+  }
+
+  void _syncAiChatFloatingVisibility(String selectedPermission) {
+    final shouldHideFloatingChat =
+        selectedPermission == 'ai_clinical_chat_page';
+    final chatVm = context.read<ChatViewModel>();
+    if (chatVm.isFullPageVisible == shouldHideFloatingChat) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _setAiChatFloatingHidden(shouldHideFloatingChat);
+    });
+  }
+
+  void _setAiChatFloatingHidden(bool hidden) {
+    final chatVm = context.read<ChatViewModel>();
+    if (chatVm.isFullPageVisible == hidden) return;
+    chatVm.setFullPageVisible(hidden);
+  }
+
+  void _handleAiChatPageRequest() {
+    final requestVersion = context.select<ChatViewModel, int>(
+      (chat) => chat.fullPageRequestVersion,
+    );
+    if (requestVersion == _handledAiChatPageRequestVersion) return;
+    _handledAiChatPageRequestVersion = requestVersion;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final navItems = _visibleNavItems(context, listen: false);
+      final aiChatIndex = navItems.indexWhere((item) {
+        return item.routeKey == 'ai_clinical_chat_page';
+      });
+      if (aiChatIndex < 0) {
+        final chatVm = context.read<ChatViewModel>();
+        chatVm.setFullPageVisible(false);
+        chatVm.open();
+        AppToast.showError('Tài khoản chưa có quyền mở trang AI chat.');
+        return;
+      }
+
+      _setAiChatFloatingHidden(true);
+      setState(() {
+        _selectedNavIndex = aiChatIndex;
+        _showDoctorProfile = false;
+        _showChangePassword = false;
+        _showUploadExaminationList = false;
+        _selectedPatientDetail = null;
+        _selectedExaminationDetail = null;
+      });
+    });
   }
 
   void _openExaminationListTab([ExaminationListMode? mode]) {
@@ -778,122 +853,129 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           const SizedBox(width: 12),
           // Doctor info menu
           Consumer<AuthViewModel>(
-            builder: (context, vm, child) =>
-                PopupMenuButton<_DoctorUserMenuAction>(
-                  tooltip: 'Tai khoan',
-                  color: Colors.white,
-                  surfaceTintColor: Colors.white,
-                  elevation: 10,
-                  offset: const Offset(0, 46),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+            builder: (context, vm, child) => PopupMenuButton<_DoctorUserMenuAction>(
+              tooltip: 'Tai khoan',
+              color: Colors.white,
+              surfaceTintColor: Colors.white,
+              elevation: 10,
+              offset: const Offset(0, 46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              onSelected: (action) => _handleUserMenuAction(context, action),
+              itemBuilder: (context) => [
+                if (vm.currentUser?.isDepartmentHead == true) ...[
+                  PopupMenuItem<_DoctorUserMenuAction>(
+                    value: _DoctorUserMenuAction.toggleScope,
+                    child: _ScopeToggleMenuItem(isPersonal: vm.isPersonalView),
                   ),
-                  onSelected: (action) =>
-                      _handleUserMenuAction(context, action),
-                  itemBuilder: (context) => const [
-                    PopupMenuItem<_DoctorUserMenuAction>(
-                      value: _DoctorUserMenuAction.profile,
-                      child: _UserMenuItem(
-                        icon: Icons.person_outline_rounded,
-                        label: 'Thông tin cá nhân',
-                      ),
+                  const PopupMenuDivider(),
+                ],
+                const PopupMenuItem<_DoctorUserMenuAction>(
+                  value: _DoctorUserMenuAction.profile,
+                  child: _UserMenuItem(
+                    icon: Icons.person_outline_rounded,
+                    label: 'Thông tin cá nhân',
+                  ),
+                ),
+                PopupMenuItem<_DoctorUserMenuAction>(
+                  value: _DoctorUserMenuAction.changePassword,
+                  child: _UserMenuItem(
+                    icon: Icons.lock_reset_rounded,
+                    label: 'Đổi mật khẩu',
+                  ),
+                ),
+                PopupMenuItem<_DoctorUserMenuAction>(
+                  value: _DoctorUserMenuAction.logout,
+                  child: _UserMenuItem(
+                    icon: Icons.logout_rounded,
+                    label: 'Đăng xuất',
+                    isDestructive: true,
+                  ),
+                ),
+              ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Consumer<DoctorProfileViewModel>(
+                      builder: (context, profileVm, _) {
+                        final avatarUrl = resolveMediaUrl(
+                          profileVm.profile?.avatarUrl ?? '',
+                        );
+                        final token = vm.currentUser?.token ?? '';
+                        final initial =
+                            vm.currentUser?.displayName.isNotEmpty == true
+                            ? vm.currentUser!.displayName[0].toUpperCase()
+                            : 'B';
+                        final fallback = Text(
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _primaryGreen,
+                          ),
+                        );
+                        return CircleAvatar(
+                          radius: 15,
+                          backgroundColor: const Color(0xFFE6F4F1),
+                          child: avatarUrl.isEmpty
+                              ? fallback
+                              : ClipOval(
+                                  child: SizedBox.expand(
+                                    child: AuthenticatedAvatarImage(
+                                      imageUrl: avatarUrl,
+                                      token: token,
+                                      fallback: fallback,
+                                    ),
+                                  ),
+                                ),
+                        );
+                      },
                     ),
-                    PopupMenuItem<_DoctorUserMenuAction>(
-                      value: _DoctorUserMenuAction.changePassword,
-                      child: _UserMenuItem(
-                        icon: Icons.lock_reset_rounded,
-                        label: 'Đổi mật khẩu',
-                      ),
-                    ),
-                    PopupMenuItem<_DoctorUserMenuAction>(
-                      value: _DoctorUserMenuAction.logout,
-                      child: _UserMenuItem(
-                        icon: Icons.logout_rounded,
-                        label: 'Đăng xuất',
-                        isDestructive: true,
-                      ),
-                    ),
-                  ],
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Row(
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Consumer<DoctorProfileViewModel>(
-                          builder: (context, profileVm, _) {
-                            final avatarUrl = resolveMediaUrl(
-                              profileVm.profile?.avatarUrl ?? '',
-                            );
-                            final token = vm.currentUser?.token ?? '';
-                            final initial =
-                                vm.currentUser?.displayName.isNotEmpty == true
-                                ? vm.currentUser!.displayName[0].toUpperCase()
-                                : 'B';
-                            final fallback = Text(
-                              initial,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: _primaryGreen,
-                              ),
-                            );
-                            return CircleAvatar(
-                              radius: 15,
-                              backgroundColor: const Color(0xFFE6F4F1),
-                              child: avatarUrl.isEmpty
-                                  ? fallback
-                                  : ClipOval(
-                                      child: SizedBox.expand(
-                                        child: AuthenticatedAvatarImage(
-                                          imageUrl: avatarUrl,
-                                          token: token,
-                                          fallback: fallback,
-                                        ),
-                                      ),
-                                    ),
-                            );
-                          },
+                        Text(
+                          'BS. ${vm.currentUser?.displayName ?? 'Bac si'}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1A2B3C),
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'BS. ${vm.currentUser?.displayName ?? 'Bac si'}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1A2B3C),
-                              ),
-                            ),
-                            const Text(
-                              'Chan doan hinh anh',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF718096),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 18,
-                          color: Color(0xFF718096),
+                        Text(
+                          vm.currentUser?.isDepartmentHead == true
+                              ? 'Chế độ: ${vm.isPersonalView ? 'Cá nhân' : 'Toàn khoa'}'
+                              : 'Chẩn đoán hình ảnh',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF718096),
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: Color(0xFF718096),
+                    ),
+                  ],
                 ),
+              ),
+            ),
           ),
         ],
       ),
@@ -904,7 +986,16 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     BuildContext context,
     _DoctorUserMenuAction action,
   ) async {
+    if (action == _DoctorUserMenuAction.toggleScope) {
+      final isPersonal = !context.read<AuthViewModel>().isPersonalView;
+      context.read<AuthViewModel>().setPersonalView(isPersonal);
+      _reloadScopedData(isPersonal: isPersonal);
+      return;
+    }
+
     switch (action) {
+      case _DoctorUserMenuAction.toggleScope:
+        return;
       case _DoctorUserMenuAction.profile:
         setState(() {
           _showDoctorProfile = true;
@@ -926,6 +1017,38 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       case _DoctorUserMenuAction.logout:
         await context.read<AuthViewModel>().logout();
         break;
+    }
+  }
+
+  void _reloadScopedData({required bool isPersonal}) {
+    final token = _token;
+    final navItems = _visibleNavItems(context, listen: false);
+    final selectedPermission =
+        _selectedNavIndex >= 0 && _selectedNavIndex < navItems.length
+        ? navItems[_selectedNavIndex].routeKey
+        : '';
+
+    if (selectedPermission == 'patient_list_page') {
+      context.read<DoctorViewModel>().fetchFirstPage(
+        token: token,
+        isPersonal: isPersonal,
+      );
+      return;
+    }
+
+    if (selectedPermission == 'examination_list_page') {
+      context.read<ExaminationViewModel>().loadExaminations(
+        token: token,
+        isPersonal: isPersonal,
+      );
+      return;
+    }
+
+    if (selectedPermission == 'doctor_dashboard_page') {
+      context.read<ExaminationViewModel>().loadDashboardExaminations(
+        token: token,
+        isPersonal: isPersonal,
+      );
     }
   }
 
@@ -1216,7 +1339,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _hasRequestedPatientList = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
-              context.read<DoctorViewModel>().fetchFirstPage(token: _token);
+              context.read<DoctorViewModel>().fetchFirstPage(
+                token: _token,
+                isPersonal: context.read<AuthViewModel>().isPersonalView,
+              );
             });
           }
 
@@ -1330,7 +1456,11 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     return GestureDetector(
       onTap: () {
         setState(() => _filterGender = value);
-        vm.fetchFirstPage(token: _token, gender: value);
+        vm.fetchFirstPage(
+          token: _token,
+          gender: value,
+          isPersonal: context.read<AuthViewModel>().isPersonalView,
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -1385,7 +1515,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             },
             child: RefreshIndicator(
               color: _primaryGreen,
-              onRefresh: () => vm.fetchFirstPage(token: _token),
+              onRefresh: () => vm.fetchFirstPage(
+                token: _token,
+                isPersonal: context.read<AuthViewModel>().isPersonalView,
+              ),
               child: ListView.separated(
                 itemCount: vm.patients.length + (vm.isLastPage ? 0 : 1),
                 separatorBuilder: (context, index) =>
@@ -1615,7 +1748,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () => vm.fetchFirstPage(token: _token),
+            onPressed: () => vm.fetchFirstPage(
+              token: _token,
+              isPersonal: context.read<AuthViewModel>().isPersonalView,
+            ),
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Thử lại'),
             style: ElevatedButton.styleFrom(
@@ -1705,6 +1841,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                 patientCode: codeCtrl.text.trim().isEmpty
                     ? null
                     : codeCtrl.text.trim(),
+                isPersonal: context.read<AuthViewModel>().isPersonalView,
               );
               Navigator.pop(ctx);
             },
@@ -1727,7 +1864,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     showDialog(
       context: context,
       builder: (ctx) => const _CreatePatientDialog(),
-    ).then((_) => vm.fetchFirstPage(token: _token));
+    ).then(
+      (_) => vm.fetchFirstPage(
+        token: _token,
+        isPersonal: context.read<AuthViewModel>().isPersonalView,
+      ),
+    );
   }
 
   */
@@ -1912,7 +2054,86 @@ class _TableHeader extends StatelessWidget {
 }
 */
 
-enum _DoctorUserMenuAction { profile, changePassword, logout }
+enum _DoctorUserMenuAction { toggleScope, profile, changePassword, logout }
+
+class _ScopeToggleMenuItem extends StatelessWidget {
+  final bool isPersonal;
+
+  const _ScopeToggleMenuItem({required this.isPersonal});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isPersonal
+        ? const Color(0xFF2D7E6E)
+        : const Color(0xFF2563EB);
+    final bg = isPersonal ? const Color(0xFFDDF5EC) : const Color(0xFFDCEBFF);
+    final borderColor = isPersonal
+        ? const Color(0xFF9FD8C7)
+        : const Color(0xFF9DBDFF);
+    final knobAlignment = isPersonal
+        ? Alignment.centerLeft
+        : Alignment.centerRight;
+
+    return Container(
+      width: 176,
+      height: 36,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AnimatedAlign(
+            alignment: knobAlignment,
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            child: Container(
+              width: 84,
+              height: 30,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Cá nhân',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isPersonal
+                        ? Colors.white
+                        : color.withValues(alpha: 0.82),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Toàn khoa',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isPersonal
+                        ? color.withValues(alpha: 0.82)
+                        : Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _UserMenuItem extends StatelessWidget {
   final IconData icon;

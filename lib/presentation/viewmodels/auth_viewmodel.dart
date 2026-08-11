@@ -31,6 +31,7 @@ class AuthViewModel extends ChangeNotifier {
   UserEntity? _currentUser;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isPersonalView = true;
   DateTime? _sessionStartedAt;
   Timer? _sessionExpiryTimer;
   Timer? _sessionFirstWarningTimer;
@@ -58,6 +59,8 @@ class AuthViewModel extends ChangeNotifier {
   UserEntity? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get isPersonalView =>
+      _currentUser?.isDepartmentHead == true ? _isPersonalView : true;
 
   bool get isFirstTimeLogin => _isFirstTimeLogin;
   String? get pendingUsername => _pendingUsername;
@@ -87,6 +90,13 @@ class AuthViewModel extends ChangeNotifier {
     return hasPermissionKey(presentation);
   }
 
+  void setPersonalView(bool value) {
+    if (_currentUser?.isDepartmentHead != true) return;
+    if (_isPersonalView == value) return;
+    _isPersonalView = value;
+    notifyListeners();
+  }
+
   Future<void> restoreSession() async {
     try {
       final raw = await sessionStorage.readUserJson();
@@ -114,6 +124,9 @@ class AuthViewModel extends ChangeNotifier {
       }
 
       _currentUser = user;
+      if (_currentUser?.isDepartmentHead != true) {
+        _isPersonalView = true;
+      }
       _sessionStartedAt = sessionStartedAt;
       _scheduleSessionTimers(sessionStartedAt);
       notifyListeners();
@@ -133,6 +146,7 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       _currentUser = await loginUseCase.execute(email, password);
+      _isPersonalView = true;
       _sessionStartedAt = DateTime.now();
       await sessionStorage.saveUserJson(jsonEncode(_userToJson(_currentUser!)));
       _scheduleSessionTimers(_sessionStartedAt!);
@@ -167,6 +181,7 @@ class AuthViewModel extends ChangeNotifier {
     } catch (_) {}
     await sessionStorage.clearAll();
     _currentUser = null;
+    _isPersonalView = true;
     _sessionStartedAt = null;
     _errorMessage = null;
     _isFirstTimeLogin = false;

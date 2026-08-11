@@ -377,11 +377,25 @@ class _KnowledgeUploadDialog extends StatefulWidget {
   State<_KnowledgeUploadDialog> createState() => _KnowledgeUploadDialogState();
 }
 
+class _AccessScopeOption {
+  final String value;
+  final String label;
+
+  const _AccessScopeOption({required this.value, required this.label});
+}
+
 class _KnowledgeUploadDialogState extends State<_KnowledgeUploadDialog> {
   static const _allowedExtensions = ['pdf', 'doc', 'docx', 'docs'];
+  static const _accessScopeOptions = [
+    _AccessScopeOption(value: 'ALL', label: 'Tất cả'),
+    _AccessScopeOption(value: 'DOCTOR', label: 'Bác sĩ'),
+    _AccessScopeOption(value: 'ADMIN', label: 'Admin'),
+    _AccessScopeOption(value: 'OWNER', label: 'Người tạo'),
+  ];
 
   final _titleController = TextEditingController();
   final List<KnowledgeUploadFile> _files = [];
+  String _selectedAccessScope = 'ALL';
   bool _isDragging = false;
   String? _validationError;
 
@@ -415,6 +429,26 @@ class _KnowledgeUploadDialogState extends State<_KnowledgeUploadDialog> {
             const SizedBox(height: 16),
             _dropZone(isUploading),
             const SizedBox(height: 14),
+            DropdownButtonFormField<String>(
+              initialValue: _selectedAccessScope,
+              decoration: const InputDecoration(
+                labelText: 'Phạm vi truy cập',
+                border: OutlineInputBorder(),
+              ),
+              items: _accessScopeOptions.map((option) {
+                return DropdownMenuItem<String>(
+                  value: option.value,
+                  child: Text(option.label),
+                );
+              }).toList(),
+              onChanged: isUploading
+                  ? null
+                  : (value) {
+                      if (value == null) return;
+                      setState(() => _selectedAccessScope = value);
+                    },
+            ),
+            const SizedBox(height: 12),
             if (_files.length == 1) ...[
               TextField(
                 controller: _titleController,
@@ -641,7 +675,7 @@ class _KnowledgeUploadDialogState extends State<_KnowledgeUploadDialog> {
       token: widget.token,
       files: List.unmodifiable(_files),
       title: _files.length == 1 ? _titleController.text : null,
-      accessScope: 'ALL',
+      accessScope: _selectedAccessScope,
     );
 
     if (!mounted) return;

@@ -4,10 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
+import '../../domain/entities/daily_examination_stat_entity.dart';
 import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/entities/examination_page_entity.dart';
 import '../../domain/entities/patient_grade_stats_entity.dart';
+import '../models/daily_examination_stat_model.dart';
 import '../models/examination_model.dart';
 import '../models/patient_grade_stats_model.dart';
 
@@ -33,6 +35,11 @@ abstract class ExaminationRemoteDataSource {
   });
 
   Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
+    required String token,
+    bool isPersonal = false,
+  });
+
+  Future<List<DailyExaminationStatEntity>> getDailyLast7DaysStatistics({
     required String token,
     bool isPersonal = false,
   });
@@ -384,6 +391,45 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
 
     return data.whereType<Map>().map((item) {
       return PatientGradeStatsModel.fromJson(Map<String, dynamic>.from(item));
+    }).toList();
+  }
+
+  @override
+  Future<List<DailyExaminationStatEntity>> getDailyLast7DaysStatistics({
+    required String token,
+    bool isPersonal = false,
+  }) async {
+    final uri = Uri.parse(
+      ApiConstants.dailyLast7DaysExaminationsEndpoint,
+    ).replace(queryParameters: {if (isPersonal) 'isPersonal': 'true'});
+    final response = await client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        _httpErrorMessage(
+          response.statusCode,
+          'Khong the tai thong ke ca kham 7 ngay gan nhat',
+        ),
+      );
+    }
+
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is! List) {
+      throw Exception('Dinh dang thong ke ca kham 7 ngay khong hop le');
+    }
+
+    return data.whereType<Map>().map((item) {
+      return DailyExaminationStatModel.fromJson(
+        Map<String, dynamic>.from(item),
+      );
     }).toList();
   }
 

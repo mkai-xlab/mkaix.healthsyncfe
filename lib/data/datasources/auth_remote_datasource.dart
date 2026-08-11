@@ -87,6 +87,12 @@ class AuthRemoteDataSource {
         throw Exception('Tên đăng nhập hoặc mật khẩu không chính xác!');
       } else if (response.statusCode == 401) {
         throw Exception('Tên đăng nhập hoặc mật khẩu không chính xác!');
+      } else if (response.statusCode == 423) {
+        throw Exception(
+          'Tài khoản đã bị khóa 15 phút do nhập sai mật khẩu 5 lần. Vui lòng thử lại sau.',
+        );
+      } else if (response.statusCode == 400) {
+        throw Exception('Mật khẩu phải có ít nhất 8 ký tự.');
       } else {
         throw Exception('Hệ thống gặp sự cố (Mã lỗi: ${response.statusCode})');
       }

@@ -1,4 +1,5 @@
 import '../entities/examination_dashboard_totals_entity.dart';
+import '../entities/daily_examination_stat_entity.dart';
 import '../entities/examination_entity.dart';
 import '../entities/examination_page_entity.dart';
 import '../entities/patient_grade_stats_entity.dart';
@@ -25,6 +26,11 @@ abstract class ExaminationRepository {
   });
 
   Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
+    required String token,
+    bool isPersonal = false,
+  });
+
+  Future<List<DailyExaminationStatEntity>> getDailyLast7DaysStatistics({
     required String token,
     bool isPersonal = false,
   });

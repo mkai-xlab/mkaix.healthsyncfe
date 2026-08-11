@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/password_validation_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
 class ChangePasswordPage extends StatefulWidget {
@@ -296,6 +297,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
         const SizedBox(height: 12),
         _buildRequirement('Từ 8 đến 32 ký tự'),
         const SizedBox(height: 8),
+        _buildRequirement('Có chữ hoa và chữ thường'),
+        const SizedBox(height: 8),
+        _buildRequirement('Có chữ số'),
+        const SizedBox(height: 8),
+        _buildRequirement('Có ký tự đặc biệt'),
+        const SizedBox(height: 8),
         _buildRequirement('Khác với mật khẩu cũ'),
         const SizedBox(height: 8),
         _buildRequirement('Nhập lại khớp xác nhận'),
@@ -445,17 +452,17 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             style: const TextStyle(fontSize: 14, color: Color(0xFF1A2B3C)),
             onChanged: (_) => setState(() {}),
             validator: (v) {
-              if (v == null || v.isEmpty) return 'Vui lòng nhập mật khẩu mới';
-              if (v.length < 8 || v.length > 32) {
-                return 'Mật khẩu phải có từ 8 đến 32 ký tự';
-              }
+              final passwordError = PasswordValidationUtils.validateNewPassword(
+                v,
+              );
+              if (passwordError != null) return passwordError;
               if (v == _oldPassword) {
                 return 'Mật khẩu mới phải khác mật khẩu cũ';
               }
               return null;
             },
             decoration: _buildInputDecoration(
-              hint: '8-32 ký tự',
+              hint: '8-32 ký tự, Aa, 0-9, @#!',
               icon: Icons.lock_outline_rounded,
               suffix: IconButton(
                 icon: Icon(

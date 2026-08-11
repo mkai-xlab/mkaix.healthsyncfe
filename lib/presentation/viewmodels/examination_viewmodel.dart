@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/examination_dashboard_totals_entity.dart';
+import '../../domain/entities/daily_examination_stat_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/entities/patient_grade_stats_entity.dart';
 import '../../domain/usecases/get_patient_examinations_usecase.dart';
@@ -74,6 +75,10 @@ class ExaminationViewModel extends ChangeNotifier {
   List<PatientGradeStatsEntity> get patientGradeStats =>
       List.unmodifiable(_patientGradeStats);
 
+  List<DailyExaminationStatEntity> _dailyLast7DaysStats = [];
+  List<DailyExaminationStatEntity> get dailyLast7DaysStats =>
+      List.unmodifiable(_dailyLast7DaysStats);
+
   int _totalPages = 1;
   int get totalPages => _totalPages;
 
@@ -119,6 +124,7 @@ class ExaminationViewModel extends ChangeNotifier {
     _examinations = [];
     _dashboardTotals = null;
     _patientGradeStats = [];
+    _dailyLast7DaysStats = [];
     _selectedExamination = null;
     _detailErrorMessage = null;
     notifyListeners();
@@ -153,10 +159,20 @@ class ExaminationViewModel extends ChangeNotifier {
         _errorMessage = _appendDashboardError(_errorMessage, gradeError);
         _patientGradeStats = [];
       }
+
+      try {
+        _dailyLast7DaysStats = await getPatientExaminationsUseCase
+            .executeDailyLast7DaysStatistics(token: token, isPersonal: true);
+      } catch (e) {
+        final dailyError = userFriendlyErrorMessage(e);
+        _errorMessage = _appendDashboardError(_errorMessage, dailyError);
+        _dailyLast7DaysStats = [];
+      }
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
       _examinations = [];
       _patientGradeStats = [];
+      _dailyLast7DaysStats = [];
       _totalElements = 0;
       _totalPages = 1;
       _currentPage = 0;
@@ -379,6 +395,7 @@ class ExaminationViewModel extends ChangeNotifier {
     _currentPage = 0;
     _dashboardTotals = null;
     _patientGradeStats = [];
+    _dailyLast7DaysStats = [];
     _listMode = ExaminationListMode.all;
     _filterDate = null;
     notifyListeners();

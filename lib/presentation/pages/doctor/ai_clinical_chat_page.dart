@@ -18,7 +18,6 @@ class AiClinicalChatPage extends StatefulWidget {
 class _AiClinicalChatPageState extends State<AiClinicalChatPage> {
   final _inputController = TextEditingController();
   final _scrollController = ScrollController();
-  ChatViewModel? _chatViewModel;
 
   @override
   void initState() {
@@ -28,21 +27,14 @@ class _AiClinicalChatPageState extends State<AiClinicalChatPage> {
       final token = context.read<AuthViewModel>().currentUser?.token ?? '';
       final vm = context.read<ChatViewModel>();
       vm.setFullPageVisible(true);
-      vm.loadLatestSession(token: token);
+      vm.loadLatestSession(token: token, force: true);
     });
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _chatViewModel = context.read<ChatViewModel>();
   }
 
   @override
   void dispose() {
     _inputController.dispose();
     _scrollController.dispose();
-    _chatViewModel?.setFullPageVisible(false);
     super.dispose();
   }
 

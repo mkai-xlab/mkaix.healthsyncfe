@@ -13,9 +13,10 @@ class AiChatWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDoctor = context.select<AuthViewModel, bool>(
-      (auth) => auth.currentUser?.isDoctor ?? false,
-    );
+    final canUseDoctorShellChat = context.select<AuthViewModel, bool>((auth) {
+      final user = auth.currentUser;
+      return user != null && !user.isAdmin;
+    });
     final doctorFullName = context.select<AuthViewModel, String?>(
       (auth) => auth.currentUser?.fullName,
     );
@@ -23,7 +24,7 @@ class AiChatWidget extends StatelessWidget {
       (chat) => chat.isFullPageVisible,
     );
 
-    if (!isDoctor || isFullPageVisible) return child;
+    if (!canUseDoctorShellChat || isFullPageVisible) return child;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!context.mounted) return;
       context.read<ChatViewModel>().updateDoctorName(doctorFullName);

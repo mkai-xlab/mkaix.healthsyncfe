@@ -117,8 +117,15 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> loadLatestSession({required String token}) async {
-    if (_hasLoadedHistory || _isLoadingHistory || token.trim().isEmpty) return;
+  Future<void> loadLatestSession({
+    required String token,
+    bool force = false,
+  }) async {
+    if ((!force && _hasLoadedHistory) ||
+        _isLoadingHistory ||
+        token.trim().isEmpty) {
+      return;
+    }
 
     _isLoadingHistory = true;
     _isLoadingSessions = true;

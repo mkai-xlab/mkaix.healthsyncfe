@@ -41,9 +41,11 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
     _didLoad = true;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+      final auth = context.read<AuthViewModel>();
+      final token = auth.currentUser?.token ?? '';
       context.read<ExaminationViewModel>().loadDashboardExaminations(
         token: token,
+        isPersonal: auth.isPersonalView,
       );
     });
   }
@@ -92,7 +94,11 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
             onRetry: () {
               final token =
                   context.read<AuthViewModel>().currentUser?.token ?? '';
-              vm.loadDashboardExaminations(token: token);
+              final isPersonal = context.read<AuthViewModel>().isPersonalView;
+              vm.loadDashboardExaminations(
+                token: token,
+                isPersonal: isPersonal,
+              );
             },
           );
         },

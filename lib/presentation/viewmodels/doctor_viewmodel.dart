@@ -31,6 +31,7 @@ class DoctorViewModel extends ChangeNotifier {
 
   int _pageSize = 10;
   int get pageSize => _pageSize;
+  bool _isPersonal = true;
 
   // Filter state
   String _filterFullName = '';
@@ -46,11 +47,13 @@ class DoctorViewModel extends ChangeNotifier {
     String? fullName,
     String? patientCode,
     String? gender,
+    bool isPersonal = true,
   }) async {
     _currentPage = 0;
     _patients.clear();
     _isLastPage = false;
     _errorMessage = null;
+    _isPersonal = isPersonal;
 
     if (fullName != null) _filterFullName = fullName;
     if (patientCode != null) _filterPatientCode = patientCode;
@@ -87,14 +90,14 @@ class DoctorViewModel extends ChangeNotifier {
   Future<void> changePageSize(String token, int size) async {
     if (_pageSize == size) return;
     _pageSize = size;
-    await fetchFirstPage(token: token);
+    await fetchFirstPage(token: token, isPersonal: _isPersonal);
   }
 
   /// Tìm kiếm debounce 500ms theo tên
   void searchByNameDebounced(String name, String token) {
     _debounce?.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      fetchFirstPage(token: token, fullName: name);
+      fetchFirstPage(token: token, fullName: name, isPersonal: _isPersonal);
     });
   }
 
@@ -105,7 +108,7 @@ class DoctorViewModel extends ChangeNotifier {
         fullName: _filterFullName.isEmpty ? null : _filterFullName,
         patientCode: _filterPatientCode.isEmpty ? null : _filterPatientCode,
         gender: _filterGender.isEmpty ? null : _filterGender,
-        isPersonal: true,
+        isPersonal: _isPersonal,
         page: _currentPage,
         size: _pageSize,
       );
@@ -131,7 +134,7 @@ class DoctorViewModel extends ChangeNotifier {
     _filterFullName = '';
     _filterPatientCode = '';
     _filterGender = '';
-    fetchFirstPage(token: token);
+    fetchFirstPage(token: token, isPersonal: _isPersonal);
   }
 
   @override

@@ -54,7 +54,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     };
 
     final uri = Uri.parse(
-      ApiConstants.doctorsEndpoint,
+      ApiConstants.staffUsersEndpoint,
     ).replace(queryParameters: queryParams);
 
     try {
@@ -72,20 +72,20 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
         final decodedBody = utf8.decode(response.bodyBytes);
         final responseData = jsonDecode(decodedBody);
 
-        if (responseData is List && responseData.isNotEmpty) {
-          return _parseDoctorPage(responseData.first as Map<String, dynamic>);
+        if (responseData is List) {
+          return _parseUserPage({'content': responseData});
         }
         if (responseData is Map<String, dynamic>) {
-          return _parseDoctorPage(responseData);
+          return _parseUserPage(responseData);
         }
 
-        throw Exception('Dinh dang danh sach bac si khong hop le');
+        throw Exception('Định dạng danh sách người dùng không hợp lệ');
       }
 
-      throw Exception('Loi he thong: ${response.statusCode}');
+      throw Exception('Lỗi hệ thống: ${response.statusCode}');
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Ket noi that bai: $e');
+      throw Exception('Kết nối thất bại: $e');
     }
   }
 
@@ -117,7 +117,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       }
 
       final decodedBody = utf8.decode(response.bodyBytes);
-      String message = 'Loi khi tao tai khoan bac si';
+      String message = 'Lỗi khi tạo tài khoản bác sĩ';
       try {
         final errorData = jsonDecode(decodedBody);
         if (errorData is Map && errorData['message'] != null) {
@@ -127,7 +127,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       throw Exception(message);
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Ket noi that bai: $e');
+      throw Exception('Kết nối thất bại: $e');
     }
   }
 
@@ -162,7 +162,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       }
 
       final decodedBody = utf8.decode(response.bodyBytes);
-      String message = 'Loi khi tao tai khoan';
+      String message = 'Lỗi khi tạo tài khoản';
       try {
         final errorData = jsonDecode(decodedBody);
         if (errorData is Map && errorData['message'] != null) {
@@ -172,7 +172,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       throw Exception(message);
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Ket noi that bai: $e');
+      throw Exception('Kết nối thất bại: $e');
     }
   }
 
@@ -244,7 +244,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
 
       if (response.statusCode != 200 && response.statusCode != 204) {
         final decodedBody = utf8.decode(response.bodyBytes);
-        String message = 'Khong the thay doi trang thai bac si';
+        String message = 'Không thể thay đổi trạng thái bác sĩ';
         try {
           final errorData = jsonDecode(decodedBody);
           if (errorData is Map && errorData['message'] != null) {
@@ -255,23 +255,40 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       }
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Loi ket noi: $e');
+      throw Exception('Lỗi kết nối: $e');
     }
   }
 
-  DoctorAccountPageEntity _parseDoctorPage(Map<String, dynamic> json) {
-    final content = json['content'] as List<dynamic>? ?? [];
-    final doctors = content
+  DoctorAccountPageEntity _parseUserPage(Map<String, dynamic> json) {
+    final content = _extractUserList(json);
+    final users = content
         .map(
           (item) => DoctorAccountModel.fromJson(item as Map<String, dynamic>),
         )
         .toList();
 
     return DoctorAccountPageEntity(
-      content: doctors,
-      totalElements: json['totalElements'] as int? ?? doctors.length,
-      totalPages: json['totalPages'] as int? ?? 1,
+      content: users,
+      totalElements: _parseInt(
+        json['totalElements'] ?? json['total'],
+        users.length,
+      ),
+      totalPages: _parseInt(json['totalPages'] ?? json['pages'], 1),
       isLast: json['isLast'] as bool? ?? json['last'] as bool? ?? true,
     );
+  }
+
+  List<dynamic> _extractUserList(Map<String, dynamic> json) {
+    for (final key in const ['content', 'data', 'items', 'users']) {
+      final value = json[key];
+      if (value is List) return value;
+    }
+    return const [];
+  }
+
+  int _parseInt(Object? value, int fallback) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
   }
 }

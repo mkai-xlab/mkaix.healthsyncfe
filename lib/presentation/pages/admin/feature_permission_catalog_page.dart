@@ -1304,11 +1304,15 @@ class _FeaturePermissionCatalogPageState
     final knownPresentationKeys = frontendPageReferences
         .map((reference) => reference.key)
         .toSet();
-    final customPresentation =
+    var presentationDropdownValue =
         selectedPresentation.isNotEmpty &&
-            !knownPresentationKeys.contains(selectedPresentation)
+            knownPresentationKeys.contains(selectedPresentation)
         ? selectedPresentation
-        : null;
+        : '';
+    if (presentationDropdownValue.isEmpty) {
+      selectedPresentation = '';
+      presentationController.clear();
+    }
 
     await showDialog(
       context: context,
@@ -1370,9 +1374,7 @@ class _FeaturePermissionCatalogPageState
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        initialValue: selectedPresentation.isEmpty
-                            ? ''
-                            : selectedPresentation,
+                        initialValue: presentationDropdownValue,
                         isExpanded: true,
                         decoration: const InputDecoration(
                           labelText: 'Trang tham chiếu',
@@ -1392,18 +1394,11 @@ class _FeaturePermissionCatalogPageState
                               ),
                             ),
                           ),
-                          if (customPresentation != null)
-                            DropdownMenuItem<String>(
-                              value: customPresentation,
-                              child: Text(
-                                'Giá trị hiện tại: $customPresentation',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
                         ],
                         onChanged: (value) {
                           setDialogState(() {
-                            selectedPresentation = value ?? '';
+                            presentationDropdownValue = value ?? '';
+                            selectedPresentation = presentationDropdownValue;
                             presentationController.text = selectedPresentation;
                           });
                         },
@@ -1674,7 +1669,12 @@ class _HoverSurfaceState extends State<_HoverSurface> {
                 ]
               : const [],
         ),
-        child: widget.child,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(widget.borderRadius),
+          clipBehavior: Clip.antiAlias,
+          child: widget.child,
+        ),
       ),
     );
   }

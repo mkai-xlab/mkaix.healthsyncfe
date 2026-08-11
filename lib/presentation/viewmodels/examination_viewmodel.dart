@@ -84,11 +84,16 @@ class ExaminationViewModel extends ChangeNotifier {
 
   ExaminationListMode _listMode = ExaminationListMode.all;
   ExaminationListMode get listMode => _listMode;
+  bool _isPersonal = true;
 
   DateTime? _filterDate;
   DateTime? get filterDate => _filterDate;
 
-  Future<void> loadExaminations({required String token}) async {
+  Future<void> loadExaminations({
+    required String token,
+    bool isPersonal = true,
+  }) async {
+    _isPersonal = isPersonal;
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
@@ -104,7 +109,7 @@ class ExaminationViewModel extends ChangeNotifier {
         mode: _listMode.name,
         direction: _listMode.name.endsWith('Asc') ? 'asc' : 'desc',
         date: _filterDate == null ? null : _formatApiDate(_filterDate!),
-        isPersonal: true,
+        isPersonal: _isPersonal,
       );
       _examinations = result.content;
       _totalElements = result.totalElements;
@@ -118,7 +123,11 @@ class ExaminationViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> loadDashboardExaminations({required String token}) async {
+  Future<void> loadDashboardExaminations({
+    required String token,
+    bool isPersonal = true,
+  }) async {
+    _isPersonal = isPersonal;
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
@@ -153,7 +162,10 @@ class ExaminationViewModel extends ChangeNotifier {
 
       try {
         _patientGradeStats = await getPatientExaminationsUseCase
-            .executePatientGradeStatistics(token: token, isPersonal: true);
+            .executePatientGradeStatistics(
+              token: token,
+              isPersonal: _isPersonal,
+            );
       } catch (e) {
         final gradeError = userFriendlyErrorMessage(e);
         _errorMessage = _appendDashboardError(_errorMessage, gradeError);
@@ -162,7 +174,10 @@ class ExaminationViewModel extends ChangeNotifier {
 
       try {
         _dailyLast7DaysStats = await getPatientExaminationsUseCase
-            .executeDailyLast7DaysStatistics(token: token, isPersonal: true);
+            .executeDailyLast7DaysStatistics(
+              token: token,
+              isPersonal: _isPersonal,
+            );
       } catch (e) {
         final dailyError = userFriendlyErrorMessage(e);
         _errorMessage = _appendDashboardError(_errorMessage, dailyError);
@@ -194,7 +209,7 @@ class ExaminationViewModel extends ChangeNotifier {
     _currentPage = page
         .clamp(0, (_totalPages <= 0 ? 1 : _totalPages) - 1)
         .toInt();
-    await loadExaminations(token: token);
+    await loadExaminations(token: token, isPersonal: _isPersonal);
   }
 
   Future<void> changePageSize({
@@ -204,25 +219,28 @@ class ExaminationViewModel extends ChangeNotifier {
     if (_pageSize == size) return;
     _pageSize = size;
     _currentPage = 0;
-    await loadExaminations(token: token);
+    await loadExaminations(token: token, isPersonal: _isPersonal);
   }
 
   Future<void> applyListMode({
     required String token,
     required ExaminationListMode mode,
     DateTime? date,
+    bool? isPersonal,
   }) async {
     _listMode = mode;
     _filterDate = date;
     _currentPage = 0;
-    await loadExaminations(token: token);
+    if (isPersonal != null) _isPersonal = isPersonal;
+    await loadExaminations(token: token, isPersonal: _isPersonal);
   }
 
-  Future<void> clearListMode({required String token}) async {
+  Future<void> clearListMode({required String token, bool? isPersonal}) async {
     _listMode = ExaminationListMode.all;
     _filterDate = null;
     _currentPage = 0;
-    await loadExaminations(token: token);
+    if (isPersonal != null) _isPersonal = isPersonal;
+    await loadExaminations(token: token, isPersonal: _isPersonal);
   }
 
   Future<void> loadDoctorExaminations({

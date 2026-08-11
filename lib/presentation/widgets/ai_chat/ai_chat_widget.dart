@@ -19,8 +19,11 @@ class AiChatWidget extends StatelessWidget {
     final doctorFullName = context.select<AuthViewModel, String?>(
       (auth) => auth.currentUser?.fullName,
     );
+    final isFullPageVisible = context.select<ChatViewModel, bool>(
+      (chat) => chat.isFullPageVisible,
+    );
 
-    if (!isDoctor) return child;
+    if (!isDoctor || isFullPageVisible) return child;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!context.mounted) return;
       context.read<ChatViewModel>().updateDoctorName(doctorFullName);
@@ -48,7 +51,15 @@ class AiChatWidget extends StatelessWidget {
               bottom: isMobile ? 12 : 88,
               child: vm.isOpen
                   ? const _ChatWindow()
-                  : _ChatFloatingButton(onPressed: vm.open),
+                  : _ChatFloatingButton(
+                      onPressed: () {
+                        final token =
+                            context.read<AuthViewModel>().currentUser?.token ??
+                            '';
+                        vm.open();
+                        vm.loadLatestSession(token: token);
+                      },
+                    ),
             );
           },
         ),
@@ -219,11 +230,17 @@ class _ChatHeader extends StatelessWidget {
             ),
           ),
           IconButton(
-            onPressed: vm.toggleExpanded,
-            icon: Icon(
-              vm.isExpanded
-                  ? Icons.close_fullscreen_rounded
-                  : Icons.open_in_full_rounded,
+            onPressed: vm.startNewSession,
+            icon: const Icon(
+              Icons.add_comment_rounded,
+              color: Colors.white,
+              size: 18,
+            ),
+          ),
+          IconButton(
+            onPressed: vm.requestFullPage,
+            icon: const Icon(
+              Icons.open_in_new_rounded,
               color: Colors.white,
               size: 18,
             ),
@@ -280,11 +297,41 @@ class _ChatBodyState extends State<_ChatBody> {
         controller: _scrollController,
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
         children: [
+          if (vm.isLoadingHistory) const _ChatHistoryLoadingIndicator(),
           for (final message in vm.messages) _ChatBubble(message: message),
           const _ChatSuggestionChips(),
           if (vm.isTyping) const _ChatTypingIndicator(),
           const SizedBox(height: 8),
           const _MedicalDisclaimer(),
+        ],
+      ),
+    );
+  }
+}
+
+class _ChatHistoryLoadingIndicator extends StatelessWidget {
+  const _ChatHistoryLoadingIndicator();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 14,
+            height: 14,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.textSecondary,
+            ),
+          ),
+          SizedBox(width: 8),
+          Text(
+            'Đang tải lịch sử...',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+          ),
         ],
       ),
     );
@@ -337,7 +384,9 @@ class _ChatBubble extends StatelessWidget {
                 ),
               ),
               child: Text(
-                message.content,
+                _wrapLongTokens(message.content),
+                softWrap: true,
+                overflow: TextOverflow.clip,
                 style: TextStyle(
                   color: isUser ? Colors.white : AppColors.textPrimary,
                   fontSize: 14,
@@ -349,6 +398,20 @@ class _ChatBubble extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _wrapLongTokens(String text) {
+    return text.replaceAllMapped(RegExp(r'\S{40,}'), (match) {
+      final value = match.group(0)!;
+      final buffer = StringBuffer();
+      for (var index = 0; index < value.length; index++) {
+        if (index > 0 && index % 24 == 0) {
+          buffer.write('\u200B');
+        }
+        buffer.write(value[index]);
+      }
+      return buffer.toString();
+    });
   }
 }
 

@@ -87,15 +87,14 @@ class AppRouter {
 
       if (isLoggedIn && loc == '/login') {
         if (user.isAdmin) return '/admin';
-        if (user.isDoctor) return '/doctor';
-        return '/login';
+        return '/doctor';
       }
 
       if (isLoggedIn && loc.startsWith('/admin') && !user.isAdmin) {
         return '/doctor';
       }
 
-      if (isLoggedIn && loc.startsWith('/doctor') && !user.isDoctor) {
+      if (isLoggedIn && loc.startsWith('/doctor') && user.isAdmin) {
         return '/admin';
       }
 

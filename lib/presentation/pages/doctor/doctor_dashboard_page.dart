@@ -169,7 +169,7 @@ class _DashboardContent extends StatelessWidget {
               } else if (width < 900) {
                 crossAxisCount = 2;
                 childAspectRatio = 2.2;
-              } else if (width < 1200) {
+              } else if (width < 1060) {
                 crossAxisCount = 3;
                 childAspectRatio = 2.0;
               }

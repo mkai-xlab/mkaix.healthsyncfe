@@ -140,7 +140,7 @@ class ExaminationViewModel extends ChangeNotifier {
 
     try {
       final dashboardTotals = await getPatientExaminationsUseCase
-          .executeMyDashboardTotals(token: token);
+          .executeMyDashboardTotals(token: token, isPersonal: _isPersonal);
       _totalElements = dashboardTotals.total;
       _totalPages = 1;
       _currentPage = 0;

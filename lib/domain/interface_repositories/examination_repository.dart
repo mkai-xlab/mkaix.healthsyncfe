@@ -17,6 +17,7 @@ abstract class ExaminationRepository {
 
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
     required String token,
+    bool isPersonal = false,
   });
 
   Future<ExaminationPageEntity> getMyRecentExaminationsPage({

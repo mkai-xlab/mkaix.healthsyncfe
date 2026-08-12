@@ -12,11 +12,13 @@ import 'patient_detail_page.dart';
 
 class PatientListPage extends StatefulWidget {
   final bool embedded;
+  final VoidCallback? onClearSearch;
   final ValueChanged<PatientEntity>? onOpenPatientDetail;
 
   const PatientListPage({
     super.key,
     this.embedded = false,
+    this.onClearSearch,
     this.onOpenPatientDetail,
   });
 
@@ -42,6 +44,7 @@ class _PatientListPageState extends State<PatientListPage> {
       child: Consumer<DoctorViewModel>(
         builder: (context, vm, _) {
           if (!_hasRequestedPatientList &&
+              !vm.hasPendingSearch &&
               !vm.isLoading &&
               vm.patients.isEmpty &&
               vm.errorMessage == null) {
@@ -142,6 +145,23 @@ class _PatientListPageState extends State<PatientListPage> {
                       ),
                     ),
                   ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: () {
+                  widget.onClearSearch?.call();
+                  setState(() => _filterGender = '');
+                  vm.clearFilters(_token, isPersonal: _isPersonalView);
+                },
+                icon: const Icon(Icons.groups_outlined, size: 16),
+                label: const Text('Tất cả'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _primaryGreen,
+                  side: const BorderSide(color: _primaryGreen),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
                 ),
               ),
             ],

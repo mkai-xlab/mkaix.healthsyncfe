@@ -26,6 +26,7 @@ abstract class ExaminationRemoteDataSource {
 
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
     required String token,
+    bool isPersonal = false,
   });
 
   Future<ExaminationPageEntity> getMyRecentExaminationsPage({
@@ -321,26 +322,31 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
   @override
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
     required String token,
+    bool isPersonal = false,
   }) async {
     final results = await Future.wait<_DashboardTotalResult>([
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalExaminationsEndpoint,
         token: token,
+        isPersonal: isPersonal,
         errorMessage: 'Khong the tai tong so ca kham cua ban',
       ),
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalVerifiedExaminationsEndpoint,
         token: token,
+        isPersonal: isPersonal,
         errorMessage: 'Khong the tai so ca kham da xac nhan cua ban',
       ),
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalUnverifiedExaminationsEndpoint,
         token: token,
+        isPersonal: isPersonal,
         errorMessage: 'Khong the tai so ca kham cho xac nhan cua ban',
       ),
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalSevereExaminationsEndpoint,
         token: token,
+        isPersonal: isPersonal,
         errorMessage: 'Khong the tai so ca kham nang cua ban',
       ),
     ]);
@@ -436,12 +442,14 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
   Future<_DashboardTotalResult> _getTotalOrZero({
     required String endpoint,
     required String token,
+    required bool isPersonal,
     required String errorMessage,
   }) async {
     try {
       final value = await _getTotal(
         endpoint: endpoint,
         token: token,
+        isPersonal: isPersonal,
         errorMessage: errorMessage,
       );
       return _DashboardTotalResult(value: value);
@@ -457,9 +465,12 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
   Future<int> _getTotal({
     required String endpoint,
     required String token,
+    required bool isPersonal,
     required String errorMessage,
   }) async {
-    final uri = Uri.parse(endpoint);
+    final uri = Uri.parse(
+      endpoint,
+    ).replace(queryParameters: {'isPersonal': isPersonal.toString()});
     final response = await client
         .get(
           uri,

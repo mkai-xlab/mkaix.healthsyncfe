@@ -22,8 +22,10 @@ enum DicomUploadStage {
 }
 
 class DicomUploadViewModel extends ChangeNotifier {
-  static const int maxUploadBatchSizeBytes = 100 * 1024 * 1024;
-  static const String maxUploadBatchSizeLabel = '100MB';
+  static const int maxUploadFileSizeBytes = 100 * 1024 * 1024;
+  static const int maxUploadBatchSizeBytes = 500 * 1024 * 1024;
+  static const String maxUploadFileSizeLabel = '100MB';
+  static const String maxUploadBatchSizeLabel = '500MB';
 
   final DicomRemoteDataSource remoteDataSource;
   final DicomWebSocketService webSocketService;
@@ -65,9 +67,6 @@ class DicomUploadViewModel extends ChangeNotifier {
   bool _isWaitingForBatchResult = false;
   bool get isWaitingForBatchResult => _isWaitingForBatchResult;
 
-  bool _showLongProcessingHint = false;
-  bool get showLongProcessingHint => _showLongProcessingHint;
-
   _PendingBatchResultWait? _activeBatchResultWait;
 
   String? _errorMessage;
@@ -84,10 +83,14 @@ class DicomUploadViewModel extends ChangeNotifier {
   bool get isSelectedBatchOverSizeLimit =>
       selectedFilesTotalSizeBytes > maxUploadBatchSizeBytes;
 
+  bool get hasSelectedFileOverSizeLimit =>
+      _selectedFiles.any((file) => file.bytes.length > maxUploadFileSizeBytes);
+
   bool get canUploadSelected =>
       _selectedFiles.isNotEmpty &&
       !_isUploading &&
-      !isSelectedBatchOverSizeLimit;
+      !isSelectedBatchOverSizeLimit &&
+      !hasSelectedFileOverSizeLimit;
 
   bool get hasSelectedZip =>
       _selectedFiles.any((file) => _isZipFile(file.name));
@@ -292,6 +295,14 @@ class DicomUploadViewModel extends ChangeNotifier {
       return;
     }
 
+    final oversizedFile = _firstOversizedFile(files);
+    if (oversizedFile != null) {
+      _errorMessage =
+          'File ${oversizedFile.name} vượt quá $maxUploadFileSizeLabel. Vui lòng chọn file nhỏ hơn.';
+      notifyListeners();
+      return;
+    }
+
     final mergedFiles = List<DicomUploadFile>.from(_selectedFiles);
     final hasZip =
         mergedFiles.any((file) => _isZipFile(file.name)) ||
@@ -472,21 +483,19 @@ class DicomUploadViewModel extends ChangeNotifier {
     if (submission.accepted) {
       final message = submission.message?.trim();
       _uploadStatusMessage = message?.isNotEmpty == true
-          ? 'Upload file thành công. $message Đang chờ WebSocket trả danh sách bệnh nhân...'
-          : 'Upload file thành công. Đang chờ WebSocket trả danh sách bệnh nhân...';
+          ? 'Upload file thành công. $message Hệ thống đang xử lý danh sách bệnh nhân...'
+          : 'Upload file thành công. Hệ thống đang xử lý danh sách bệnh nhân...';
       _stage = DicomUploadStage.processing;
       _progress = null;
       _isWaitingForBatchResult = true;
-      _showLongProcessingHint = false;
       notifyListeners();
       result = await pendingBatchResult.future;
     } else if (_isEmptyBatchResult(result)) {
       _uploadStatusMessage =
-          'Upload file thành công nhưng API chưa có danh sách bệnh nhân. Đang chờ WebSocket...';
+          'Upload file thành công. Hệ thống đang xử lý danh sách bệnh nhân...';
       _stage = DicomUploadStage.processing;
       _progress = null;
       _isWaitingForBatchResult = true;
-      _showLongProcessingHint = false;
       notifyListeners();
       try {
         final webSocketResult = await pendingBatchResult.future;
@@ -504,15 +513,12 @@ class DicomUploadViewModel extends ChangeNotifier {
       throw Exception('Không nhận được kết quả upload DICOM.');
     }
     _isWaitingForBatchResult = false;
-    _showLongProcessingHint = false;
     _activeBatchResultWait = null;
     return result;
   }
 
   _PendingBatchResultWait _startBatchResultWait() {
     final completer = Completer<BatchDicomUploadModel>();
-    Timer? longProcessingTimer;
-
     void completeFrom(String source, BatchDicomUploadModel result) {
       if (completer.isCompleted) return;
       debugPrint(
@@ -520,9 +526,7 @@ class DicomUploadViewModel extends ChangeNotifier {
         'patients=${result.successfulPatients.length}, '
         'errors=${result.errors.length}',
       );
-      longProcessingTimer?.cancel();
       _isWaitingForBatchResult = false;
-      _showLongProcessingHint = false;
       _activeBatchResultWait = null;
       completer.complete(result);
     }
@@ -530,9 +534,7 @@ class DicomUploadViewModel extends ChangeNotifier {
     void completeError(String message) {
       if (completer.isCompleted) return;
       debugPrint('[DICOM batch result resolved] error=$message');
-      longProcessingTimer?.cancel();
       _isWaitingForBatchResult = false;
-      _showLongProcessingHint = false;
       _activeBatchResultWait = null;
       completer.completeError(Exception(message));
       webSocketService.cancelPendingBatchResultWait();
@@ -545,20 +547,9 @@ class DicomUploadViewModel extends ChangeNotifier {
       },
     );
 
-    longProcessingTimer = Timer(const Duration(seconds: 60), () {
-      if (completer.isCompleted) return;
-      _showLongProcessingHint = true;
-      _uploadStatusMessage =
-          'Upload đã được tiếp nhận. Frontend đang chờ DICOM_BATCH_RESULT từ WebSocket.';
-      notifyListeners();
-    });
-
     final wait = _PendingBatchResultWait(
-      future: completer.future.whenComplete(() {
-        longProcessingTimer?.cancel();
-      }),
+      future: completer.future,
       cancel: () async {
-        longProcessingTimer?.cancel();
         _activeBatchResultWait = null;
         await webSocketService.cancelPendingBatchResultWait();
       },
@@ -635,6 +626,11 @@ class DicomUploadViewModel extends ChangeNotifier {
   String? _validateSelectedFiles() {
     if (_selectedFiles.any((file) => !_isSupportedFile(file.name))) {
       return 'Chỉ hỗ trợ file .dcm hoặc .zip.';
+    }
+
+    final oversizedFile = _firstOversizedFile(_selectedFiles);
+    if (oversizedFile != null) {
+      return 'File ${oversizedFile.name} vượt quá $maxUploadFileSizeLabel. Vui lòng chọn file nhỏ hơn.';
     }
 
     if (_totalFileSizeBytes(_selectedFiles) > maxUploadBatchSizeBytes) {
@@ -761,7 +757,6 @@ class DicomUploadViewModel extends ChangeNotifier {
     _progress = null;
     _uploadStatusMessage = null;
     _isWaitingForBatchResult = false;
-    _showLongProcessingHint = false;
     _activeBatchResultWait?.cancel();
     _activeBatchResultWait = null;
     notifyListeners();
@@ -781,7 +776,6 @@ class DicomUploadViewModel extends ChangeNotifier {
     _verifiedPatientKeys.clear();
     _uploadStatusMessage = null;
     _isWaitingForBatchResult = false;
-    _showLongProcessingHint = false;
   }
 
   String _patientCode(DicomSuccessfulPatientModel patient) {
@@ -875,9 +869,9 @@ class DicomUploadViewModel extends ChangeNotifier {
     String title,
     String message,
   ) {
+    final isAiResult = notification.type == 'AI_RESULT';
     if (notification.type == 'AI_RESULT') {
       _pendingAiResultSummary = AiResultSummary.fromNotification(notification);
-      return;
     }
 
     final (displayTitle, displayMessage) = _cleanNotificationToast(
@@ -893,8 +887,12 @@ class DicomUploadViewModel extends ChangeNotifier {
         AppToast.showSuccess(displayMessage, title: displayTitle);
       case 'SYSTEM':
         AppToast.showInfo(displayMessage, title: displayTitle);
+      case 'AI_RESULT':
+        AppToast.showSuccess(displayMessage, title: displayTitle);
       default:
-        AppToast.showInfo(displayMessage, title: displayTitle);
+        isAiResult
+            ? AppToast.showSuccess(displayMessage, title: displayTitle)
+            : AppToast.showInfo(displayMessage, title: displayTitle);
     }
   }
 
@@ -963,6 +961,13 @@ class DicomUploadViewModel extends ChangeNotifier {
 
   int _totalFileSizeBytes(List<DicomUploadFile> files) {
     return files.fold<int>(0, (sum, file) => sum + file.bytes.length);
+  }
+
+  DicomUploadFile? _firstOversizedFile(List<DicomUploadFile> files) {
+    for (final file in files) {
+      if (file.bytes.length > maxUploadFileSizeBytes) return file;
+    }
+    return null;
   }
 
   String? _firstInvalidFileName(Iterable<String> names) {

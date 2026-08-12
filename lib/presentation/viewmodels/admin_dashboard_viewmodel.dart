@@ -35,4 +35,11 @@ class AdminDashboardViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
+
+  void reset() {
+    _stats = AdminDashboardStatsEntity.empty;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
+  }
 }

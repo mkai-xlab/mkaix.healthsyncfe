@@ -40,8 +40,12 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
   @override
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
     required String token,
+    bool isPersonal = false,
   }) {
-    return remoteDataSource.getMyDashboardTotals(token: token);
+    return remoteDataSource.getMyDashboardTotals(
+      token: token,
+      isPersonal: isPersonal,
+    );
   }
 
   @override

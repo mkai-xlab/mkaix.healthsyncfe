@@ -23,6 +23,9 @@ class DoctorViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasPendingSearch = false;
+  bool get hasPendingSearch => _hasPendingSearch;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
@@ -94,11 +97,36 @@ class DoctorViewModel extends ChangeNotifier {
   }
 
   /// Tìm kiếm debounce 500ms theo tên
-  void searchByNameDebounced(String name, String token) {
+  void searchByNameDebounced(String name, String token, {bool? isPersonal}) {
     _debounce?.cancel();
+    _hasPendingSearch = true;
+    notifyListeners();
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      fetchFirstPage(token: token, fullName: name, isPersonal: _isPersonal);
+      _hasPendingSearch = false;
+      _filterPatientCode = '';
+      _filterGender = '';
+      fetchFirstPage(
+        token: token,
+        fullName: name.trim(),
+        isPersonal: isPersonal ?? _isPersonal,
+      );
     });
+  }
+
+  Future<void> searchByNameNow(
+    String name,
+    String token, {
+    bool? isPersonal,
+  }) async {
+    _debounce?.cancel();
+    _hasPendingSearch = false;
+    _filterPatientCode = '';
+    _filterGender = '';
+    await fetchFirstPage(
+      token: token,
+      fullName: name.trim(),
+      isPersonal: isPersonal ?? _isPersonal,
+    );
   }
 
   Future<void> _load(String token) async {
@@ -130,11 +158,31 @@ class DoctorViewModel extends ChangeNotifier {
     }
   }
 
-  void clearFilters(String token) {
+  void clearFilters(String token, {bool? isPersonal}) {
+    _debounce?.cancel();
+    _hasPendingSearch = false;
     _filterFullName = '';
     _filterPatientCode = '';
     _filterGender = '';
-    fetchFirstPage(token: token, isPersonal: _isPersonal);
+    fetchFirstPage(token: token, isPersonal: isPersonal ?? _isPersonal);
+  }
+
+  void reset() {
+    _debounce?.cancel();
+    _hasPendingSearch = false;
+    _patients = [];
+    _totalElements = 0;
+    _totalPages = 0;
+    _isLastPage = true;
+    _isLoading = false;
+    _errorMessage = null;
+    _currentPage = 0;
+    _pageSize = 10;
+    _isPersonal = true;
+    _filterFullName = '';
+    _filterPatientCode = '';
+    _filterGender = '';
+    notifyListeners();
   }
 
   @override

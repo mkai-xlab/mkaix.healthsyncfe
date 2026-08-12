@@ -83,6 +83,16 @@ class KnowledgeDocumentViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void reset() {
+    _documents.clear();
+    _isLoading = false;
+    _isUploading = false;
+    _errorMessage = null;
+    _searchQuery = '';
+    _selectedStatus = 'ALL';
+    notifyListeners();
+  }
+
   Future<bool> uploadDocuments({
     required String token,
     required List<KnowledgeUploadFile> files,

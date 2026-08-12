@@ -51,6 +51,25 @@ class ChatViewModel extends ChangeNotifier {
   int? get currentSessionId => _currentSessionId;
   String? get errorMessage => _errorMessage;
 
+  void reset() {
+    _messages
+      ..clear()
+      ..add(_welcomeMessage());
+    _sessions.clear();
+    _isOpen = false;
+    _isExpanded = false;
+    _isTyping = false;
+    _isLoadingHistory = false;
+    _hasLoadedHistory = false;
+    _isLoadingSessions = false;
+    _isFullPageVisible = false;
+    _fullPageRequestVersion = 0;
+    _currentSessionId = null;
+    _errorMessage = null;
+    _doctorDisplayName = 'BĂ¡c sÄ©';
+    notifyListeners();
+  }
+
   void setFullPageVisible(bool visible) {
     if (_isFullPageVisible == visible) return;
     _isFullPageVisible = visible;

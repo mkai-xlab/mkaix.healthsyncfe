@@ -229,6 +229,21 @@ class AdminAccountViewModel extends ChangeNotifier {
     }
   }
 
+  void reset() {
+    _searchDebounce?.cancel();
+    _accounts.clear();
+    _isLoading = false;
+    _errorMessage = null;
+    _currentPage = 0;
+    _pageSize = 10;
+    _totalElements = 0;
+    _totalPages = 1;
+    _isLastPage = false;
+    _currentSearchName = '';
+    _currentStatus = null;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _searchDebounce?.cancel();

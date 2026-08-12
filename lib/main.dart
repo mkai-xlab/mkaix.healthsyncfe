@@ -253,7 +253,7 @@ class _RealtimeNotificationConnectorState
 
     if (token.trim().isEmpty) {
       if (_connectedToken != null) {
-        notificationVm.reset();
+        _resetSessionScopedState();
         _connectedToken = null;
       }
       return;
@@ -261,13 +261,27 @@ class _RealtimeNotificationConnectorState
 
     if (_connectedToken == token) return;
     if (_connectedToken != null) {
-      notificationVm.reset();
+      _resetSessionScopedState();
     }
     _connectedToken = token;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _connectedToken != token) return;
       notificationVm.connectRealtime(token);
     });
+  }
+
+  void _resetSessionScopedState() {
+    context.read<DoctorViewModel>().reset();
+    context.read<ExaminationViewModel>().clear();
+    context.read<AdminAccountViewModel>().reset();
+    context.read<AdminDashboardViewModel>().reset();
+    context.read<AuditLogViewModel>().reset();
+    context.read<DicomUploadViewModel>().clear();
+    context.read<DicomUploadViewModel>().clearUploadedFiles();
+    context.read<DoctorProfileViewModel>().clear();
+    context.read<NotificationViewModel>().reset();
+    context.read<ChatViewModel>().reset();
+    context.read<KnowledgeDocumentViewModel>().reset();
   }
 
   @override

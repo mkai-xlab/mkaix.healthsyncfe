@@ -88,6 +88,18 @@ class AuditLogViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void reset() {
+    _logs = [];
+    _selectedLog = null;
+    _isLoading = false;
+    _errorMessage = null;
+    _currentPage = 0;
+    _pageSize = 10;
+    _totalElements = 0;
+    _totalPages = 1;
+    notifyListeners();
+  }
+
   String _logKey(AuditLogEntity log) {
     if (log.id > 0) return 'id:${log.id}';
     return '${log.timeStamp?.toIso8601String()}|${log.username}|${log.title}';

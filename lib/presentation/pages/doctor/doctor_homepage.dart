@@ -505,6 +505,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       }
       return PatientListPage(
         embedded: true,
+        onClearSearch: () => _searchController.clear(),
         onOpenPatientDetail: (patient) =>
             setState(() => _selectedPatientDetail = patient),
       );
@@ -830,9 +831,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                 controller: _searchController,
                 readOnly: !canSearchPatients,
                 onChanged: canSearchPatients
-                    ? (v) => context
-                          .read<DoctorViewModel>()
-                          .searchByNameDebounced(v, _token)
+                    ? _handleTopBarPatientSearchChanged
+                    : null,
+                onSubmitted: canSearchPatients
+                    ? _handleTopBarPatientSearchSubmitted
                     : null,
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
@@ -1072,6 +1074,40 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         isPersonal: isPersonal,
       );
     }
+  }
+
+  void _handleTopBarPatientSearchChanged(String value) {
+    _openPatientListForSearch();
+    context.read<DoctorViewModel>().searchByNameDebounced(
+      value,
+      _token,
+      isPersonal: context.read<AuthViewModel>().isPersonalView,
+    );
+  }
+
+  void _handleTopBarPatientSearchSubmitted(String value) {
+    _openPatientListForSearch();
+    context.read<DoctorViewModel>().searchByNameNow(
+      value,
+      _token,
+      isPersonal: context.read<AuthViewModel>().isPersonalView,
+    );
+  }
+
+  void _openPatientListForSearch() {
+    final navItems = _visibleNavItems(context, listen: false);
+    final patientListIndex = navItems.indexWhere(
+      (item) => item.routeKey == 'patient_list_page',
+    );
+    if (patientListIndex < 0 || _selectedNavIndex == patientListIndex) return;
+    setState(() {
+      _selectedNavIndex = patientListIndex;
+      _showDoctorProfile = false;
+      _showChangePassword = false;
+      _showUploadExaminationList = false;
+      _selectedPatientDetail = null;
+      _selectedExaminationDetail = null;
+    });
   }
 
   Widget _buildFeaturePlaceholderPage({

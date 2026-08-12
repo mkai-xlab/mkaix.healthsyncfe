@@ -68,7 +68,6 @@ class UserModel extends UserEntity {
                       '')
                   .toString();
           final code = (permission['code'] ?? '').toString();
-          final presentation = permission['presentation']?.toString();
           final parentId =
               permission['parent_id'] ??
               permission['parentId'] ??
@@ -84,13 +83,11 @@ class UserModel extends UserEntity {
             addPermissionKey(id);
             addPermissionKey(code);
             addPermissionKey(name);
-            addPermissionKey(presentation);
             parsedPermissionItems.add(
               UserPermissionEntity(
                 id: id.isNotEmpty ? id : displayName,
                 name: displayName,
                 code: code,
-                presentation: presentation,
                 description: permission['description']?.toString(),
                 parentId: parentId?.toString(),
                 priority: priority,

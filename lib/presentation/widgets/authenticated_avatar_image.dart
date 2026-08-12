@@ -25,7 +25,7 @@ class AuthenticatedAvatarImage extends StatefulWidget {
 class _AuthenticatedAvatarImageState extends State<AuthenticatedAvatarImage> {
   Uint8List? _bytes;
   String? _loadedUrl;
-  bool _isLoading = false;
+  int _loadVersion = 0;
 
   @override
   void initState() {
@@ -53,21 +53,25 @@ class _AuthenticatedAvatarImageState extends State<AuthenticatedAvatarImage> {
 
   Future<void> _loadImage() async {
     final imageUrl = widget.imageUrl.trim();
-    if (_isLoading || imageUrl.isEmpty || widget.token.trim().isEmpty) return;
+    final token = widget.token.trim();
+    if (imageUrl.isEmpty || token.isEmpty) return;
 
-    _isLoading = true;
+    final loadVersion = ++_loadVersion;
     try {
       final response = await http
           .get(
             Uri.parse(imageUrl),
-            headers: {
-              'Accept': 'image/*',
-              'Authorization': 'Bearer ${widget.token}',
-            },
+            headers: {'Accept': 'image/*', 'Authorization': 'Bearer $token'},
           )
           .timeout(const Duration(seconds: 20));
 
-      if (!mounted || _loadedUrl == imageUrl) return;
+      if (!mounted ||
+          loadVersion != _loadVersion ||
+          widget.imageUrl.trim() != imageUrl ||
+          widget.token.trim() != token ||
+          _loadedUrl == imageUrl) {
+        return;
+      }
       if (response.statusCode >= 200 && response.statusCode < 300) {
         setState(() {
           _bytes = response.bodyBytes;
@@ -76,8 +80,6 @@ class _AuthenticatedAvatarImageState extends State<AuthenticatedAvatarImage> {
       }
     } catch (_) {
       // Keep the fallback avatar if the image endpoint is unavailable.
-    } finally {
-      _isLoading = false;
     }
   }
 }

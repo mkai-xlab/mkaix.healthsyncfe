@@ -11,6 +11,7 @@ abstract class AdminRemoteDataSource {
     required int size,
     required String token,
     String? name,
+    String? status,
   });
 
   Future<void> createDoctor({
@@ -46,16 +47,21 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     required int size,
     required String token,
     String? name,
+    String? status,
   }) async {
+    final keyword = name?.trim() ?? '';
+    final statusFilter = status?.trim() ?? '';
     final queryParams = <String, String>{
       'page': page.toString(),
       'size': size.toString(),
-      if (name != null && name.isNotEmpty) 'keyword': name,
+      if (keyword.isNotEmpty) 'keyword': keyword,
+      if (statusFilter.isNotEmpty) 'status': statusFilter,
     };
 
-    final uri = Uri.parse(
-      ApiConstants.staffUsersEndpoint,
-    ).replace(queryParameters: queryParams);
+    final endpoint = keyword.isEmpty && statusFilter.isEmpty
+        ? ApiConstants.staffUsersEndpoint
+        : ApiConstants.staffUsersSearchEndpoint;
+    final uri = Uri.parse(endpoint).replace(queryParameters: queryParams);
 
     try {
       final response = await client
@@ -208,6 +214,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
 
         return rolesJson
             .map((item) => RoleModel.fromJson(item as Map<String, dynamic>))
+            .where((role) => !_isAdminRole(role))
             .toList();
       }
 
@@ -290,5 +297,14 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  bool _isAdminRole(RoleModel role) {
+    final code = role.code.trim().toUpperCase();
+    final name = role.name.trim().toUpperCase();
+    return code == 'ADMIN' ||
+        code == 'ROLE_ADMIN' ||
+        name == 'ADMIN' ||
+        name == 'ROLE_ADMIN';
   }
 }

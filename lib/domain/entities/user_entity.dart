@@ -44,7 +44,6 @@ class UserPermissionEntity {
   final String id;
   final String name;
   final String code;
-  final String? presentation;
   final String? description;
   final String? parentId;
   final int priority;
@@ -53,7 +52,6 @@ class UserPermissionEntity {
     required this.id,
     required this.name,
     this.code = '',
-    this.presentation,
     this.description,
     this.parentId,
     this.priority = 0,

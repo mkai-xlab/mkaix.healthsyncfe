@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/services/toast_service.dart';
 import '../../core/services/session_storage_service.dart';
-import '../../core/utils/permission_utils.dart';
+import '../../core/rbac/permission_code.dart';
 import '../../data/models/user_model.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/interface_repositories/auth_repository.dart';
@@ -78,16 +78,12 @@ class AuthViewModel extends ChangeNotifier {
   String? get changeError => _changeError;
   bool get changeSuccess => _changeSuccess;
 
-  bool hasPermissionKey(String key) {
+  bool hasPermissionCode(PermissionCode code) {
     final user = _currentUser;
     if (user == null) return false;
     return user.permissionItems.any((permission) {
-      return permissionMatchesKey(permission, key);
+      return permission.code.trim().toUpperCase() == code.value;
     });
-  }
-
-  bool hasPermissionPresentation(String presentation) {
-    return hasPermissionKey(presentation);
   }
 
   void setPersonalView(bool value) {
@@ -206,7 +202,6 @@ class AuthViewModel extends ChangeNotifier {
                     'id': permission.id,
                     'name': permission.name,
                     'code': permission.code,
-                    'presentation': permission.presentation,
                     'description': permission.description,
                     'parentId': permission.parentId,
                     'priority': permission.priority,

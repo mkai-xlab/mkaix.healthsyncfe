@@ -6,7 +6,6 @@ class PermissionModel {
   final String action;
   final String? featureId;
   final String? parentId;
-  final String presentation;
   final int priority;
 
   const PermissionModel({
@@ -17,7 +16,6 @@ class PermissionModel {
     required this.action,
     this.featureId,
     this.parentId,
-    this.presentation = '',
     this.priority = 0,
   });
 
@@ -34,7 +32,6 @@ class PermissionModel {
           json['parent_id']?.toString() ??
           json['parentId']?.toString() ??
           json['requiresPermissionId']?.toString(),
-      presentation: json['presentation']?.toString() ?? '',
       priority: json['priority'] is int
           ? json['priority'] as int
           : int.tryParse(json['priority']?.toString() ?? '') ?? 0,
@@ -49,7 +46,6 @@ class PermissionModel {
     'action': action,
     'featureId': featureId,
     'parent_id': parentId,
-    'presentation': presentation,
     'priority': priority,
   };
 
@@ -61,7 +57,6 @@ class PermissionModel {
     String? action,
     String? featureId,
     String? parentId,
-    String? presentation,
     int? priority,
   }) {
     return PermissionModel(
@@ -72,7 +67,6 @@ class PermissionModel {
       action: action ?? this.action,
       featureId: featureId ?? this.featureId,
       parentId: parentId ?? this.parentId,
-      presentation: presentation ?? this.presentation,
       priority: priority ?? this.priority,
     );
   }

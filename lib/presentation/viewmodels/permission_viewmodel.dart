@@ -132,7 +132,6 @@ class PermissionViewModel extends ChangeNotifier {
     required String code,
     required String name,
     required String featureId,
-    String? presentation,
     int? priority,
     String? requiresPermissionId,
   }) async {
@@ -141,7 +140,6 @@ class PermissionViewModel extends ChangeNotifier {
         code: code,
         name: name,
         featureId: featureId,
-        presentation: presentation,
         priority: priority,
         requiresPermissionId: requiresPermissionId,
       );
@@ -153,7 +151,6 @@ class PermissionViewModel extends ChangeNotifier {
     required String code,
     required String name,
     required String featureId,
-    String? presentation,
     int? priority,
     String? requiresPermissionId,
   }) async {
@@ -163,7 +160,6 @@ class PermissionViewModel extends ChangeNotifier {
         code: code,
         name: name,
         featureId: featureId,
-        presentation: presentation,
         priority: priority,
         requiresPermissionId: requiresPermissionId,
       );
@@ -185,9 +181,6 @@ class PermissionViewModel extends ChangeNotifier {
         code: permission.code,
         name: permission.name,
         featureId: targetFeatureId,
-        presentation: permission.presentation.isEmpty
-            ? null
-            : permission.presentation,
         priority: permission.priority,
         requiresPermissionId: permission.parentId,
       );
@@ -226,9 +219,6 @@ class PermissionViewModel extends ChangeNotifier {
         code: permission.code,
         name: permission.name,
         featureId: permission.featureId ?? targetParent.featureId ?? '',
-        presentation: permission.presentation.isEmpty
-            ? null
-            : permission.presentation,
         priority: permission.priority,
         requiresPermissionId: targetParent.id,
       );
@@ -266,9 +256,6 @@ class PermissionViewModel extends ChangeNotifier {
             code: permission.code,
             name: permission.name,
             featureId: permission.featureId ?? '',
-            presentation: permission.presentation.isEmpty
-                ? null
-                : permission.presentation,
             priority: index + 1,
             requiresPermissionId: permission.parentId,
           ),

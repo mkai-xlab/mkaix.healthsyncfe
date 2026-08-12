@@ -875,9 +875,9 @@ class DicomUploadViewModel extends ChangeNotifier {
     String title,
     String message,
   ) {
+    final isAiResult = notification.type == 'AI_RESULT';
     if (notification.type == 'AI_RESULT') {
       _pendingAiResultSummary = AiResultSummary.fromNotification(notification);
-      return;
     }
 
     final (displayTitle, displayMessage) = _cleanNotificationToast(
@@ -893,8 +893,12 @@ class DicomUploadViewModel extends ChangeNotifier {
         AppToast.showSuccess(displayMessage, title: displayTitle);
       case 'SYSTEM':
         AppToast.showInfo(displayMessage, title: displayTitle);
+      case 'AI_RESULT':
+        AppToast.showSuccess(displayMessage, title: displayTitle);
       default:
-        AppToast.showInfo(displayMessage, title: displayTitle);
+        isAiResult
+            ? AppToast.showSuccess(displayMessage, title: displayTitle)
+            : AppToast.showInfo(displayMessage, title: displayTitle);
     }
   }
 

@@ -36,8 +36,12 @@ class GetPatientExaminationsUseCase {
 
   Future<ExaminationDashboardTotalsEntity> executeMyDashboardTotals({
     required String token,
+    bool isPersonal = false,
   }) {
-    return repository.getMyDashboardTotals(token: token);
+    return repository.getMyDashboardTotals(
+      token: token,
+      isPersonal: isPersonal,
+    );
   }
 
   Future<ExaminationPageEntity> executeMyRecentPage({

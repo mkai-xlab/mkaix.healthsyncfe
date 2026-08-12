@@ -64,6 +64,7 @@ class ApiConstants {
       '$examinationsEndpoint/stats/daily-last-7-days';
   static const String userAccountsEndpoint = '$baseUrl/users';
   static const String staffUsersEndpoint = '$baseUrl/users/staff';
+  static const String staffUsersSearchEndpoint = '$baseUrl/users/staff/search';
   static const String doctorCountEndpoint = '$baseUrl/users/count/doctors';
   static const String headCountEndpoint = '$baseUrl/users/count/heads';
   static const String rolesEndpoint = '$baseUrl/roles';

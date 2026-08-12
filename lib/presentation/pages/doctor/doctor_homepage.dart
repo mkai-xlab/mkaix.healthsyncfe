@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:fe/core/services/toast_service.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/rbac/permission_code.dart';
 import '../../../core/utils/media_url_resolver.dart';
-import '../../../core/utils/permission_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/chat_viewmodel.dart';
 import '../../viewmodels/dicom_upload_viewmodel.dart';
@@ -52,6 +52,43 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   static const Color _primaryGreen = AppColors.primary;
   static const Color _darkGreen = AppColors.primary;
+  static const Map<PermissionCode, _DoctorNavConfig> _doctorNavRegistry = {
+    PermissionCode.viewDoctorDashboard: _DoctorNavConfig(
+      routeKey: 'doctor_dashboard_page',
+      label: 'Trang tổng quan',
+      icon: Icons.home_outlined,
+    ),
+    PermissionCode.readPatientList: _DoctorNavConfig(
+      routeKey: 'patient_list_page',
+      label: 'Danh sách bệnh nhân',
+      icon: Icons.people_outline,
+    ),
+    PermissionCode.createPatientExam: _DoctorNavConfig(
+      routeKey: 'examination_list_page',
+      label: 'Danh sách ca khám',
+      icon: Icons.assignment_outlined,
+    ),
+    PermissionCode.viewExaminationList: _DoctorNavConfig(
+      routeKey: 'examination_list_page',
+      label: 'Danh sách ca khám',
+      icon: Icons.assignment_outlined,
+    ),
+    PermissionCode.uploadDicomImage: _DoctorNavConfig(
+      routeKey: 'file_upload_page',
+      label: 'Upload DICOM',
+      icon: Icons.medical_information_outlined,
+    ),
+    PermissionCode.useAiChat: _DoctorNavConfig(
+      routeKey: 'ai_clinical_chat_page',
+      label: 'Trợ lý AI',
+      icon: Icons.smart_toy_outlined,
+    ),
+    PermissionCode.manageMedicalKnowledge: _DoctorNavConfig(
+      routeKey: 'knowledge_documents_page',
+      label: 'Kho tri thức',
+      icon: Icons.library_books_outlined,
+    ),
+  };
 
   @override
   void initState() {
@@ -119,57 +156,38 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           ..sort((a, b) {
             final cmp = a.priority.compareTo(b.priority);
             if (cmp != 0) return cmp;
-            return permissionKeyFor(a).compareTo(permissionKeyFor(b));
+            return a.code.compareTo(b.code);
           });
     final navSource = permissionItems.where((permission) {
-      return permission.isParent && permissionKeyFor(permission).isNotEmpty;
+      if (!permission.isParent) return false;
+      final code = PermissionCode.fromValue(permission.code);
+      return code != null && _doctorNavRegistry.containsKey(code);
     }).toList();
-    final visibleSource = navSource;
 
-    return List.generate(visibleSource.length, (index) {
-      final permission = visibleSource[index];
-      final routeKey = permissionKeyFor(permission);
-      return _DoctorNavItemData(
-        index: index,
-        routeKey: routeKey,
-        permissionName: permission.name,
-        label: permissionLabelFor(permission),
-        icon: _permissionIcon(routeKey),
+    final seenRoutes = <String>{};
+    final navItems = <_DoctorNavItemData>[];
+    for (final permission in navSource) {
+      final code = PermissionCode.fromValue(permission.code);
+      final config = code == null ? null : _doctorNavRegistry[code];
+      if (code == null || config == null) continue;
+      if (!seenRoutes.add(config.routeKey)) continue;
+      final index = navItems.length;
+      final label = permission.name.trim().isNotEmpty
+          ? permission.name
+          : config.label;
+      navItems.add(
+        _DoctorNavItemData(
+          index: index,
+          routeKey: config.routeKey,
+          permissionName: permission.name,
+          label: label,
+          icon: config.icon,
+          permissionCode: code,
+        ),
       );
-    });
-  }
+    }
 
-  IconData _permissionIcon(String permissionName) {
-    final normalized = normalizePermissionKey(permissionName);
-    if (normalized == 'doctor_dashboard_page') {
-      return Icons.home_outlined;
-    }
-    if (normalized == 'examination_list_page') {
-      return Icons.assignment_outlined;
-    }
-    if (normalized.contains('patient') ||
-        normalized.contains('benh_nhan') ||
-        normalized == 'patient_list_page' ||
-        normalized == 'patient_detail_page') {
-      return Icons.people_outline;
-    }
-    if (normalized == 'dicom_upload_page' || normalized == 'file_upload_page') {
-      return Icons.medical_information_outlined;
-    }
-    if (normalized.contains('report')) {
-      return Icons.description_outlined;
-    }
-    if (normalized.contains('notification') ||
-        normalized.contains('thong_bao')) {
-      return Icons.notifications_outlined;
-    }
-    if (normalized == 'ai_clinical_chat_page') {
-      return Icons.smart_toy_outlined;
-    }
-    if (normalized == 'knowledge_documents_page') {
-      return Icons.library_books_outlined;
-    }
-    return Icons.lock_outline;
+    return navItems;
   }
 
   // ─────────────────────────────────────────────
@@ -391,6 +409,14 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
     final selectedExaminationDetail = _selectedExaminationDetail;
     if (selectedExaminationDetail != null) {
+      if (!_canOpenExaminationDetail(context)) {
+        return _forbiddenPage(
+          title: 'KhĂ´ng cĂ³ quyá»n xem chi tiáº¿t ca khĂ¡m',
+          subtitle:
+              'TĂ i khoáº£n hiá»‡n táº¡i chÆ°a Ä‘Æ°á»£c cáº¥p quyá»n xem chi tiáº¿t ca khĂ¡m.',
+          icon: Icons.lock_outline,
+        );
+      }
       return ExaminationDetailPage(
         examination: selectedExaminationDetail,
         onBack: () => setState(() => _selectedExaminationDetail = null),
@@ -403,7 +429,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
     final selectedPatientDetail = _selectedPatientDetail;
     if (selectedPatientDetail != null) {
-      if (!_hasPermission(context, 'patient_detail_page')) {
+      if (!_hasPermission(context, PermissionCode.viewPatientDetail)) {
         return _forbiddenPage(
           title: 'Không có quyền xem chi tiết bệnh nhân',
           subtitle: 'Tài khoản hiện tại chưa được cấp permission cho màn này.',
@@ -446,15 +472,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     if (selectedPermission == 'doctor_dashboard_page') {
       return DoctorDashboardPage(
         embedded: true,
-        canOpenExaminationList: _hasPermission(
-          context,
-          'examination_list_page',
-        ),
+        canOpenExaminationList: _canOpenExaminationList(context),
         onOpenExaminationList: _openExaminationListTab,
       );
     }
     if (selectedPermission == 'examination_list_page') {
-      if (!_hasPermission(context, 'examination_list_page')) {
+      if (!_canOpenExaminationList(context)) {
         return _forbiddenPage(
           title: 'Không có quyền xem ca khám',
           subtitle: 'Màn danh sách ca khám chưa được cấp cho tài khoản này.',
@@ -473,7 +496,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       );
     }
     if (selectedPermission == 'patient_list_page') {
-      if (!_hasPermission(context, 'patient_list_page')) {
+      if (!_hasPermission(context, PermissionCode.readPatientList)) {
         return _forbiddenPage(
           title: 'Không có quyền xem bệnh nhân',
           subtitle: 'Danh sách bệnh nhân không khả dụng với tài khoản này.',
@@ -486,8 +509,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             setState(() => _selectedPatientDetail = patient),
       );
     }
-    if (selectedPermission == 'dicom_upload_page' ||
-        selectedPermission == 'file_upload_page') {
+    if (selectedPermission == 'file_upload_page') {
       if (!_hasUploadPermission(context)) {
         return _forbiddenPage(
           title: 'Không có quyền upload DICOM',
@@ -534,7 +556,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       if (!mounted) return;
       final navItems = _visibleNavItems(context, listen: false);
       final aiChatIndex = navItems.indexWhere((item) {
-        return item.routeKey == 'ai_clinical_chat_page';
+        return item.permissionCode == PermissionCode.useAiChat;
       });
       if (aiChatIndex < 0) {
         final chatVm = context.read<ChatViewModel>();
@@ -559,7 +581,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   void _openExaminationListTab([ExaminationListMode? mode]) {
     final navItems = _visibleNavItems(context, listen: false);
     final examIndex = navItems.indexWhere((item) {
-      return item.routeKey == 'examination_list_page';
+      return item.permissionCode == PermissionCode.createPatientExam ||
+          item.permissionCode == PermissionCode.viewExaminationList;
     });
     if (examIndex < 0) return;
     setState(() {
@@ -757,14 +780,13 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       return false;
     }
     final routeKey = navItems[_selectedNavIndex].routeKey;
-    return routeKey == 'dicom_upload_page' || routeKey == 'file_upload_page';
+    return routeKey == 'file_upload_page';
   }
 
   void _openUploadTabFromMiniProgress() {
     final navItems = _visibleNavItems(context, listen: false);
     final uploadIndex = navItems.indexWhere((item) {
-      return item.routeKey == 'dicom_upload_page' ||
-          item.routeKey == 'file_upload_page';
+      return item.permissionCode == PermissionCode.uploadDicomImage;
     });
     if (uploadIndex < 0) return;
     setState(() {
@@ -783,8 +805,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   // ─────────────────────────────────────────────
   Widget _buildTopBar(BuildContext context) {
     final canSearchPatients =
-        _hasPermission(context, 'patient_list_page') ||
-        _hasPermission(context, 'patient_detail_page');
+        _hasPermission(context, PermissionCode.readPatientList) ||
+        _hasPermission(context, PermissionCode.viewPatientDetail);
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -1567,7 +1589,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   }
 
   Widget _buildPatientRow(BuildContext context, PatientEntity p) {
-    final canOpenDetail = _hasPermission(context, 'patient_detail_page');
+    final canOpenDetail = _hasPermission(
+      context,
+      PermissionCode.viewPatientDetail,
+    );
     var isHovered = false;
     return StatefulBuilder(
       builder: (context, setHoverState) {
@@ -1959,21 +1984,27 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     return '$minutes:$seconds';
   }
 
-  bool _hasPermission(BuildContext context, String key) {
-    return context.read<AuthViewModel>().hasPermissionPresentation(key);
+  bool _hasPermission(BuildContext context, PermissionCode code) {
+    return context.read<AuthViewModel>().hasPermissionCode(code);
   }
 
   bool _hasUploadPermission(BuildContext context) {
-    final auth = context.read<AuthViewModel>();
-    return auth.hasPermissionPresentation('dicom_upload_page') ||
-        auth.hasPermissionPresentation('file_upload_page');
+    return _hasPermission(context, PermissionCode.uploadDicomImage);
   }
 
-  /*
+  bool _canOpenExaminationList(BuildContext context) {
+    return _hasPermission(context, PermissionCode.createPatientExam) ||
+        _hasPermission(context, PermissionCode.viewExaminationList);
+  }
+
+  bool _canOpenExaminationDetail(BuildContext context) {
+    return _hasPermission(context, PermissionCode.viewExaminationDetail) ||
+        _canOpenExaminationList(context);
+  }
+
   void _showPermissionDeniedToast(String message) {
     AppToast.showWarning(message);
   }
-  */
 
   Widget _forbiddenPage({
     required String title,
@@ -2168,12 +2199,25 @@ class _UserMenuItem extends StatelessWidget {
   }
 }
 
+class _DoctorNavConfig {
+  final String routeKey;
+  final String label;
+  final IconData icon;
+
+  const _DoctorNavConfig({
+    required this.routeKey,
+    required this.label,
+    required this.icon,
+  });
+}
+
 class _DoctorNavItemData {
   final int index;
   final String routeKey;
   final String permissionName;
   final String label;
   final IconData icon;
+  final PermissionCode permissionCode;
 
   const _DoctorNavItemData({
     required this.index,
@@ -2181,6 +2225,7 @@ class _DoctorNavItemData {
     required this.permissionName,
     required this.label,
     required this.icon,
+    required this.permissionCode,
   });
 }
 

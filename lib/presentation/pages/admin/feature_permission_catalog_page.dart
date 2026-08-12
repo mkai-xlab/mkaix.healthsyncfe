@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/frontend_page_references.dart';
 import '../../viewmodels/permission_viewmodel.dart';
 import '../../../data/models/permission_catalog_model.dart';
 import '../../../data/models/permission_model.dart';
@@ -480,16 +479,6 @@ class _FeaturePermissionCatalogPageState
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              permission.presentation.isEmpty
-                  ? 'Trang tham chiếu: N/A'
-                  : 'Trang tham chiếu: ${permission.presentation}',
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF4A5568)),
-            ),
-          ),
-          const SizedBox(width: 12),
           SizedBox(
             width: 86,
             child: Text(
@@ -877,7 +866,6 @@ class _FeaturePermissionCatalogPageState
       'Code: ${permission.code.isEmpty ? 'N/A' : permission.code}',
       'Tính năng: ${featureName ?? permission.resource}',
       'Thứ tự: ${permission.priority}',
-      'Trang tham chiếu: ${permission.presentation.isEmpty ? 'N/A' : permission.presentation}',
       if (permission.parentId != null && permission.parentId!.isNotEmpty)
         'Quyền cha: ${permission.parentId}',
     ].join('  |  ');
@@ -1286,9 +1274,6 @@ class _FeaturePermissionCatalogPageState
     final formKey = GlobalKey<FormState>();
     final codeController = TextEditingController(text: permission?.code ?? '');
     final nameController = TextEditingController(text: permission?.name ?? '');
-    final presentationController = TextEditingController(
-      text: permission?.presentation ?? '',
-    );
     final priorityController = TextEditingController(
       text: permission == null ? '' : permission.priority.toString(),
     );
@@ -1299,19 +1284,6 @@ class _FeaturePermissionCatalogPageState
     String selectedFeatureId = featureId ?? permission?.featureId ?? '';
     if (selectedFeatureId.isEmpty && vm.features.isNotEmpty) {
       selectedFeatureId = vm.features.first.id;
-    }
-    String selectedPresentation = presentationController.text.trim();
-    final knownPresentationKeys = frontendPageReferences
-        .map((reference) => reference.key)
-        .toSet();
-    var presentationDropdownValue =
-        selectedPresentation.isNotEmpty &&
-            knownPresentationKeys.contains(selectedPresentation)
-        ? selectedPresentation
-        : '';
-    if (presentationDropdownValue.isEmpty) {
-      selectedPresentation = '';
-      presentationController.clear();
     }
 
     await showDialog(
@@ -1373,37 +1345,6 @@ class _FeaturePermissionCatalogPageState
                             (v == null || v.isEmpty) ? 'Chọn tính năng' : null,
                       ),
                       const SizedBox(height: 12),
-                      DropdownButtonFormField<String>(
-                        initialValue: presentationDropdownValue,
-                        isExpanded: true,
-                        decoration: const InputDecoration(
-                          labelText: 'Trang tham chiếu',
-                          helperText: 'Chọn trang FE để lưu vào presentation',
-                        ),
-                        items: [
-                          const DropdownMenuItem<String>(
-                            value: '',
-                            child: Text('Không gắn màn hình'),
-                          ),
-                          ...frontendPageReferences.map(
-                            (reference) => DropdownMenuItem<String>(
-                              value: reference.key,
-                              child: Text(
-                                '${reference.label} (${reference.key})',
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ],
-                        onChanged: (value) {
-                          setDialogState(() {
-                            presentationDropdownValue = value ?? '';
-                            selectedPresentation = presentationDropdownValue;
-                            presentationController.text = selectedPresentation;
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 12),
                       TextFormField(
                         controller: priorityController,
                         decoration: const InputDecoration(labelText: 'Thứ tự'),
@@ -1456,10 +1397,6 @@ class _FeaturePermissionCatalogPageState
                                 code: codeController.text.trim(),
                                 name: nameController.text.trim(),
                                 featureId: selectedFeatureId,
-                                presentation:
-                                    presentationController.text.trim().isEmpty
-                                    ? null
-                                    : presentationController.text.trim(),
                                 priority: priorityText.isEmpty
                                     ? null
                                     : int.tryParse(priorityText),
@@ -1475,10 +1412,6 @@ class _FeaturePermissionCatalogPageState
                                 code: codeController.text.trim(),
                                 name: nameController.text.trim(),
                                 featureId: selectedFeatureId,
-                                presentation:
-                                    presentationController.text.trim().isEmpty
-                                    ? null
-                                    : presentationController.text.trim(),
                                 priority: priorityText.isEmpty
                                     ? null
                                     : int.tryParse(priorityText),
@@ -1505,7 +1438,6 @@ class _FeaturePermissionCatalogPageState
 
     codeController.dispose();
     nameController.dispose();
-    presentationController.dispose();
     priorityController.dispose();
     requiresPermissionController.dispose();
   }

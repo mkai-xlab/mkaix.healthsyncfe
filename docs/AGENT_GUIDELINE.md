@@ -156,7 +156,7 @@ void initState() {
 | Endpoint | Method | Ghi chú |
 |---|---|---|
 | `/permissions/tree` | GET | Trả `FeatureResponse[]`, mỗi feature có `permissions[]` |
-| `/permissions` | POST | Tạo permission; schema mới ưu tiên `code`, `featureId`, `priority`, `presentation`, `requiresPermissionId` |
+| `/permissions` | POST | T?o permission; FE ch? g?i `code`, `name`, `featureId`, `priority`, `requiresPermissionId`; kh�ng g?i `presentation`/reference page |
 | `/permissions/{id}` | PUT | Cập nhật permission với payload tương tự, dùng `id` trong path |
 | `/permissions/role/{roleName}` | GET | Trả danh sách permission id (`int64[]`) |
 | `/permissions/role/{roleName}` | PUT | Cập nhật quyền role bằng `{permissionIds: [...]}` |
@@ -169,11 +169,10 @@ void initState() {
 - UI CRUD ưu tiên tạo/sửa trước; nếu docs chưa có DELETE thì không nên tự dựng nút xóa.
 - `FeatureResponse.permissions[]` là nguồn dữ liệu để hiển thị permission con theo feature; danh sách phẳng permission nên sort theo `priority` rồi theo tên/code để dễ đọc.
 - Khi render permission theo cây cha-con trong admin, luôn ưu tiên hiển thị permission cha trước, rồi đến các permission con ngay bên dưới cha trong cùng nhóm resource/feature để dễ đọc và dễ bật/tắt.
-- `presentation` là khóa liên kết sang màn frontend, còn `priority` là thứ tự hiển thị trên sidebar hoặc trong nhóm permission.
+- Frontend kh�ng c?n d�ng `presentation`/reference page �? li�n k?t permission sang m�n h?nh; Doctor homepage d�ng permission `code` qua enum/registry.
 - Doctor shell hiện đã tách `patient_list_page` thành page riêng: `PatientListPage` dùng trong shell, còn `PatientDetailPage` vẫn mở theo callback từ list để giữ sidebar/top bar.
 - Sidebar doctor chỉ hiển thị permission cha (`isParent == true`); không fallback sang permission con nếu backend chưa trả permission cha.
-- Khi login doctor chỉ trả permission dạng code thô như `READ_PATIENT_LIST`, shell phải tự map code sang route key và nhãn hiển thị thân thiện; không render trực tiếp code lên sidebar và không chỉ dựa vào `presentation` có thể bị thiếu trong response login.
-- Sau khi RBAC ổn định, bỏ hẳn fallback key cũ trong doctor shell và các điểm vào page; chỉ dùng `presentation` làm route key chính thức.
+- Doctor shell kh�ng d�ng `presentation`; khi t?o page m?i ph?i th�m permission code v�o enum/registry FE v� backend g�n code cho role t��ng ?ng.
 
 **Notifications / Upload**
 | Endpoint | Method | Ghi chú |
@@ -218,7 +217,7 @@ void initState() {
 - Sau upload, backend có thể trả `successfulPatients[].recentExaminations[]` với `status: NEED_VERIFY` cho ca cần xác nhận lần đầu hoặc `NEED_REVERIFY` cho ca cần xác nhận lại. Khi bác sĩ xác nhận, FE gom toàn bộ `successfulPatients[].recentExaminations[].images[].dicomInstanceId` thành list int và gọi `POST /ai/predict-batch` với payload `{dicomInstanceIds: [...]}`. Response là `ExaminationDto[]` có `status: AI_COMPLETED` và `images[].aiResult`.
 - UI xác nhận sau upload phải là checklist bệnh nhân rõ ràng; mặc định chọn tất cả bệnh nhân backend xử lý thành công, bác sĩ có thể bỏ chọn. FE chỉ gửi `dicomInstanceId` thuộc các bệnh nhân đang được chọn/xác nhận.
 - `CreateDoctorRequest` mới đơn giản hơn: required `fullName`, `email`, `phone`. Không còn các field cũ như `doctorCode`, `hospitalName`, `licenseNumber`, `specialization` trong schema mới.
-- Permission schema đổi trọng tâm sang `code`, `priority`, `presentation`; `CreatePermissionRequest` required `code`, `featureId`, không required `name`.
+- Permission schema FE t?p trung v�o `code`, `priority`, `requiresPermissionId`; kh�ng t?o/hi?n th? reference page ho?c g?i `presentation` t? frontend.
 
 ### 4.1.3 OpenAPI doc 15/07/2026 (base giữ nguyên: `http://54.254.113.71:8000/api/v1`)
 
@@ -368,7 +367,7 @@ Tất cả trang của Doctor role dùng cùng một style top bar:
 - Bấm một ca khám trong `ExaminationListPage` mở `ExaminationDetailPage` ngay trong content doctor shell để giữ nguyên sidebar/topbar. Detail gồm thanh thông tin bệnh nhân/ca khám phía trên, vùng ảnh lớn ở giữa/trái, và panel thông tin ca khám bên phải.
 - Một examination có thể có nhiều ảnh; `ExaminationDetailPage` hiển thị ảnh đang chọn ở viewer lớn, có thanh thumbnail nhỏ để đổi ảnh, và nút toàn màn hình mở ảnh hiện tại trong viewer có thể zoom/pan.
 - Permission doctor `UPLOAD_DICOM_IMAGE` là màn upload DICOM. Màn này cho chọn/kéo-thả nhiều file `.DCM/.dcm` hoặc nhiều file `.zip`; nhiều file DICOM upload lên `/dicom/upload/batch`, còn nhiều ZIP được gửi chung một request lên `/dicom/upload/zip-batch` với field `file` lặp lại.
-- Flow upload hiện dùng `FileUploadPage` (`lib/presentation/pages/doctor/file_upload_page.dart`). `DicomUploadPage` cũ đã bị loại bỏ; Doctor shell vẫn route permission cũ `dicom_upload_page` sang `FileUploadPage` để không làm gãy tài khoản còn giữ permission cũ, và hiển thị mini progress bar toàn cục ở góc phải khi upload/processing/verify/AI đang chạy.
+- Flow upload hi?n d�ng `FileUploadPage` (`lib/presentation/pages/doctor/file_upload_page.dart`). Doctor shell map b?ng permission code `UPLOAD_DICOM_IMAGE`, kh�ng map b?ng reference page/presentation.
 - Màn upload DICOM ưu tiên layout gọn trong một viewport desktop: bên trái là danh sách file chờ gửi, có nút xóa từng file; sau khi upload batch thành công tự clear file chờ. Bên phải hiển thị danh sách bệnh nhân trong `successfulPatients[]` của response, không hiển thị lịch sử file đã upload.
 - Thông báo trong app dùng toast overlay chung (`AppToast`) ở góc dưới bên phải, dạng thanh nhỏ, tự ẩn sau 5 giây và có nút `X` để đóng sớm. Không dùng `SnackBar` riêng cho từng màn nữa.
 - Cập nhật 22/07/2026: toast notification từ WebSocket chỉ hiển thị `title` và nội dung thật của `message`; nếu backend/log gửi chuỗi kiểu `message:"..."` thì FE phải bỏ tiền tố `message:`. Toast notification không tự thay thế khi có toast mới; các toast xếp chồng lên nhau từ góc dưới bên phải, từng toast tự tắt sau 5 giây hoặc đóng sớm khi người dùng bấm `X`.
@@ -423,3 +422,10 @@ Tra cứu bằng `MockExams.forPatient(patientCode)`.
 | `DoctorAccountModel` parse được cả `DoctorResponse` lẫn `UserResponse` | Field `role` có thể là String hoặc Object `{id, name, permissions[]}` |
 | `PatientDetailPage` dùng `Navigator.push` không phải GoRouter | Trang con trong cùng Doctor role, không cần URL-based routing |
 | Patient list page tự tải trang đầu khi màn danh sách bệnh nhân được render lần đầu | Tránh trạng thái chip "Tất cả" hiển thị rỗng dù backend có bệnh nhân; chỉ gọi khi màn danh sách thật sự mở để không load sẵn không cần thiết |
+
+## 10. RBAC doctor homepage update 12/08/2026
+
+- RBAC hien chi ap dung cho Doctor homepage/shell. Admin homepage/menu da fix cung theo thiet ke hien tai, khong tu dong loc menu admin bang permission neu user khong yeu cau.
+- Khi bo `presentation`, FE doctor homepage se dung permission `code` lam source of truth va map qua enum/registry.
+- `VIEW_AI_RESULT` va `GENERATE_PDF_REPORT` la permission con cua `VIEW_EXAMINATION_DETAIL` (xem chi tiet ca kham), khong phai page cha doc lap.
+- Permission cha mo page doctor nen gom cac entry dieu huong nhu dashboard bac si, danh sach benh nhan, danh sach/chi tiet ca kham, upload DICOM, AI chat. Permission con dung de bat/tat action/tab/nut trong page.

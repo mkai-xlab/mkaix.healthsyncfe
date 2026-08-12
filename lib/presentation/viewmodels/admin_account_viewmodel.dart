@@ -35,6 +35,8 @@ class AdminAccountViewModel extends ChangeNotifier {
 
   Timer? _searchDebounce;
   String _currentSearchName = '';
+  String? _currentStatus;
+  String? get currentStatus => _currentStatus;
 
   Future<void> fetchFirstPage(String token) async {
     _currentPage = 0;
@@ -88,6 +90,20 @@ class AdminAccountViewModel extends ChangeNotifier {
       notifyListeners();
       _loadMoreData(token);
     });
+  }
+
+  Future<void> filterByStatus(String? status, String token) async {
+    final normalized = status?.trim();
+    _currentStatus = normalized == null || normalized.isEmpty
+        ? null
+        : normalized;
+    _currentPage = 0;
+    _isLastPage = false;
+    _isLoading = true;
+    _errorMessage = null;
+    _accounts.clear();
+    notifyListeners();
+    await _loadMoreData(token);
   }
 
   Future<bool> createDoctor({
@@ -195,6 +211,7 @@ class AdminAccountViewModel extends ChangeNotifier {
         size: _pageSize,
         token: token,
         name: _currentSearchName.isEmpty ? null : _currentSearchName,
+        status: _currentStatus,
       );
 
       _accounts

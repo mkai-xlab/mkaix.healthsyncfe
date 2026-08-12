@@ -6,12 +6,21 @@
 - API version: `v1`
 - Base URL: `http://47.131.63.48:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-08-11`
+- Last OpenAPI refresh: `2026-08-12`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
+- The `2026-08-12` pasted OpenAPI spec is the latest local source. It keeps OpenAPI `3.1.0` / API `v1` and confirms base URL `http://47.131.63.48:8000/api/v1`.
+- Compared with the older `54.254.113.71` notes, use `47.131.63.48` as the current documented backend host unless runtime testing proves otherwise. `ApiConstants.baseUrl` still defaults to localhost and must be overridden with `--dart-define=API_BASE_URL=...` for non-local runs.
+- The latest spec has 86 paths. It confirms the same major groups already documented here: auth, users/staff/roles, doctors/profile/avatar, patients, examinations/statistics, DICOM/verify/raw image, AI prediction/review/images, reports, notifications, permissions/features, audit logs, AI chat, and knowledge documents.
+- There is still no documented `GET /users`. User/account lists should use `GET /users/staff`, role counts, `/roles`, and doctor-specific endpoints instead of assuming a generic users list exists.
+- The latest spec confirms `GET /users/staff`, `GET /roles`, and `PUT /users/{userId}/role { roleId }` for admin account/role management.
+- `DELETE /permissions/{id}` and `DELETE /features/{id}` return `204 No Content`; `DELETE /patients/{id}` and doctor deactivate endpoints are documented as successful with no useful response body. Do not require JSON parsing after these calls.
+- `PUT /notifications/{id}/read` returns `text/plain`, while `PUT /notifications/read-all` returns `{ updatedCount }`.
+- Current exam counters remain split between `GET /examinations/total*` with required `userId` and current-user counters `GET /examinations/my-total*`; do not mix the two flows.
+- The OpenAPI text in the pasted file is mojibake, but endpoint paths, methods, schemas, required fields, response codes, and examples are structurally valid JSON and should be treated as the source of truth.
 - OpenAPI is now `3.1.0` / API `v1` and uses base URL `http://47.131.63.48:8000/api/v1`.
 - The `2026-08-11` spec confirms the current v1 contract, including AI chat sessions/messages and medical knowledge indexing endpoints.
 - Auth is bearer-token based. Login returns `accessToken`, `refreshToken`, `role`, `username`, `fullName`, and a full `permissions` array.

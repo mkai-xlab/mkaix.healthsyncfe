@@ -25,7 +25,6 @@ abstract class PermissionRemoteDataSource {
     required String code,
     required String name,
     required String featureId,
-    String? presentation,
     int? priority,
     String? requiresPermissionId,
   });
@@ -34,7 +33,6 @@ abstract class PermissionRemoteDataSource {
     required String code,
     required String name,
     required String featureId,
-    String? presentation,
     int? priority,
     String? requiresPermissionId,
   });
@@ -45,8 +43,6 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
   final String? token;
 
   PermissionRemoteDataSourceImpl(this.client, {this.token});
-
-  static const List<String> _knownRoleNames = ['ADMIN', 'DOCTOR'];
 
   Map<String, String> get _headers => {
     'Content-Type': 'application/json',
@@ -129,7 +125,6 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
     required String code,
     required String name,
     required String featureId,
-    String? presentation,
     int? priority,
     String? requiresPermissionId,
   }) async {
@@ -141,10 +136,6 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
       'featureId': parsedFeatureId,
       'feature_id': parsedFeatureId,
     };
-    final trimmedPresentation = presentation?.trim();
-    if (trimmedPresentation?.isNotEmpty ?? false) {
-      payload['presentation'] = trimmedPresentation;
-    }
     if (priority != null) {
       payload['priority'] = priority;
     }
@@ -172,7 +163,6 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
     required String code,
     required String name,
     required String featureId,
-    String? presentation,
     int? priority,
     String? requiresPermissionId,
   }) async {
@@ -185,10 +175,6 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
       'featureId': parsedFeatureId,
       'feature_id': parsedFeatureId,
     };
-    final trimmedPresentation = presentation?.trim();
-    if (trimmedPresentation?.isNotEmpty ?? false) {
-      payload['presentation'] = trimmedPresentation;
-    }
     if (priority != null) {
       payload['priority'] = priority;
     }
@@ -214,9 +200,29 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
   @override
   Future<List<RoleModel>> getRoles() async {
     try {
-      final roles = <RoleModel>[];
+      final rolesResponse = await client
+          .get(Uri.parse(ApiConstants.rolesEndpoint), headers: _headers)
+          .timeout(const Duration(seconds: 10));
 
-      for (final roleName in _knownRoleNames) {
+      if (rolesResponse.statusCode != 200) {
+        throw Exception(
+          'Loi tai danh sach vai tro (${rolesResponse.statusCode})',
+        );
+      }
+
+      final rolesData = jsonDecode(utf8.decode(rolesResponse.bodyBytes));
+      final roleItems = _extractRoleItems(rolesData);
+      final roles = roleItems
+          .whereType<Map>()
+          .map((item) => RoleModel.fromJson(Map<String, dynamic>.from(item)))
+          .where((role) => !_isAdminRole(role))
+          .toList();
+
+      final hydratedRoles = <RoleModel>[];
+
+      for (final role in roles) {
+        final roleName = _rolePathKey(role);
+        if (roleName.isEmpty) continue;
         final uri = Uri.parse(
           '${ApiConstants.rolePermissionsEndpoint}/$roleName',
         );
@@ -231,17 +237,17 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
         }
 
         final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
-        roles.add(
+        hydratedRoles.add(
           RoleModel(
             id: roleName,
-            name: roleName,
-            code: roleName,
+            name: role.name.isEmpty ? roleName : role.name,
+            code: role.code.isEmpty ? roleName : role.code,
             permissions: data.map((e) => e.toString()).toList(),
           ),
         );
       }
 
-      return roles;
+      return hydratedRoles;
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Loi ket noi: $e');
@@ -259,6 +265,31 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
       }
     } catch (_) {}
     return PermissionFeatureModel.fromJson(fallback);
+  }
+
+  List<dynamic> _extractRoleItems(dynamic data) {
+    if (data is List) return data;
+    if (data is Map && data['content'] is List) return data['content'] as List;
+    if (data is Map && data['data'] is List) return data['data'] as List;
+    if (data is Map && data['roles'] is List) return data['roles'] as List;
+    throw Exception('Dinh dang danh sach vai tro khong hop le');
+  }
+
+  String _rolePathKey(RoleModel role) {
+    final code = role.code.trim();
+    if (code.isNotEmpty) return code;
+    final name = role.name.trim();
+    if (name.isNotEmpty) return name;
+    return role.id.trim();
+  }
+
+  bool _isAdminRole(RoleModel role) {
+    final code = role.code.trim().toUpperCase();
+    final name = role.name.trim().toUpperCase();
+    return code == 'ADMIN' ||
+        code == 'ROLE_ADMIN' ||
+        name == 'ADMIN' ||
+        name == 'ROLE_ADMIN';
   }
 
   PermissionModel _parsePermissionResponse(

@@ -17,6 +17,14 @@ import 'package:fe/data/models/role_model.dart';
 import 'package:fe/domain/entities/doctor_account_entity.dart';
 import 'package:fe/domain/entities/notification_entity.dart';
 import 'package:fe/data/datasources/permission_remote_datasource.dart';
+import 'package:fe/data/repositories/permission_repository_impl.dart';
+import 'package:fe/domain/usecases/create_permission_feature_usecase.dart';
+import 'package:fe/domain/usecases/create_permission_usecase.dart';
+import 'package:fe/domain/usecases/get_permission_catalog_usecase.dart';
+import 'package:fe/domain/usecases/get_permission_roles_usecase.dart';
+import 'package:fe/domain/usecases/update_permission_feature_usecase.dart';
+import 'package:fe/domain/usecases/update_permission_usecase.dart';
+import 'package:fe/domain/usecases/update_role_permissions_usecase.dart';
 import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 import 'package:fe/presentation/pages/admin/permission_page.dart';
 import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart';
@@ -482,9 +490,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             _buildTopBar(context),
             Expanded(
               child: ChangeNotifierProvider(
-                create: (_) => PermissionViewModel(
-                  PermissionRemoteDataSourceImpl(http.Client(), token: token),
-                ),
+                create: (_) => _createPermissionViewModel(token),
                 child: const FeaturePermissionCatalogPage(),
               ),
             ),
@@ -1708,13 +1714,29 @@ class _AdminHomepageState extends State<AdminHomepage> {
           width: 1100,
           height: 760,
           child: ChangeNotifierProvider(
-            create: (_) => PermissionViewModel(
-              PermissionRemoteDataSourceImpl(http.Client(), token: token),
-            ),
+            create: (_) => _createPermissionViewModel(token),
             child: PermissionPage(showTopBar: false),
           ),
         ),
       ),
+    );
+  }
+
+  PermissionViewModel _createPermissionViewModel(String token) {
+    final repository = PermissionRepositoryImpl(
+      remoteDataSource: PermissionRemoteDataSourceImpl(
+        http.Client(),
+        token: token,
+      ),
+    );
+    return PermissionViewModel(
+      getPermissionCatalogUseCase: GetPermissionCatalogUseCase(repository),
+      getRolesUseCase: GetPermissionRolesUseCase(repository),
+      updateRolePermissionsUseCase: UpdateRolePermissionsUseCase(repository),
+      createFeatureUseCase: CreatePermissionFeatureUseCase(repository),
+      updateFeatureUseCase: UpdatePermissionFeatureUseCase(repository),
+      createPermissionUseCase: CreatePermissionUseCase(repository),
+      updatePermissionUseCase: UpdatePermissionUseCase(repository),
     );
   }
 

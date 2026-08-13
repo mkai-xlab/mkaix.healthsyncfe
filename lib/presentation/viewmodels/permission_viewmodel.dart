@@ -1,14 +1,35 @@
 import 'package:flutter/material.dart';
 
-import '../../data/datasources/permission_remote_datasource.dart';
 import '../../data/models/permission_catalog_model.dart';
 import '../../data/models/permission_model.dart';
 import '../../data/models/role_model.dart';
 import '../../core/utils/error_message_utils.dart';
+import '../../domain/usecases/create_permission_feature_usecase.dart';
+import '../../domain/usecases/create_permission_usecase.dart';
+import '../../domain/usecases/get_permission_catalog_usecase.dart';
+import '../../domain/usecases/get_permission_roles_usecase.dart';
+import '../../domain/usecases/update_permission_feature_usecase.dart';
+import '../../domain/usecases/update_permission_usecase.dart';
+import '../../domain/usecases/update_role_permissions_usecase.dart';
 
 class PermissionViewModel extends ChangeNotifier {
-  final PermissionRemoteDataSource dataSource;
-  PermissionViewModel(this.dataSource);
+  final GetPermissionCatalogUseCase getPermissionCatalogUseCase;
+  final GetPermissionRolesUseCase getRolesUseCase;
+  final UpdateRolePermissionsUseCase updateRolePermissionsUseCase;
+  final CreatePermissionFeatureUseCase createFeatureUseCase;
+  final UpdatePermissionFeatureUseCase updateFeatureUseCase;
+  final CreatePermissionUseCase createPermissionUseCase;
+  final UpdatePermissionUseCase updatePermissionUseCase;
+
+  PermissionViewModel({
+    required this.getPermissionCatalogUseCase,
+    required this.getRolesUseCase,
+    required this.updateRolePermissionsUseCase,
+    required this.createFeatureUseCase,
+    required this.updateFeatureUseCase,
+    required this.createPermissionUseCase,
+    required this.updatePermissionUseCase,
+  });
 
   List<PermissionFeatureModel> _features = [];
   List<PermissionModel> _permissions = [];
@@ -81,8 +102,8 @@ class PermissionViewModel extends ChangeNotifier {
 
     try {
       final results = await Future.wait([
-        dataSource.getPermissionCatalog(),
-        dataSource.getRoles(),
+        getPermissionCatalogUseCase.execute(),
+        getRolesUseCase.execute(),
       ]);
 
       final catalog = results[0] as PermissionCatalogModel;
@@ -110,7 +131,7 @@ class PermissionViewModel extends ChangeNotifier {
     String? description,
   }) async {
     return _runMutation(() async {
-      await dataSource.createFeature(name: name, description: description);
+      await createFeatureUseCase.execute(name: name, description: description);
     });
   }
 
@@ -120,7 +141,7 @@ class PermissionViewModel extends ChangeNotifier {
     String? description,
   }) async {
     return _runMutation(() async {
-      await dataSource.updateFeature(
+      await updateFeatureUseCase.execute(
         id: id,
         name: name,
         description: description,
@@ -136,7 +157,7 @@ class PermissionViewModel extends ChangeNotifier {
     String? requiresPermissionId,
   }) async {
     return _runMutation(() async {
-      await dataSource.createPermission(
+      await createPermissionUseCase.execute(
         code: code,
         name: name,
         featureId: featureId,
@@ -155,7 +176,7 @@ class PermissionViewModel extends ChangeNotifier {
     String? requiresPermissionId,
   }) async {
     return _runMutation(() async {
-      await dataSource.updatePermission(
+      await updatePermissionUseCase.execute(
         id: id,
         code: code,
         name: name,
@@ -176,7 +197,7 @@ class PermissionViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await dataSource.updatePermission(
+      await updatePermissionUseCase.execute(
         id: permission.id,
         code: permission.code,
         name: permission.name,
@@ -214,7 +235,7 @@ class PermissionViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await dataSource.updatePermission(
+      await updatePermissionUseCase.execute(
         id: permission.id,
         code: permission.code,
         name: permission.name,
@@ -251,7 +272,7 @@ class PermissionViewModel extends ChangeNotifier {
       for (var index = 0; index < orderedParents.length; index++) {
         final permission = orderedParents[index];
         updates.add(
-          dataSource.updatePermission(
+          updatePermissionUseCase.execute(
             id: permission.id,
             code: permission.code,
             name: permission.name,
@@ -314,7 +335,7 @@ class PermissionViewModel extends ChangeNotifier {
         final saved = _saved[role.id] ?? {};
         if (!_setsEqual(draft, saved)) {
           futures.add(
-            dataSource.updateRolePermissions(role.id, draft.toList()).then((
+            updateRolePermissionsUseCase.execute(role.id, draft.toList()).then((
               updatedRole,
             ) {
               _saved[role.id] = Set<String>.from(draft);

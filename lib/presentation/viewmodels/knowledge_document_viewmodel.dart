@@ -2,11 +2,20 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/datasources/knowledge_document_remote_datasource.dart';
 import '../../data/models/knowledge_document_model.dart';
+import '../../domain/usecases/get_knowledge_documents_usecase.dart';
+import '../../domain/usecases/upload_knowledge_document_usecase.dart';
+import '../../domain/usecases/upload_knowledge_documents_batch_usecase.dart';
 
 class KnowledgeDocumentViewModel extends ChangeNotifier {
-  final KnowledgeDocumentRemoteDataSource remoteDataSource;
+  final GetKnowledgeDocumentsUseCase getDocumentsUseCase;
+  final UploadKnowledgeDocumentUseCase uploadDocumentUseCase;
+  final UploadKnowledgeDocumentsBatchUseCase uploadDocumentsBatchUseCase;
 
-  KnowledgeDocumentViewModel(this.remoteDataSource);
+  KnowledgeDocumentViewModel({
+    required this.getDocumentsUseCase,
+    required this.uploadDocumentUseCase,
+    required this.uploadDocumentsBatchUseCase,
+  });
 
   final List<KnowledgeDocumentModel> _documents = [];
 
@@ -61,7 +70,7 @@ class KnowledgeDocumentViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await remoteDataSource.getDocuments(token: token);
+      final result = await getDocumentsUseCase.execute(token: token);
       _documents
         ..clear()
         ..addAll(result);
@@ -112,14 +121,14 @@ class KnowledgeDocumentViewModel extends ChangeNotifier {
 
     try {
       if (files.length == 1) {
-        await remoteDataSource.uploadDocument(
+        await uploadDocumentUseCase.execute(
           token: token,
           file: files.first,
           title: title,
           accessScope: accessScope,
         );
       } else {
-        await remoteDataSource.uploadDocumentsBatch(
+        await uploadDocumentsBatchUseCase.execute(
           token: token,
           files: files,
           accessScope: accessScope,

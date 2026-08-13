@@ -79,10 +79,18 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
         final responseData = jsonDecode(decodedBody);
 
         if (responseData is List) {
-          return _parseUserPage({'content': responseData});
+          return _parseUserPage(
+            {'content': responseData},
+            fallbackPage: page,
+            fallbackSize: size,
+          );
         }
         if (responseData is Map<String, dynamic>) {
-          return _parseUserPage(responseData);
+          return _parseUserPage(
+            responseData,
+            fallbackPage: page,
+            fallbackSize: size,
+          );
         }
 
         throw Exception('Định dạng danh sách người dùng không hợp lệ');
@@ -266,22 +274,46 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     }
   }
 
-  DoctorAccountPageEntity _parseUserPage(Map<String, dynamic> json) {
-    final content = _extractUserList(json);
+  DoctorAccountPageEntity _parseUserPage(
+    Map<String, dynamic> json, {
+    required int fallbackPage,
+    required int fallbackSize,
+  }) {
+    final pageJson = _extractPageMap(json);
+    final content = _extractUserList(pageJson);
     final users = content
         .map(
           (item) => DoctorAccountModel.fromJson(item as Map<String, dynamic>),
         )
         .toList();
+    final totalElements = _parseInt(
+      pageJson['totalElements'] ?? pageJson['total'] ?? pageJson['totalItems'],
+      users.length,
+    );
+    final pageSize = _parseInt(
+      pageJson['pageSize'] ?? pageJson['size'],
+      fallbackSize,
+    );
+    final totalPages = _parseTotalPages(
+      pageJson['totalPages'] ?? pageJson['pages'],
+      totalElements: totalElements,
+      pageSize: pageSize,
+    );
+    final pageNumber = _parseInt(
+      pageJson['pageNumber'] ?? pageJson['number'] ?? pageJson['page'],
+      fallbackPage,
+    );
 
     return DoctorAccountPageEntity(
       content: users,
-      totalElements: _parseInt(
-        json['totalElements'] ?? json['total'],
-        users.length,
-      ),
-      totalPages: _parseInt(json['totalPages'] ?? json['pages'], 1),
-      isLast: json['isLast'] as bool? ?? json['last'] as bool? ?? true,
+      totalElements: totalElements,
+      totalPages: totalPages,
+      pageNumber: pageNumber,
+      pageSize: pageSize,
+      isLast:
+          pageJson['isLast'] as bool? ??
+          pageJson['last'] as bool? ??
+          pageNumber >= totalPages - 1,
     );
   }
 
@@ -293,10 +325,29 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     return const [];
   }
 
+  Map<String, dynamic> _extractPageMap(Map<String, dynamic> json) {
+    for (final key in const ['data', 'result', 'payload']) {
+      final value = json[key];
+      if (value is Map) return Map<String, dynamic>.from(value);
+    }
+    return json;
+  }
+
   int _parseInt(Object? value, int fallback) {
     if (value is int) return value;
     if (value is num) return value.toInt();
     return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  int _parseTotalPages(
+    Object? value, {
+    required int totalElements,
+    required int pageSize,
+  }) {
+    final parsed = _parseInt(value, 0);
+    if (parsed > 0) return parsed;
+    if (totalElements <= 0 || pageSize <= 0) return 1;
+    return (totalElements / pageSize).ceil();
   }
 
   bool _isAdminRole(RoleModel role) {

@@ -1,13 +1,28 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../../data/datasources/admin_remote_datasource.dart';
 import '../../data/models/role_model.dart';
 import '../../domain/entities/doctor_account_entity.dart';
+import '../../domain/usecases/create_doctor_usecase.dart';
+import '../../domain/usecases/create_user_usecase.dart';
+import '../../domain/usecases/get_admin_roles_usecase.dart';
+import '../../domain/usecases/get_doctor_accounts_usecase.dart';
+import '../../domain/usecases/toggle_doctor_status_usecase.dart';
 import '../../core/utils/error_message_utils.dart';
 
 class AdminAccountViewModel extends ChangeNotifier {
-  final AdminRemoteDataSource dataSource;
-  AdminAccountViewModel(this.dataSource);
+  final GetDoctorAccountsUseCase getDoctorAccountsUseCase;
+  final CreateDoctorUseCase createDoctorUseCase;
+  final CreateUserUseCase createUserUseCase;
+  final GetAdminRolesUseCase getRolesUseCase;
+  final ToggleDoctorStatusUseCase toggleDoctorStatusUseCase;
+
+  AdminAccountViewModel({
+    required this.getDoctorAccountsUseCase,
+    required this.createDoctorUseCase,
+    required this.createUserUseCase,
+    required this.getRolesUseCase,
+    required this.toggleDoctorStatusUseCase,
+  });
 
   final List<DoctorAccountEntity> _accounts = [];
   List<DoctorAccountEntity> get accounts => List.unmodifiable(_accounts);
@@ -115,7 +130,7 @@ class AdminAccountViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await dataSource.createDoctor(doctorData: doctorData, token: token);
+      await createDoctorUseCase.execute(doctorData: doctorData, token: token);
       return true;
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
@@ -133,7 +148,7 @@ class AdminAccountViewModel extends ChangeNotifier {
     _errorMessage = null;
 
     try {
-      await dataSource.createDoctor(doctorData: doctorData, token: token);
+      await createDoctorUseCase.execute(doctorData: doctorData, token: token);
       return true;
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
@@ -148,32 +163,25 @@ class AdminAccountViewModel extends ChangeNotifier {
     required int roleId,
     required String token,
   }) async {
-    _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
 
     try {
-      await dataSource.createUser(
+      await createUserUseCase.execute(
         fullName: fullName,
         email: email,
         phone: phone,
         roleId: roleId,
         token: token,
       );
-      _currentSearchName = '';
-      await fetchFirstPage(token);
       return true;
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
       return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 
   Future<List<RoleModel>> getRoles(String token) {
-    return dataSource.getRoles(token: token);
+    return getRolesUseCase.execute(token: token);
   }
 
   Future<bool> toggleDoctorStatus(
@@ -187,7 +195,7 @@ class AdminAccountViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await dataSource.toggleDoctorStatus(
+      await toggleDoctorStatusUseCase.execute(
         id: id,
         activate: activate,
         token: token,
@@ -206,7 +214,7 @@ class AdminAccountViewModel extends ChangeNotifier {
 
   Future<void> _loadMoreData(String token) async {
     try {
-      final result = await dataSource.getDoctorAccounts(
+      final result = await getDoctorAccountsUseCase.execute(
         page: _currentPage,
         size: _pageSize,
         token: token,
@@ -214,11 +222,23 @@ class AdminAccountViewModel extends ChangeNotifier {
         status: _currentStatus,
       );
 
+      final totalPages = result.totalPages <= 0 ? 1 : result.totalPages;
+      final pageNumber = result.pageNumber.clamp(0, totalPages - 1).toInt();
+      final pageSize = result.pageSize <= 0 ? _pageSize : result.pageSize;
+      final visibleAccounts = _pageContent(
+        result.content,
+        pageNumber: pageNumber,
+        pageSize: pageSize,
+        totalElements: result.totalElements,
+      );
+
       _accounts
         ..clear()
-        ..addAll(result.content);
+        ..addAll(visibleAccounts);
       _totalElements = result.totalElements;
-      _totalPages = result.totalPages;
+      _totalPages = totalPages;
+      _currentPage = pageNumber;
+      _pageSize = pageSize;
       _isLastPage = result.isLast;
       _errorMessage = null;
     } catch (e) {
@@ -227,6 +247,21 @@ class AdminAccountViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  List<DoctorAccountEntity> _pageContent(
+    List<DoctorAccountEntity> source, {
+    required int pageNumber,
+    required int pageSize,
+    required int totalElements,
+  }) {
+    if (source.length <= pageSize) return source;
+    if (totalElements > source.length) return source;
+
+    final start = pageNumber * pageSize;
+    if (start >= source.length) return const [];
+    final end = (start + pageSize).clamp(0, source.length).toInt();
+    return source.sublist(start, end);
   }
 
   void reset() {

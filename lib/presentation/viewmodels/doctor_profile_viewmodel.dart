@@ -1,13 +1,21 @@
 import 'package:flutter/material.dart';
 
-import '../../data/datasources/doctor_profile_remote_datasource.dart';
 import '../../domain/entities/doctor_account_entity.dart';
+import '../../domain/usecases/get_doctor_profile_usecase.dart';
+import '../../domain/usecases/update_doctor_profile_usecase.dart';
+import '../../domain/usecases/upload_doctor_avatar_usecase.dart';
 import '../../core/utils/error_message_utils.dart';
 
 class DoctorProfileViewModel extends ChangeNotifier {
-  final DoctorProfileRemoteDataSource dataSource;
+  final GetDoctorProfileUseCase getProfileUseCase;
+  final UpdateDoctorProfileUseCase updateProfileUseCase;
+  final UploadDoctorAvatarUseCase uploadAvatarUseCase;
 
-  DoctorProfileViewModel(this.dataSource);
+  DoctorProfileViewModel({
+    required this.getProfileUseCase,
+    required this.updateProfileUseCase,
+    required this.uploadAvatarUseCase,
+  });
 
   DoctorAccountEntity? _profile;
   DoctorAccountEntity? get profile => _profile;
@@ -43,7 +51,7 @@ class DoctorProfileViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _profile = await dataSource.getProfile(token: normalizedToken);
+      _profile = await getProfileUseCase.execute(token: normalizedToken);
       _profileToken = normalizedToken;
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
@@ -65,7 +73,7 @@ class DoctorProfileViewModel extends ChangeNotifier {
 
     try {
       final normalizedToken = token.trim();
-      _profile = await dataSource.updateProfile(
+      _profile = await updateProfileUseCase.execute(
         token: normalizedToken,
         payload: payload,
       );
@@ -93,7 +101,7 @@ class DoctorProfileViewModel extends ChangeNotifier {
 
     try {
       final normalizedToken = token.trim();
-      _profile = await dataSource.uploadAvatar(
+      _profile = await uploadAvatarUseCase.execute(
         token: normalizedToken,
         bytes: bytes,
         filename: filename,

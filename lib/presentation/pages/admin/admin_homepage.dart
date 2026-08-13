@@ -17,6 +17,14 @@ import 'package:fe/data/models/role_model.dart';
 import 'package:fe/domain/entities/doctor_account_entity.dart';
 import 'package:fe/domain/entities/notification_entity.dart';
 import 'package:fe/data/datasources/permission_remote_datasource.dart';
+import 'package:fe/data/repositories/permission_repository_impl.dart';
+import 'package:fe/domain/usecases/create_permission_feature_usecase.dart';
+import 'package:fe/domain/usecases/create_permission_usecase.dart';
+import 'package:fe/domain/usecases/get_permission_catalog_usecase.dart';
+import 'package:fe/domain/usecases/get_permission_roles_usecase.dart';
+import 'package:fe/domain/usecases/update_permission_feature_usecase.dart';
+import 'package:fe/domain/usecases/update_permission_usecase.dart';
+import 'package:fe/domain/usecases/update_role_permissions_usecase.dart';
 import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 import 'package:fe/presentation/pages/admin/permission_page.dart';
 import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart';
@@ -92,7 +100,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   // @override
   // void dispose() {
-  //   _debounce?.cancel(); // HĂ¡Â»Â§y bĂ¡Â»Â timer khi widget bĂ¡Â»â€¹ dispose
+  //   _debounce?.cancel(); // H?y b? timer khi widget b? dispose
   //   _scrollController.dispose();
   //   super.dispose();
   // }
@@ -275,7 +283,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               size: 20,
             ),
             title: Text(
-              'CĂ¡ÂºÂ¥u hÄ‚Â¬nh hĂ¡Â»â€¡ thĂ¡Â»â€˜ng',
+              'Cấu hình hệ thống',
               style: TextStyle(
                 color: isSelected ? Colors.white : Colors.white70,
                 fontSize: 14,
@@ -306,7 +314,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
         if (_isSystemSettingsExpanded || _selectedNavIndex == 6)
           _buildSystemSettingsChildNavItem(
             index: 6,
-            label: 'QuĂ¡ÂºÂ£n lÄ‚Â½ tÄ‚Â i liĂ¡Â»â€¡u',
+            label: 'Quản lý tài liệu',
             icon: Icons.description_outlined,
           ),
       ],
@@ -482,9 +490,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             _buildTopBar(context),
             Expanded(
               child: ChangeNotifierProvider(
-                create: (_) => PermissionViewModel(
-                  PermissionRemoteDataSourceImpl(http.Client(), token: token),
-                ),
+                create: (_) => _createPermissionViewModel(token),
                 child: const FeaturePermissionCatalogPage(),
               ),
             ),
@@ -493,7 +499,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
       );
     }
 
-    // MĂ¡ÂºÂ·c Ă„â€˜Ă¡Â»â€¹nh hiĂ¡Â»Æ’n thĂ¡Â»â€¹ Dashboard (index 0)
+    // M?c ??nh hi?n th? Dashboard (index 0)
     if (_selectedNavIndex == 3) {
       return Container(
         color: _pageBackground,
@@ -718,7 +724,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Danh sÄ‚Â¡ch tÄ‚Â i liĂ¡Â»â€¡u & bÄ‚Â i bÄ‚Â¡o khoa hĂ¡Â»Âc',
+                              'Danh sách tài liệu & bài báo khoa học',
                               style: TextStyle(
                                 fontSize: 34,
                                 height: 1.08,
@@ -728,7 +734,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             ),
                             SizedBox(height: 10),
                             Text(
-                              'QuĂ¡ÂºÂ£n lÄ‚Â½ vÄ‚Â  xem xÄ‚Â©t cÄ‚Â¡c tÄ‚Â i liĂ¡Â»â€¡u lÄ‚Â¢m sÄ‚Â ng, tÄ‚Â i liĂ¡Â»â€¡u vĂ¡Â»Â AI vÄ‚Â  tÄ‚Â i liĂ¡Â»â€¡u nghiÄ‚Âªn cĂ¡Â»Â©u.',
+                              'Quản lý và xem xét các tài liệu lâm sàng, tài liệu về AI và tài liệu nghiên cứu.',
                               style: TextStyle(
                                 fontSize: 15,
                                 color: Color(0xFF4B5563),
@@ -742,9 +748,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         onPressed: () =>
                             _showUploadKnowledgeDocumentDialog(context),
                         icon: const Icon(Icons.upload_file_outlined, size: 18),
-                        label: const Text(
-                          'TĂ¡ÂºÂ£i lÄ‚Âªn tÄ‚Â i liĂ¡Â»â€¡u mĂ¡Â»â€ºi',
-                        ),
+                        label: const Text('Tải lên tài liệu mới'),
                         style: FilledButton.styleFrom(
                           backgroundColor: AppColors.primaryLight,
                           foregroundColor: Colors.white,
@@ -787,7 +791,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               enabled: false,
               decoration: InputDecoration(
                 prefixIcon: const Icon(Icons.search, size: 20),
-                hintText: 'TÄ‚Â¬m kiĂ¡ÂºÂ¿m tÄ‚Â i liĂ¡Â»â€¡u...',
+                hintText: 'Tìm kiếm tài liệu...',
                 filled: true,
                 fillColor: const Color(0xFFF8FAFC),
                 border: OutlineInputBorder(
@@ -802,10 +806,10 @@ class _AdminHomepageState extends State<AdminHomepage> {
             ),
           ),
           const SizedBox(width: 16),
-          _buildDocumentFilterChip('TĂ¡ÂºÂ¥t cĂ¡ÂºÂ£', selected: true),
-          _buildDocumentFilterChip('BÄ‚Â i bÄ‚Â¡o khoa hĂ¡Â»Âc'),
-          _buildDocumentFilterChip('HĂ¡Â»â€œ sĂ†Â¡ bĂ¡Â»â€¡nh Ä‚Â¡n'),
-          _buildDocumentFilterChip('KĂ¡ÂºÂ¿t quĂ¡ÂºÂ£ xÄ‚Â©t nghiĂ¡Â»â€¡m'),
+          _buildDocumentFilterChip('Tất cả', selected: true),
+          _buildDocumentFilterChip('Bài báo khoa học'),
+          _buildDocumentFilterChip('Hồ sơ bệnh án'),
+          _buildDocumentFilterChip('Kết quả xét nghiệm'),
         ],
       ),
     );
@@ -844,19 +848,12 @@ class _AdminHomepageState extends State<AdminHomepage> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
             child: const Row(
               children: [
-                Expanded(
-                  flex: 3,
-                  child: _DocumentHeaderCell('TÄ‚ÂN TÄ‚â‚¬I LIĂ¡Â»â€ U'),
-                ),
-                Expanded(child: _DocumentHeaderCell('LOĂ¡ÂºÂ I')),
-                Expanded(
-                  child: _DocumentHeaderCell(
-                    'BĂ¡Â»â€ NH NHÄ‚â€N\nLIÄ‚ÂN QUAN',
-                  ),
-                ),
-                Expanded(child: _DocumentHeaderCell('NGÄ‚â‚¬Y TĂ¡ÂºÂ¢I')),
-                Expanded(child: _DocumentHeaderCell('TRĂ¡ÂºÂ NG THÄ‚ÂI\nAI')),
-                SizedBox(width: 72, child: _DocumentHeaderCell('THAO\nTÄ‚ÂC')),
+                Expanded(flex: 3, child: _DocumentHeaderCell('TÊN TÀI LIỆU')),
+                Expanded(child: _DocumentHeaderCell('LOẠI')),
+                Expanded(child: _DocumentHeaderCell('BỆNH NHÂN\nLIÊN QUAN')),
+                Expanded(child: _DocumentHeaderCell('NGÀY TẢI')),
+                Expanded(child: _DocumentHeaderCell('TRẠNG THÁI\nAI')),
+                SizedBox(width: 72, child: _DocumentHeaderCell('THAO\nTÁC')),
               ],
             ),
           ),
@@ -872,7 +869,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 ),
                 SizedBox(height: 14),
                 Text(
-                  'ChĂ†Â°a cÄ‚Â³ tÄ‚Â i liĂ¡Â»â€¡u nÄ‚Â o',
+                  'Chưa có tài liệu nào',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w800,
@@ -881,7 +878,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 ),
                 SizedBox(height: 6),
                 Text(
-                  'TĂ¡ÂºÂ£i lÄ‚Âªn tÄ‚Â i liĂ¡Â»â€¡u Ă„â€˜Ă¡ÂºÂ§u tiÄ‚Âªn Ă„â€˜Ă¡Â»Æ’ bĂ¡ÂºÂ¯t Ă„â€˜Ă¡ÂºÂ§u quĂ¡ÂºÂ£n lÄ‚Â½ kho tri thĂ¡Â»Â©c.',
+                  'Tải lên tài liệu đầu tiên để bắt đầu quản lý kho tri thức.',
                   style: TextStyle(fontSize: 14, color: Color(0xFF6B7280)),
                 ),
               ],
@@ -937,7 +934,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 setDialogState(() {
                   selectedFile = null;
                   validationError =
-                      'ChĂ¡Â»â€° hĂ¡Â»â€” trĂ¡Â»Â£ file PDF, DOC, DOCX hoĂ¡ÂºÂ·c DOCS. Vui lÄ‚Â²ng chĂ¡Â»Ân lĂ¡ÂºÂ¡i.';
+                      'Chỉ hỗ trợ file PDF, DOC, DOCX hoặc DOCS. Vui lòng chọn lại.';
                 });
                 return;
               }
@@ -957,7 +954,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 borderRadius: BorderRadius.circular(10),
               ),
               title: const Text(
-                'TĂ¡ÂºÂ£i lÄ‚Âªn tÄ‚Â i liĂ¡Â»â€¡u',
+                'Tải lên tài liệu',
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
               content: SizedBox(
@@ -967,7 +964,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'ChĂ¡Â»Ân tÄ‚Â i liĂ¡Â»â€¡u Ă„â€˜Ă¡Â»Æ’ bĂ¡Â»â€¢ sung vÄ‚Â o kho tri thĂ¡Â»Â©c. HĂ¡Â»â€¡ thĂ¡Â»â€˜ng hiĂ¡Â»â€¡n hĂ¡Â»â€” trĂ¡Â»Â£ PDF, DOC, DOCX vÄ‚Â  DOCS.',
+                      'Chọn tài liệu để bổ sung vào kho tri thức. Hệ thống hiện hỗ trợ PDF, DOC, DOCX và DOCS.',
                       style: TextStyle(color: Color(0xFF6B7280), height: 1.35),
                     ),
                     const SizedBox(height: 16),
@@ -998,9 +995,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             ),
                             const SizedBox(height: 10),
                             Text(
-                              file == null
-                                  ? 'NhĂ¡ÂºÂ¥n Ă„â€˜Ă¡Â»Æ’ chĂ¡Â»Ân file'
-                                  : file.name,
+                              file == null ? 'Nhấn để chọn file' : file.name,
                               textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 15,
@@ -1011,7 +1006,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             const SizedBox(height: 4),
                             Text(
                               file == null
-                                  ? 'Ă„ÂĂ¡Â»â€¹nh dĂ¡ÂºÂ¡ng: .pdf, .doc, .docx, .docs'
+                                  ? 'Định dạng: .pdf, .doc, .docx, .docs'
                                   : _formatFileSize(file.size),
                               style: const TextStyle(
                                 fontSize: 12,
@@ -1039,7 +1034,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(dialogContext).pop(),
-                  child: const Text('HĂ¡Â»Â§y'),
+                  child: const Text('Hủy'),
                 ),
                 FilledButton.icon(
                   onPressed: file == null
@@ -1049,13 +1044,13 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: Text(
-                                'Ă„ÂÄ‚Â£ chĂ¡Â»Ân ${file.name}. API upload sĂ¡ÂºÂ½ Ă„â€˜Ă†Â°Ă¡Â»Â£c tÄ‚Â­ch hĂ¡Â»Â£p Ă¡Â»Å¸ bĂ†Â°Ă¡Â»â€ºc tiĂ¡ÂºÂ¿p theo.',
+                                'Đã chọn ${file.name}. API upload sẽ được tích hợp ở bước tiếp theo.',
                               ),
                             ),
                           );
                         },
                   icon: const Icon(Icons.upload_file_outlined, size: 18),
-                  label: const Text('TĂ¡ÂºÂ£i lÄ‚Âªn'),
+                  label: const Text('Tải lên'),
                   style: FilledButton.styleFrom(
                     backgroundColor: AppColors.primaryLight,
                     foregroundColor: Colors.white,
@@ -1076,7 +1071,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   String _formatFileSize(int bytes) {
-    if (bytes <= 0) return 'KhÄ‚Â´ng rÄ‚Âµ dung lĂ†Â°Ă¡Â»Â£ng';
+    if (bytes <= 0) return 'Không rõ dung lượng';
     const kb = 1024;
     const mb = kb * 1024;
     if (bytes >= mb) return '${(bytes / mb).toStringAsFixed(1)} MB';
@@ -1095,12 +1090,12 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Ă¢â€â‚¬Ă¢â€â‚¬ LEFT: main list Ă¢â€â‚¬Ă¢â€â‚¬
+                    // LEFT: main list
                     Expanded(
                       flex: 7,
                       child: _buildUserListPanel(context, viewModel),
                     ),
-                    // Ă¢â€â‚¬Ă¢â€â‚¬ RIGHT: detail panel Ă¢â€â‚¬Ă¢â€â‚¬
+                    // RIGHT: detail panel
                     Container(
                       width: 320,
                       color: Colors.white,
@@ -1116,7 +1111,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
-  // Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬ LEFT PANEL Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬
+  // LEFT PANEL
   Widget _buildUserListPanel(
     BuildContext context,
     AdminAccountViewModel viewModel,
@@ -1243,38 +1238,38 @@ class _AdminHomepageState extends State<AdminHomepage> {
     return Row(
       children: [
         _buildUMStatCard(
-          label: 'TĂ¡Â»â€NG SĂ¡Â»Â',
+          label: 'TỔNG SỐ',
           value: total.toString(),
-          sub: 'Ă¢â€ â€˜ +3 mĂ¡Â»â€ºi',
+          sub: '↑ +3 mới',
           subColor: const Color(0xFF2D7E6E),
           borderColor: const Color(0xFF2D7E6E),
         ),
         const SizedBox(width: 10),
         _buildUMStatCard(
-          label: 'BÄ‚ÂC SĂ„Â¨',
+          label: 'BÁC SĨ',
           value: doctors.toString(),
-          sub: 'Ă„Âang cÄ‚Â´ng tÄ‚Â¡c',
+          sub: 'Đang công tác',
         ),
         const SizedBox(width: 10),
         _buildUMStatCard(
-          label: 'KĂ¡Â»Â¸ THUĂ¡ÂºÂ¬T VIÄ‚ÂN',
+          label: 'KỸ THUẬT VIÊN',
           value: ktv.toString(),
-          sub: 'HĂ¡Â»â€” trĂ¡Â»Â£ CDHA',
+          sub: 'Hỗ trợ CDHA',
         ),
         const SizedBox(width: 10),
         _buildUMStatCard(
-          label: 'Ă„ÂÄ‚Æ’ KHÄ‚â€œA',
+          label: 'ĐÃ KHÓA',
           value: locked.toString().padLeft(2, '0'),
-          sub: 'Vi phĂ¡ÂºÂ¡m CS',
+          sub: 'Vi phạm CS',
           subColor: const Color(0xFFE53E3E),
           valueColor: const Color(0xFFE53E3E),
           borderColor: const Color(0xFFE53E3E),
         ),
         const SizedBox(width: 10),
         _buildUMStatCard(
-          label: 'TRĂ¡Â»Â°C TUYĂ¡ÂºÂ¾N',
+          label: 'TRỰC TUYẾN',
           value: online.toString(),
-          sub: 'Ă¢â€”Â Ă¢â€”Â Ă¢â€”â€¹',
+          sub: '● ● ○',
         ),
       ],
     );
@@ -1695,7 +1690,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
-  // Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬ RIGHT DETAIL SIDEBAR Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬Ă¢â€â‚¬
+  // RIGHT DETAIL SIDEBAR
   void _showRolePermissionDialog(BuildContext context) {
     final token = context.read<AuthViewModel>().currentUser?.token ?? '';
 
@@ -1708,13 +1703,29 @@ class _AdminHomepageState extends State<AdminHomepage> {
           width: 1100,
           height: 760,
           child: ChangeNotifierProvider(
-            create: (_) => PermissionViewModel(
-              PermissionRemoteDataSourceImpl(http.Client(), token: token),
-            ),
+            create: (_) => _createPermissionViewModel(token),
             child: PermissionPage(showTopBar: false),
           ),
         ),
       ),
+    );
+  }
+
+  PermissionViewModel _createPermissionViewModel(String token) {
+    final repository = PermissionRepositoryImpl(
+      remoteDataSource: PermissionRemoteDataSourceImpl(
+        http.Client(),
+        token: token,
+      ),
+    );
+    return PermissionViewModel(
+      getPermissionCatalogUseCase: GetPermissionCatalogUseCase(repository),
+      getRolesUseCase: GetPermissionRolesUseCase(repository),
+      updateRolePermissionsUseCase: UpdateRolePermissionsUseCase(repository),
+      createFeatureUseCase: CreatePermissionFeatureUseCase(repository),
+      updateFeatureUseCase: UpdatePermissionFeatureUseCase(repository),
+      createPermissionUseCase: CreatePermissionUseCase(repository),
+      updatePermissionUseCase: UpdatePermissionUseCase(repository),
     );
   }
 
@@ -1729,7 +1740,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Ă¢â€â‚¬Ă¢â€â‚¬ User card Ă¢â€â‚¬Ă¢â€â‚¬
+          // User card
           if (user != null) ...[
             const SizedBox(height: 8),
             Center(
@@ -2163,6 +2174,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                                 return;
                               }
                               if (success) {
+                                FocusScope.of(dialogContext).unfocus();
                                 Navigator.pop(dialogContext, true);
                                 return;
                               }
@@ -2211,6 +2223,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
         })
         .then((created) async {
           if (created == true && mounted && pageContext.mounted) {
+            await viewModel.fetchFirstPage(token);
+            if (!mounted || !pageContext.mounted) return;
             if (mounted && pageContext.mounted) {
               AppToast.showSuccess('Tạo tài khoản thành công');
             }
@@ -2431,7 +2445,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // PhĂ¡ÂºÂ§n bÄ‚Âªn trÄ‚Â¡i: TÄ‚Â³m tĂ¡ÂºÂ¯t danh tÄ‚Â­nh
+                // Phần bên trái: Tóm tắt danh tính
                 Container(
                   width: 260,
                   color: const Color(0xFFF8FAF9),
@@ -2495,7 +2509,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                     ],
                   ),
                 ),
-                // PhĂ¡ÂºÂ§n bÄ‚Âªn phĂ¡ÂºÂ£i: Chi tiĂ¡ÂºÂ¿t Ă„â€˜Ă¡ÂºÂ§y Ă„â€˜Ă¡Â»Â§
+                // Phần bên phải: Chi tiết đầy đủ
                 Expanded(
                   child: Padding(
                     padding: const EdgeInsets.all(32),

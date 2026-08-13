@@ -7,8 +7,11 @@ import '../../core/services/session_storage_service.dart';
 import '../../core/rbac/permission_code.dart';
 import '../../data/models/user_model.dart';
 import '../../domain/entities/user_entity.dart';
-import '../../domain/interface_repositories/auth_repository.dart';
+import '../../domain/usecases/change_password_usecase.dart';
+import '../../domain/usecases/forgot_password_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
+import '../../domain/usecases/logout_usecase.dart';
+import '../../domain/usecases/reset_password_usecase.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../core/utils/error_message_utils.dart';
 
@@ -19,12 +22,18 @@ class AuthViewModel extends ChangeNotifier {
   static const String _sessionStartedAtKey = 'sessionStartedAt';
 
   final LoginUseCase loginUseCase;
-  final AuthRepository authRepository;
+  final LogoutUseCase logoutUseCase;
+  final ChangePasswordUseCase changePasswordUseCase;
+  final ForgotPasswordUseCase forgotPasswordUseCase;
+  final ResetPasswordUseCase resetPasswordUseCase;
   final SessionStorageService sessionStorage;
 
   AuthViewModel({
     required this.loginUseCase,
-    required this.authRepository,
+    required this.logoutUseCase,
+    required this.changePasswordUseCase,
+    required this.forgotPasswordUseCase,
+    required this.resetPasswordUseCase,
     SessionStorageService? sessionStorage,
   }) : sessionStorage = sessionStorage ?? SessionStorageService();
 
@@ -170,7 +179,7 @@ class AuthViewModel extends ChangeNotifier {
     final accessToken = _currentUser?.token ?? '';
     final refreshToken = _currentUser?.refreshToken ?? '';
     try {
-      await authRepository.logout(
+      await logoutUseCase.execute(
         accessToken: accessToken,
         refreshToken: refreshToken,
       );
@@ -279,7 +288,7 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await authRepository.changePassword(
+      await changePasswordUseCase.execute(
         username: username,
         oldPassword: oldPassword,
         newPassword: newPassword,
@@ -314,7 +323,7 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await authRepository.forgotPassword(email);
+      await forgotPasswordUseCase.execute(email);
       _forgotSuccess = true;
       _isForgotLoading = false;
       notifyListeners();
@@ -339,7 +348,7 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await authRepository.resetPassword(
+      await resetPasswordUseCase.execute(
         email: email,
         token: token,
         newPassword: newPassword,

@@ -3,15 +3,24 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import '../../core/services/dicom_websocket_service.dart';
-import '../../data/datasources/notification_remote_datasource.dart';
 import '../../domain/entities/notification_entity.dart';
+import '../../domain/usecases/get_notifications_usecase.dart';
+import '../../domain/usecases/get_unread_notifications_usecase.dart';
+import '../../domain/usecases/mark_all_notifications_as_read_usecase.dart';
+import '../../domain/usecases/mark_notification_as_read_usecase.dart';
 import '../../core/utils/error_message_utils.dart';
 
 class NotificationViewModel extends ChangeNotifier {
-  final NotificationRemoteDataSource remoteDataSource;
+  final GetNotificationsUseCase getNotificationsUseCase;
+  final GetUnreadNotificationsUseCase getUnreadNotificationsUseCase;
+  final MarkNotificationAsReadUseCase markNotificationAsReadUseCase;
+  final MarkAllNotificationsAsReadUseCase markAllNotificationsAsReadUseCase;
 
-  NotificationViewModel(
-    this.remoteDataSource, {
+  NotificationViewModel({
+    required this.getNotificationsUseCase,
+    required this.getUnreadNotificationsUseCase,
+    required this.markNotificationAsReadUseCase,
+    required this.markAllNotificationsAsReadUseCase,
     DicomWebSocketService? webSocketService,
   }) : webSocketService = webSocketService ?? DicomWebSocketService() {
     _notificationSubscription = this.webSocketService.notifications.listen(
@@ -74,7 +83,7 @@ class NotificationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await remoteDataSource.getNotifications(token: token);
+      final result = await getNotificationsUseCase.execute(token: token);
       result.sort((a, b) {
         final bTime = b.createdAt ?? DateTime(1900);
         final aTime = a.createdAt ?? DateTime(1900);
@@ -91,7 +100,31 @@ class NotificationViewModel extends ChangeNotifier {
   }
 
   Future<void> loadUnreadNotifications(String token) =>
-      loadNotifications(token);
+      _loadUnreadNotifications(token);
+
+  Future<void> _loadUnreadNotifications(String token) async {
+    if (token.trim().isEmpty || _isLoading) return;
+
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final result = await getUnreadNotificationsUseCase.execute(token: token);
+      result.sort((a, b) {
+        final bTime = b.createdAt ?? DateTime(1900);
+        final aTime = a.createdAt ?? DateTime(1900);
+        return bTime.compareTo(aTime);
+      });
+      _notifications = result;
+      _normalizeVisibleCount();
+    } catch (e) {
+      _errorMessage = userFriendlyErrorMessage(e);
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   void showMore() {
     if (!canShowMore) return;
@@ -112,7 +145,7 @@ class NotificationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await remoteDataSource.markAsRead(id: id, token: token);
+      await markNotificationAsReadUseCase.execute(id: id, token: token);
     } catch (e) {
       _notifications = [
         for (final item in _notifications)
@@ -133,7 +166,7 @@ class NotificationViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await remoteDataSource.markAllAsRead(token: token);
+      await markAllNotificationsAsReadUseCase.execute(token: token);
     } catch (e) {
       _notifications = previous;
       _errorMessage = userFriendlyErrorMessage(e);

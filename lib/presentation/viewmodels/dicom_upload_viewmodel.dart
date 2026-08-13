@@ -10,6 +10,9 @@ import '../../core/services/toast_service.dart';
 import '../../core/services/dicom_websocket_service.dart';
 import '../../data/datasources/dicom_remote_datasource.dart';
 import '../../data/models/dicom_upload_model.dart';
+import '../../domain/usecases/upload_dicom_batch_usecase.dart';
+import '../../domain/usecases/upload_dicom_zip_batch_usecase.dart';
+import '../../domain/usecases/verify_dicom_upload_session_usecase.dart';
 import '../../core/utils/error_message_utils.dart';
 
 enum DicomUploadStage {
@@ -27,11 +30,15 @@ class DicomUploadViewModel extends ChangeNotifier {
   static const String maxUploadFileSizeLabel = '100MB';
   static const String maxUploadBatchSizeLabel = '500MB';
 
-  final DicomRemoteDataSource remoteDataSource;
+  final UploadDicomBatchUseCase uploadBatchUseCase;
+  final UploadDicomZipBatchUseCase uploadZipBatchUseCase;
+  final VerifyDicomUploadSessionUseCase verifyUploadSessionUseCase;
   final DicomWebSocketService webSocketService;
 
-  DicomUploadViewModel(
-    this.remoteDataSource, {
+  DicomUploadViewModel({
+    required this.uploadBatchUseCase,
+    required this.uploadZipBatchUseCase,
+    required this.verifyUploadSessionUseCase,
     DicomWebSocketService? webSocketService,
   }) : webSocketService = webSocketService ?? DicomWebSocketService() {
     _notificationSubscription = this.webSocketService.notifications.listen(
@@ -441,7 +448,7 @@ class DicomUploadViewModel extends ChangeNotifier {
   }) async {
     final pendingBatchResult = _startBatchResultWait();
     try {
-      final submission = await remoteDataSource.uploadZipBatch(
+      final submission = await uploadZipBatchUseCase.execute(
         files: files,
         token: token,
       );
@@ -461,7 +468,7 @@ class DicomUploadViewModel extends ChangeNotifier {
   }) async {
     final pendingBatchResult = _startBatchResultWait();
     try {
-      final submission = await remoteDataSource.uploadBatch(
+      final submission = await uploadBatchUseCase.execute(
         files: files,
         token: token,
       );
@@ -600,7 +607,7 @@ class DicomUploadViewModel extends ChangeNotifier {
     try {
       final verifyResponses = <DicomVerifyResponse>[];
       for (final entry in groupedCodes.entries) {
-        final response = await remoteDataSource.verifyUploadSession(
+        final response = await verifyUploadSessionUseCase.execute(
           uploadSessionId: entry.key,
           acceptedPatientCodes: entry.value,
           token: token,

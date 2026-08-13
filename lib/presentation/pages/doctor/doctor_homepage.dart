@@ -411,9 +411,9 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     if (selectedExaminationDetail != null) {
       if (!_canOpenExaminationDetail(context)) {
         return _forbiddenPage(
-          title: 'KhĂ´ng cĂ³ quyá»n xem chi tiáº¿t ca khĂ¡m',
+          title: 'Không có quyền xem chi tiết ca khám',
           subtitle:
-              'TĂ i khoáº£n hiá»‡n táº¡i chÆ°a Ä‘Æ°á»£c cáº¥p quyá»n xem chi tiáº¿t ca khĂ¡m.',
+              'Tài khoản hiện tại chưa được cấp quyền xem chi tiết ca khám.',
           icon: Icons.lock_outline,
         );
       }

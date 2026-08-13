@@ -1,8 +1,12 @@
 import 'package:flutter/foundation.dart';
 
-import '../../data/datasources/chat_remote_datasource.dart';
 import '../../data/models/chat_answer_model.dart';
 import '../../domain/entities/chat_message_entity.dart';
+import '../../domain/usecases/ask_chat_usecase.dart';
+import '../../domain/usecases/create_chat_session_usecase.dart';
+import '../../domain/usecases/get_chat_session_messages_usecase.dart';
+import '../../domain/usecases/get_chat_sessions_usecase.dart';
+import '../../domain/usecases/update_chat_session_usecase.dart';
 
 class ChatViewModel extends ChangeNotifier {
   static const List<String> defaultSuggestions = [
@@ -12,7 +16,11 @@ class ChatViewModel extends ChangeNotifier {
     'Tìm ca nguy cơ cao',
   ];
 
-  final ChatRemoteDataSource remoteDataSource;
+  final AskChatUseCase askChatUseCase;
+  final GetChatSessionsUseCase getSessionsUseCase;
+  final CreateChatSessionUseCase createSessionUseCase;
+  final UpdateChatSessionUseCase updateSessionUseCase;
+  final GetChatSessionMessagesUseCase getSessionMessagesUseCase;
   final List<ChatMessageEntity> _messages;
   final List<ChatSessionModel> _sessions = [];
 
@@ -28,16 +36,21 @@ class ChatViewModel extends ChangeNotifier {
   String? _errorMessage;
   String _doctorDisplayName = 'Bác sĩ';
 
-  ChatViewModel({required this.remoteDataSource})
-    : _messages = [
-        ChatMessageEntity(
-          id: 'welcome-message',
-          role: ChatMessageRole.assistant,
-          content:
-              'Xin chào Bác sĩ, tôi có thể hỗ trợ gì cho các ca chẩn đoán hôm nay?',
-          createdAt: DateTime.now(),
-        ),
-      ];
+  ChatViewModel({
+    required this.askChatUseCase,
+    required this.getSessionsUseCase,
+    required this.createSessionUseCase,
+    required this.updateSessionUseCase,
+    required this.getSessionMessagesUseCase,
+  }) : _messages = [
+         ChatMessageEntity(
+           id: 'welcome-message',
+           role: ChatMessageRole.assistant,
+           content:
+               'Xin chào Bác sĩ, tôi có thể hỗ trợ gì cho các ca chẩn đoán hôm nay?',
+           createdAt: DateTime.now(),
+         ),
+       ];
 
   List<ChatMessageEntity> get messages => List.unmodifiable(_messages);
   List<ChatSessionModel> get sessions => List.unmodifiable(_sessions);
@@ -151,17 +164,14 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final sessions = await remoteDataSource.getSessions(
-        token: token,
-        size: 20,
-      );
+      final sessions = await getSessionsUseCase.execute(token: token, size: 20);
       _sessions
         ..clear()
         ..addAll(sessions);
       if (sessions.isNotEmpty) {
         final session = sessions.first;
         _currentSessionId = session.id;
-        final messages = await remoteDataSource.getSessionMessages(
+        final messages = await getSessionMessagesUseCase.execute(
           sessionId: session.id,
           token: token,
         );
@@ -197,7 +207,7 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final sessions = await remoteDataSource.getSessions(token: token);
+      final sessions = await getSessionsUseCase.execute(token: token);
       _sessions
         ..clear()
         ..addAll(sessions);
@@ -223,7 +233,7 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final messages = await remoteDataSource.getSessionMessages(
+      final messages = await getSessionMessagesUseCase.execute(
         sessionId: sessionId,
         token: token,
       );
@@ -264,7 +274,7 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final updated = await remoteDataSource.updateSession(
+      final updated = await updateSessionUseCase.execute(
         sessionId: sessionId,
         token: token,
         title: normalizedTitle,
@@ -292,7 +302,7 @@ class ChatViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await remoteDataSource.updateSession(
+      await updateSessionUseCase.execute(
         sessionId: sessionId,
         token: token,
         active: false,
@@ -346,7 +356,7 @@ class ChatViewModel extends ChangeNotifier {
 
     try {
       final sessionId = await _ensureSession(question: text, token: token);
-      final answer = await remoteDataSource.ask(
+      final answer = await askChatUseCase.execute(
         question: text,
         token: token,
         sessionId: sessionId,
@@ -415,7 +425,7 @@ class ChatViewModel extends ChangeNotifier {
     required String token,
   }) async {
     if (_currentSessionId != null) return _currentSessionId;
-    final session = await remoteDataSource.createSession(
+    final session = await createSessionUseCase.execute(
       token: token,
       title: _titleFromQuestion(question),
     );

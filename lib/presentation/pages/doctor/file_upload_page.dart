@@ -804,20 +804,6 @@ class FileUploadPage extends StatelessWidget {
               color: AppColors.textSecondary,
             ),
           ),
-          if (vm.uploadSessionIds.isNotEmpty) ...[
-            const SizedBox(height: 4),
-            Text(
-              vm.uploadSessionIds.length == 1
-                  ? 'Phiên upload: ${vm.uploadSessionIds.first}'
-                  : '${vm.uploadSessionIds.length} phiên upload: ${vm.uploadSessionIds.join(', ')}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 11,
-                color: AppColors.textSecondary,
-              ),
-            ),
-          ],
           const SizedBox(height: 12),
           if (patients.isNotEmpty && !verifiedDone) ...[
             Material(

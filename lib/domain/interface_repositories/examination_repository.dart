@@ -24,6 +24,7 @@ abstract class ExaminationRepository {
     required String token,
     int page = 0,
     int size = 10,
+    bool isPersonal = false,
   });
 
   Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({

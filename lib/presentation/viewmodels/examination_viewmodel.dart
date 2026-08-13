@@ -44,6 +44,10 @@ class ExaminationViewModel extends ChangeNotifier {
   List<ExaminationEntity> _examinations = [];
   List<ExaminationEntity> get examinations => List.unmodifiable(_examinations);
 
+  List<ExaminationEntity> _dashboardSevereExaminations = [];
+  List<ExaminationEntity> get dashboardSevereExaminations =>
+      List.unmodifiable(_dashboardSevereExaminations);
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -131,6 +135,7 @@ class ExaminationViewModel extends ChangeNotifier {
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
+    _dashboardSevereExaminations = [];
     _dashboardTotals = null;
     _patientGradeStats = [];
     _dailyLast7DaysStats = [];
@@ -151,13 +156,35 @@ class ExaminationViewModel extends ChangeNotifier {
       }
 
       try {
-        final recentPage = await getPatientExaminationsUseCase
-            .executeMyRecentPage(token: token, page: 0, size: 5);
+        final recentPage = await getPatientExaminationsUseCase.executeAllPage(
+          token: token,
+          page: 0,
+          size: 5,
+          mode: ExaminationListMode.all.name,
+          direction: 'desc',
+          isPersonal: _isPersonal,
+        );
         _examinations = recentPage.content;
       } catch (e) {
         final recentError = userFriendlyErrorMessage(e);
         _errorMessage = _appendDashboardError(_errorMessage, recentError);
         _examinations = [];
+      }
+
+      try {
+        final severePage = await getPatientExaminationsUseCase.executeAllPage(
+          token: token,
+          page: 0,
+          size: 3,
+          mode: ExaminationListMode.grade4.name,
+          direction: 'desc',
+          isPersonal: _isPersonal,
+        );
+        _dashboardSevereExaminations = severePage.content;
+      } catch (e) {
+        final severeError = userFriendlyErrorMessage(e);
+        _errorMessage = _appendDashboardError(_errorMessage, severeError);
+        _dashboardSevereExaminations = [];
       }
 
       try {
@@ -186,6 +213,7 @@ class ExaminationViewModel extends ChangeNotifier {
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
       _examinations = [];
+      _dashboardSevereExaminations = [];
       _patientGradeStats = [];
       _dailyLast7DaysStats = [];
       _totalElements = 0;
@@ -389,6 +417,10 @@ class ExaminationViewModel extends ChangeNotifier {
       if (item.examinationId != examinationId || item.isViewed) return item;
       return item.copyWith(isViewed: true);
     }).toList();
+    _dashboardSevereExaminations = _dashboardSevereExaminations.map((item) {
+      if (item.examinationId != examinationId || item.isViewed) return item;
+      return item.copyWith(isViewed: true);
+    }).toList();
     final selected = _selectedExamination;
     if (selected != null &&
         selected.examinationId == examinationId &&
@@ -405,6 +437,7 @@ class ExaminationViewModel extends ChangeNotifier {
 
   void clear() {
     _examinations = [];
+    _dashboardSevereExaminations = [];
     _errorMessage = null;
     _selectedExamination = null;
     _detailErrorMessage = null;

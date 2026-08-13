@@ -2185,6 +2185,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                                 return;
                               }
                               if (success) {
+                                FocusScope.of(dialogContext).unfocus();
                                 Navigator.pop(dialogContext, true);
                                 return;
                               }
@@ -2233,6 +2234,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
         })
         .then((created) async {
           if (created == true && mounted && pageContext.mounted) {
+            await viewModel.fetchFirstPage(token);
+            if (!mounted || !pageContext.mounted) return;
             if (mounted && pageContext.mounted) {
               AppToast.showSuccess('Tạo tài khoản thành công');
             }

@@ -163,9 +163,7 @@ class AdminAccountViewModel extends ChangeNotifier {
     required int roleId,
     required String token,
   }) async {
-    _isLoading = true;
     _errorMessage = null;
-    notifyListeners();
 
     try {
       await createUserUseCase.execute(
@@ -175,15 +173,10 @@ class AdminAccountViewModel extends ChangeNotifier {
         roleId: roleId,
         token: token,
       );
-      _currentSearchName = '';
-      await fetchFirstPage(token);
       return true;
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
       return false;
-    } finally {
-      _isLoading = false;
-      notifyListeners();
     }
   }
 

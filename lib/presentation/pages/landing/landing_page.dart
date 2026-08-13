@@ -36,8 +36,6 @@ class LandingPage extends StatelessWidget {
                         compact: MediaQuery.sizeOf(context).width < 720,
                       ),
                       const Spacer(),
-                      if (MediaQuery.sizeOf(context).width >= 840)
-                        const _NavLinks(),
                       const SizedBox(width: 20),
                       FilledButton.icon(
                         onPressed: () => context.go('/login'),
@@ -138,33 +136,6 @@ class _LogoImage extends StatelessWidget {
         errorBuilder: (_, _, _) =>
             const Icon(Icons.local_hospital_rounded, color: AppColors.primary),
       ),
-    );
-  }
-}
-
-class _NavLinks extends StatelessWidget {
-  const _NavLinks();
-
-  @override
-  Widget build(BuildContext context) {
-    const links = ['Giới thiệu', 'Công nghệ AI', 'Dịch vụ', 'Tin tức'];
-    return Row(
-      children: [
-        for (final link in links)
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text(
-              link,
-              style: TextStyle(
-                color: link == links.first
-                    ? AppColors.primaryLight
-                    : LandingPage._muted,
-                fontSize: 14,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-      ],
     );
   }
 }

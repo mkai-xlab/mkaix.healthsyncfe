@@ -450,7 +450,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
             controller: _newPasswordController,
             obscureText: !_showNewPassword,
             style: const TextStyle(fontSize: 14, color: Color(0xFF1A2B3C)),
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) {
+              if (mounted) setState(() {});
+            },
             validator: (v) {
               final passwordError = PasswordValidationUtils.validateNewPassword(
                 v,
@@ -778,10 +780,12 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
     );
   }
 
-  void _handleSubmit() {
+  Future<void> _handleSubmit() async {
     if (_formKey.currentState?.validate() != true) return;
     // Dùng _username và _oldPassword đã lưu local từ initState
-    context.read<AuthViewModel>().changePassword(
+    FocusScope.of(context).unfocus();
+
+    await context.read<AuthViewModel>().changePassword(
       username: _username,
       oldPassword: _oldPassword,
       newPassword: _newPasswordController.text,

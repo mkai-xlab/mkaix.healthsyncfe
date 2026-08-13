@@ -61,6 +61,7 @@ class AppRouter {
       final user = authViewModel.currentUser;
       final isLoggedIn = user != null;
       final isFirstTimeLogin = authViewModel.isFirstTimeLogin;
+      final changePasswordSucceeded = authViewModel.changeSuccess;
       final loc = state.matchedLocation;
 
       // Các trang public — không cần đăng nhập
@@ -73,7 +74,7 @@ class AppRouter {
 
       // Đang ở change-password — cho phép nếu đang trong luồng first-time login
       if (loc == '/change-password') {
-        if (isFirstTimeLogin) return null; // OK
+        if (isFirstTimeLogin || changePasswordSucceeded) return null; // OK
         if (!isLoggedIn) return '/login'; // Không có context → về login
         return null;
       }

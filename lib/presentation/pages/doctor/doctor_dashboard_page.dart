@@ -71,6 +71,7 @@ class _DoctorDashboardPageState extends State<DoctorDashboardPage> {
           }
           final stats = _DashboardStats.from(
             vm.examinations,
+            severeSource: vm.dashboardSevereExaminations,
             totalElements: vm.totalElements,
             dashboardTotals: vm.dashboardTotals,
             patientGradeStats: vm.patientGradeStats,
@@ -1216,6 +1217,7 @@ class _DashboardStats {
 
   factory _DashboardStats.from(
     List<ExaminationEntity> source, {
+    List<ExaminationEntity> severeSource = const [],
     int? totalElements,
     ExaminationDashboardTotalsEntity? dashboardTotals,
     List<PatientGradeStatsEntity> patientGradeStats = const [],
@@ -1286,7 +1288,13 @@ class _DashboardStats {
       }
     }
 
-    final severe = sorted.where((item) => item.maxPredictedGrade >= 4).toList();
+    final severe = severeSource.isNotEmpty
+        ? ([...severeSource]..sort((a, b) {
+            final bDate = b.visitTime ?? b.studyDate ?? DateTime(1900);
+            final aDate = a.visitTime ?? a.studyDate ?? DateTime(1900);
+            return bDate.compareTo(aDate);
+          }))
+        : sorted.where((item) => item.maxPredictedGrade >= 4).toList();
     final gradeCounts = _gradeCountsFromPatientStats(patientGradeStats);
     final hasPatientGradeStats = gradeCounts.total > 0;
     return _DashboardStats(

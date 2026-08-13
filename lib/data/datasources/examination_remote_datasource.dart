@@ -33,6 +33,7 @@ abstract class ExaminationRemoteDataSource {
     required String token,
     int page = 0,
     int size = 10,
+    bool isPersonal = false,
   });
 
   Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
@@ -108,7 +109,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         size: size,
         queryParameters: {
           'direction': mode == 'studyDateAsc' ? 'asc' : 'desc',
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -124,7 +125,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         size: size,
         queryParameters: {
           'direction': mode == 'uploadDateAsc' ? 'asc' : 'desc',
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -140,7 +141,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         size: size,
         queryParameters: {
           'date': filterDate,
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -156,7 +157,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         size: size,
         queryParameters: {
           'date': filterDate,
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -174,7 +175,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         queryParameters: {
           'grade': grade,
           'sort': normalizedDirection,
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -192,7 +193,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         queryParameters: {
           'status': status,
           'sort': normalizedDirection,
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -207,7 +208,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       size: size,
       queryParameters: {
         'sort': normalizedDirection,
-        if (isPersonal) 'isPersonal': 'true',
+        'isPersonal': isPersonal.toString(),
       },
       includeSort: false,
       shouldSortLocally: false,
@@ -307,13 +308,17 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     required String token,
     int page = 0,
     int size = 10,
+    bool isPersonal = false,
   }) async {
     return _getExaminationsPage(
       endpoint: ApiConstants.examinationsUploadDateSortEndpoint,
       token: token,
       page: page,
       size: size,
-      queryParameters: const {'direction': 'desc', 'isPersonal': 'true'},
+      queryParameters: {
+        'direction': 'desc',
+        'isPersonal': isPersonal.toString(),
+      },
       includeSort: false,
       errorMessage: 'Khong the tai danh sach ca kham cua ban',
     );

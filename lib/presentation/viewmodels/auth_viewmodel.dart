@@ -16,7 +16,7 @@ import '../../data/datasources/auth_remote_datasource.dart';
 import '../../core/utils/error_message_utils.dart';
 
 class AuthViewModel extends ChangeNotifier {
-  static const Duration _sessionDuration = Duration(minutes: 14);
+  static const Duration _sessionDuration = Duration(minutes: 120);
   static const Duration _firstWarningBeforeExpiry = Duration(seconds: 60);
   static const Duration _secondWarningBeforeExpiry = Duration(seconds: 30);
   static const String _sessionStartedAtKey = 'sessionStartedAt';

@@ -53,11 +53,13 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
     required String token,
     int page = 0,
     int size = 10,
+    bool isPersonal = false,
   }) {
     return remoteDataSource.getMyRecentExaminationsPage(
       token: token,
       page: page,
       size: size,
+      isPersonal: isPersonal,
     );
   }
 

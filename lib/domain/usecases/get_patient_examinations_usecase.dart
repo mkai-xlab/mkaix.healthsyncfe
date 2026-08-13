@@ -48,11 +48,13 @@ class GetPatientExaminationsUseCase {
     required String token,
     int page = 0,
     int size = 10,
+    bool isPersonal = false,
   }) {
     return repository.getMyRecentExaminationsPage(
       token: token,
       page: page,
       size: size,
+      isPersonal: isPersonal,
     );
   }
 

@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../data/datasources/admin_dashboard_remote_datasource.dart';
 import '../../domain/entities/admin_dashboard_stats_entity.dart';
+import '../../domain/usecases/get_admin_dashboard_stats_usecase.dart';
 import '../../core/utils/error_message_utils.dart';
 
 class AdminDashboardViewModel extends ChangeNotifier {
-  final AdminDashboardRemoteDataSource remoteDataSource;
+  final GetAdminDashboardStatsUseCase getStatsUseCase;
 
-  AdminDashboardViewModel(this.remoteDataSource);
+  AdminDashboardViewModel(this.getStatsUseCase);
 
   AdminDashboardStatsEntity _stats = AdminDashboardStatsEntity.empty;
   AdminDashboardStatsEntity get stats => _stats;
@@ -25,7 +25,7 @@ class AdminDashboardViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _stats = await remoteDataSource.getStats(token: token);
+      _stats = await getStatsUseCase.execute(token: token);
       _errorMessage = _stats.warningMessage;
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
@@ -34,5 +34,12 @@ class AdminDashboardViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  void reset() {
+    _stats = AdminDashboardStatsEntity.empty;
+    _isLoading = false;
+    _errorMessage = null;
+    notifyListeners();
   }
 }

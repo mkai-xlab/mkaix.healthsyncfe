@@ -4,33 +4,43 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/services/toast_service.dart';
 import '../../core/services/session_storage_service.dart';
-import '../../core/utils/permission_utils.dart';
+import '../../core/rbac/permission_code.dart';
 import '../../data/models/user_model.dart';
 import '../../domain/entities/user_entity.dart';
-import '../../domain/interface_repositories/auth_repository.dart';
+import '../../domain/usecases/change_password_usecase.dart';
+import '../../domain/usecases/forgot_password_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
+import '../../domain/usecases/logout_usecase.dart';
+import '../../domain/usecases/reset_password_usecase.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../core/utils/error_message_utils.dart';
 
 class AuthViewModel extends ChangeNotifier {
-  static const Duration _sessionDuration = Duration(minutes: 14);
+  static const Duration _sessionDuration = Duration(minutes: 120);
   static const Duration _firstWarningBeforeExpiry = Duration(seconds: 60);
   static const Duration _secondWarningBeforeExpiry = Duration(seconds: 30);
   static const String _sessionStartedAtKey = 'sessionStartedAt';
 
   final LoginUseCase loginUseCase;
-  final AuthRepository authRepository;
+  final LogoutUseCase logoutUseCase;
+  final ChangePasswordUseCase changePasswordUseCase;
+  final ForgotPasswordUseCase forgotPasswordUseCase;
+  final ResetPasswordUseCase resetPasswordUseCase;
   final SessionStorageService sessionStorage;
 
   AuthViewModel({
     required this.loginUseCase,
-    required this.authRepository,
+    required this.logoutUseCase,
+    required this.changePasswordUseCase,
+    required this.forgotPasswordUseCase,
+    required this.resetPasswordUseCase,
     SessionStorageService? sessionStorage,
   }) : sessionStorage = sessionStorage ?? SessionStorageService();
 
   UserEntity? _currentUser;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isPersonalView = true;
   DateTime? _sessionStartedAt;
   Timer? _sessionExpiryTimer;
   Timer? _sessionFirstWarningTimer;
@@ -58,6 +68,8 @@ class AuthViewModel extends ChangeNotifier {
   UserEntity? get currentUser => _currentUser;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get isPersonalView =>
+      _currentUser?.isDepartmentHead == true ? _isPersonalView : true;
 
   bool get isFirstTimeLogin => _isFirstTimeLogin;
   String? get pendingUsername => _pendingUsername;
@@ -75,16 +87,19 @@ class AuthViewModel extends ChangeNotifier {
   String? get changeError => _changeError;
   bool get changeSuccess => _changeSuccess;
 
-  bool hasPermissionKey(String key) {
+  bool hasPermissionCode(PermissionCode code) {
     final user = _currentUser;
     if (user == null) return false;
     return user.permissionItems.any((permission) {
-      return permissionMatchesKey(permission, key);
+      return permission.code.trim().toUpperCase() == code.value;
     });
   }
 
-  bool hasPermissionPresentation(String presentation) {
-    return hasPermissionKey(presentation);
+  void setPersonalView(bool value) {
+    if (_currentUser?.isDepartmentHead != true) return;
+    if (_isPersonalView == value) return;
+    _isPersonalView = value;
+    notifyListeners();
   }
 
   Future<void> restoreSession() async {
@@ -114,6 +129,9 @@ class AuthViewModel extends ChangeNotifier {
       }
 
       _currentUser = user;
+      if (_currentUser?.isDepartmentHead != true) {
+        _isPersonalView = true;
+      }
       _sessionStartedAt = sessionStartedAt;
       _scheduleSessionTimers(sessionStartedAt);
       notifyListeners();
@@ -133,6 +151,7 @@ class AuthViewModel extends ChangeNotifier {
 
     try {
       _currentUser = await loginUseCase.execute(email, password);
+      _isPersonalView = true;
       _sessionStartedAt = DateTime.now();
       await sessionStorage.saveUserJson(jsonEncode(_userToJson(_currentUser!)));
       _scheduleSessionTimers(_sessionStartedAt!);
@@ -160,13 +179,14 @@ class AuthViewModel extends ChangeNotifier {
     final accessToken = _currentUser?.token ?? '';
     final refreshToken = _currentUser?.refreshToken ?? '';
     try {
-      await authRepository.logout(
+      await logoutUseCase.execute(
         accessToken: accessToken,
         refreshToken: refreshToken,
       );
     } catch (_) {}
     await sessionStorage.clearAll();
     _currentUser = null;
+    _isPersonalView = true;
     _sessionStartedAt = null;
     _errorMessage = null;
     _isFirstTimeLogin = false;
@@ -191,7 +211,6 @@ class AuthViewModel extends ChangeNotifier {
                     'id': permission.id,
                     'name': permission.name,
                     'code': permission.code,
-                    'presentation': permission.presentation,
                     'description': permission.description,
                     'parentId': permission.parentId,
                     'priority': permission.priority,
@@ -269,7 +288,7 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await authRepository.changePassword(
+      await changePasswordUseCase.execute(
         username: username,
         oldPassword: oldPassword,
         newPassword: newPassword,
@@ -304,7 +323,7 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await authRepository.forgotPassword(email);
+      await forgotPasswordUseCase.execute(email);
       _forgotSuccess = true;
       _isForgotLoading = false;
       notifyListeners();
@@ -329,7 +348,7 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await authRepository.resetPassword(
+      await resetPasswordUseCase.execute(
         email: email,
         token: token,
         newPassword: newPassword,

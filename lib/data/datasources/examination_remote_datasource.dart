@@ -4,10 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
+import '../../domain/entities/daily_examination_stat_entity.dart';
 import '../../domain/entities/examination_dashboard_totals_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/entities/examination_page_entity.dart';
 import '../../domain/entities/patient_grade_stats_entity.dart';
+import '../models/daily_examination_stat_model.dart';
 import '../models/examination_model.dart';
 import '../models/patient_grade_stats_model.dart';
 
@@ -24,15 +26,22 @@ abstract class ExaminationRemoteDataSource {
 
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
     required String token,
+    bool isPersonal = false,
   });
 
   Future<ExaminationPageEntity> getMyRecentExaminationsPage({
     required String token,
     int page = 0,
     int size = 10,
+    bool isPersonal = false,
   });
 
   Future<List<PatientGradeStatsEntity>> getPatientGradeStatistics({
+    required String token,
+    bool isPersonal = false,
+  });
+
+  Future<List<DailyExaminationStatEntity>> getDailyLast7DaysStatistics({
     required String token,
     bool isPersonal = false,
   });
@@ -100,7 +109,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         size: size,
         queryParameters: {
           'direction': mode == 'studyDateAsc' ? 'asc' : 'desc',
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -116,7 +125,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         size: size,
         queryParameters: {
           'direction': mode == 'uploadDateAsc' ? 'asc' : 'desc',
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -132,7 +141,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         size: size,
         queryParameters: {
           'date': filterDate,
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -148,7 +157,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         size: size,
         queryParameters: {
           'date': filterDate,
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -166,7 +175,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         queryParameters: {
           'grade': grade,
           'sort': normalizedDirection,
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -184,7 +193,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         queryParameters: {
           'status': status,
           'sort': normalizedDirection,
-          if (isPersonal) 'isPersonal': 'true',
+          'isPersonal': isPersonal.toString(),
         },
         includeSort: false,
         shouldSortLocally: false,
@@ -199,7 +208,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       size: size,
       queryParameters: {
         'sort': normalizedDirection,
-        if (isPersonal) 'isPersonal': 'true',
+        'isPersonal': isPersonal.toString(),
       },
       includeSort: false,
       shouldSortLocally: false,
@@ -299,13 +308,17 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     required String token,
     int page = 0,
     int size = 10,
+    bool isPersonal = false,
   }) async {
     return _getExaminationsPage(
       endpoint: ApiConstants.examinationsUploadDateSortEndpoint,
       token: token,
       page: page,
       size: size,
-      queryParameters: const {'direction': 'desc', 'isPersonal': 'true'},
+      queryParameters: {
+        'direction': 'desc',
+        'isPersonal': isPersonal.toString(),
+      },
       includeSort: false,
       errorMessage: 'Khong the tai danh sach ca kham cua ban',
     );
@@ -314,26 +327,31 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
   @override
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
     required String token,
+    bool isPersonal = false,
   }) async {
     final results = await Future.wait<_DashboardTotalResult>([
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalExaminationsEndpoint,
         token: token,
+        isPersonal: isPersonal,
         errorMessage: 'Khong the tai tong so ca kham cua ban',
       ),
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalVerifiedExaminationsEndpoint,
         token: token,
+        isPersonal: isPersonal,
         errorMessage: 'Khong the tai so ca kham da xac nhan cua ban',
       ),
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalUnverifiedExaminationsEndpoint,
         token: token,
+        isPersonal: isPersonal,
         errorMessage: 'Khong the tai so ca kham cho xac nhan cua ban',
       ),
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalSevereExaminationsEndpoint,
         token: token,
+        isPersonal: isPersonal,
         errorMessage: 'Khong the tai so ca kham nang cua ban',
       ),
     ]);
@@ -387,15 +405,56 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     }).toList();
   }
 
+  @override
+  Future<List<DailyExaminationStatEntity>> getDailyLast7DaysStatistics({
+    required String token,
+    bool isPersonal = false,
+  }) async {
+    final uri = Uri.parse(
+      ApiConstants.dailyLast7DaysExaminationsEndpoint,
+    ).replace(queryParameters: {if (isPersonal) 'isPersonal': 'true'});
+    final response = await client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode != 200) {
+      throw Exception(
+        _httpErrorMessage(
+          response.statusCode,
+          'Khong the tai thong ke ca kham 7 ngay gan nhat',
+        ),
+      );
+    }
+
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is! List) {
+      throw Exception('Dinh dang thong ke ca kham 7 ngay khong hop le');
+    }
+
+    return data.whereType<Map>().map((item) {
+      return DailyExaminationStatModel.fromJson(
+        Map<String, dynamic>.from(item),
+      );
+    }).toList();
+  }
+
   Future<_DashboardTotalResult> _getTotalOrZero({
     required String endpoint,
     required String token,
+    required bool isPersonal,
     required String errorMessage,
   }) async {
     try {
       final value = await _getTotal(
         endpoint: endpoint,
         token: token,
+        isPersonal: isPersonal,
         errorMessage: errorMessage,
       );
       return _DashboardTotalResult(value: value);
@@ -411,9 +470,12 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
   Future<int> _getTotal({
     required String endpoint,
     required String token,
+    required bool isPersonal,
     required String errorMessage,
   }) async {
-    final uri = Uri.parse(endpoint);
+    final uri = Uri.parse(
+      endpoint,
+    ).replace(queryParameters: {'isPersonal': isPersonal.toString()});
     final response = await client
         .get(
           uri,

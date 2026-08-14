@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/toast_service.dart';
+import '../../../core/utils/password_validation_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 
 class AccountChangePasswordPage extends StatefulWidget {
@@ -165,12 +166,9 @@ class _AccountChangePasswordPageState extends State<AccountChangePasswordPage> {
               onToggleVisibility: () =>
                   setState(() => _showNewPassword = !_showNewPassword),
               validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Vui lòng nhập mật khẩu mới';
-                }
-                if (value.length < 8 || value.length > 32) {
-                  return 'Mật khẩu mới phải có từ 8 đến 32 ký tự';
-                }
+                final passwordError =
+                    PasswordValidationUtils.validateNewPassword(value);
+                if (passwordError != null) return passwordError;
                 if (value == _currentPasswordController.text) {
                   return 'Mật khẩu mới không được trùng mật khẩu hiện tại';
                 }
@@ -361,6 +359,9 @@ class _AccountChangePasswordPageState extends State<AccountChangePasswordPage> {
           ),
           SizedBox(height: 10),
           _RequirementText('Từ 8 đến 32 ký tự'),
+          _RequirementText('Có chữ hoa và chữ thường'),
+          _RequirementText('Có chữ số'),
+          _RequirementText('Có ký tự đặc biệt'),
           _RequirementText('Không trùng với mật khẩu gần nhất'),
         ],
       ),

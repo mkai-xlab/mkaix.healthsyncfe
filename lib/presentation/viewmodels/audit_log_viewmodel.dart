@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 
-import '../../data/datasources/audit_log_remote_datasource.dart';
 import '../../domain/entities/audit_log_entity.dart';
+import '../../domain/usecases/get_audit_logs_usecase.dart';
 import '../../core/utils/error_message_utils.dart';
 
 class AuditLogViewModel extends ChangeNotifier {
-  final AuditLogRemoteDataSource remoteDataSource;
+  final GetAuditLogsUseCase getAuditLogsUseCase;
 
-  AuditLogViewModel(this.remoteDataSource);
+  AuditLogViewModel(this.getAuditLogsUseCase);
 
   List<AuditLogEntity> _logs = [];
   List<AuditLogEntity> get logs => List.unmodifiable(_logs);
@@ -45,7 +45,7 @@ class AuditLogViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final result = await remoteDataSource.getAuditLogs(
+      final result = await getAuditLogsUseCase.execute(
         token: token,
         page: _currentPage,
         size: _pageSize,
@@ -85,6 +85,18 @@ class AuditLogViewModel extends ChangeNotifier {
 
   void selectLog(AuditLogEntity log) {
     _selectedLog = log;
+    notifyListeners();
+  }
+
+  void reset() {
+    _logs = [];
+    _selectedLog = null;
+    _isLoading = false;
+    _errorMessage = null;
+    _currentPage = 0;
+    _pageSize = 10;
+    _totalElements = 0;
+    _totalPages = 1;
     notifyListeners();
   }
 

@@ -1,4 +1,5 @@
 import '../../domain/entities/examination_dashboard_totals_entity.dart';
+import '../../domain/entities/daily_examination_stat_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/entities/examination_page_entity.dart';
 import '../../domain/entities/patient_grade_stats_entity.dart';
@@ -39,8 +40,12 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
   @override
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
     required String token,
+    bool isPersonal = false,
   }) {
-    return remoteDataSource.getMyDashboardTotals(token: token);
+    return remoteDataSource.getMyDashboardTotals(
+      token: token,
+      isPersonal: isPersonal,
+    );
   }
 
   @override
@@ -48,11 +53,13 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
     required String token,
     int page = 0,
     int size = 10,
+    bool isPersonal = false,
   }) {
     return remoteDataSource.getMyRecentExaminationsPage(
       token: token,
       page: page,
       size: size,
+      isPersonal: isPersonal,
     );
   }
 
@@ -62,6 +69,17 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
     bool isPersonal = false,
   }) {
     return remoteDataSource.getPatientGradeStatistics(
+      token: token,
+      isPersonal: isPersonal,
+    );
+  }
+
+  @override
+  Future<List<DailyExaminationStatEntity>> getDailyLast7DaysStatistics({
+    required String token,
+    bool isPersonal = false,
+  }) {
+    return remoteDataSource.getDailyLast7DaysStatistics(
       token: token,
       isPersonal: isPersonal,
     );

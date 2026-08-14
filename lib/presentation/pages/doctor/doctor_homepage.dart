@@ -3,9 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:fe/core/services/toast_service.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/rbac/permission_code.dart';
 import '../../../core/utils/media_url_resolver.dart';
-import '../../../core/utils/permission_utils.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/chat_viewmodel.dart';
 import '../../viewmodels/dicom_upload_viewmodel.dart';
 import '../../viewmodels/doctor_viewmodel.dart';
 import '../../viewmodels/doctor_profile_viewmodel.dart';
@@ -16,9 +17,12 @@ import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/notification_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
+import '../admin/knowledge_documents_page.dart';
 import '../auth/account_change_password_page.dart';
+import 'ai_clinical_chat_page.dart';
 import 'doctor_dashboard_page.dart';
 import 'doctor_profile_page.dart';
+import 'examination_detail_page.dart';
 import 'examination_list_page.dart';
 import 'file_upload_page.dart';
 import 'patient_detail_page.dart';
@@ -41,14 +45,57 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   final List<ExaminationEntity> _newUploadExaminations = const [];
   ExaminationListMode? _pendingExaminationListMode;
   int _examinationListRefreshVersion = 0;
+  int _handledAiChatPageRequestVersion = 0;
   PatientEntity? _selectedPatientDetail;
+  ExaminationEntity? _selectedExaminationDetail;
+  ChatViewModel? _chatViewModel;
 
   static const Color _primaryGreen = AppColors.primary;
   static const Color _darkGreen = AppColors.primary;
+  static const Map<PermissionCode, _DoctorNavConfig> _doctorNavRegistry = {
+    PermissionCode.viewDoctorDashboard: _DoctorNavConfig(
+      routeKey: 'doctor_dashboard_page',
+      label: 'Trang tổng quan',
+      icon: Icons.home_outlined,
+    ),
+    PermissionCode.readPatientList: _DoctorNavConfig(
+      routeKey: 'patient_list_page',
+      label: 'Danh sách bệnh nhân',
+      icon: Icons.people_outline,
+    ),
+    PermissionCode.createPatientExam: _DoctorNavConfig(
+      routeKey: 'examination_list_page',
+      label: 'Danh sách ca khám',
+      icon: Icons.assignment_outlined,
+    ),
+    PermissionCode.viewExaminationList: _DoctorNavConfig(
+      routeKey: 'examination_list_page',
+      label: 'Danh sách ca khám',
+      icon: Icons.assignment_outlined,
+    ),
+    PermissionCode.uploadDicomImage: _DoctorNavConfig(
+      routeKey: 'file_upload_page',
+      label: 'Upload DICOM',
+      icon: Icons.medical_information_outlined,
+    ),
+    PermissionCode.useAiChat: _DoctorNavConfig(
+      routeKey: 'ai_clinical_chat_page',
+      label: 'Trợ lý AI',
+      icon: Icons.smart_toy_outlined,
+    ),
+    PermissionCode.manageMedicalKnowledge: _DoctorNavConfig(
+      routeKey: 'knowledge_documents_page',
+      label: 'Kho tri thức',
+      icon: Icons.library_books_outlined,
+    ),
+  };
 
   @override
   void initState() {
     super.initState();
+    _chatViewModel = context.read<ChatViewModel>();
+    _handledAiChatPageRequestVersion =
+        _chatViewModel?.fullPageRequestVersion ?? 0;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<NotificationViewModel>().loadNotifications(_token);
@@ -58,6 +105,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
 
   @override
   void dispose() {
+    _chatViewModel?.setFullPageVisible(false);
     _searchController.dispose();
     super.dispose();
   }
@@ -67,6 +115,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   @override
   Widget build(BuildContext context) {
     final isMobile = MediaQuery.of(context).size.width < 900;
+    _handleAiChatPageRequest();
     return Scaffold(
       body: Row(
         children: [
@@ -107,51 +156,38 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           ..sort((a, b) {
             final cmp = a.priority.compareTo(b.priority);
             if (cmp != 0) return cmp;
-            return permissionKeyFor(a).compareTo(permissionKeyFor(b));
+            return a.code.compareTo(b.code);
           });
     final navSource = permissionItems.where((permission) {
-      return permission.isParent && permissionKeyFor(permission).isNotEmpty;
+      if (!permission.isParent) return false;
+      final code = PermissionCode.fromValue(permission.code);
+      return code != null && _doctorNavRegistry.containsKey(code);
     }).toList();
-    final visibleSource = navSource;
 
-    return List.generate(visibleSource.length, (index) {
-      final permission = visibleSource[index];
-      final routeKey = permissionKeyFor(permission);
-      return _DoctorNavItemData(
-        index: index,
-        routeKey: routeKey,
-        permissionName: permission.name,
-        label: permissionLabelFor(permission),
-        icon: _permissionIcon(routeKey),
+    final seenRoutes = <String>{};
+    final navItems = <_DoctorNavItemData>[];
+    for (final permission in navSource) {
+      final code = PermissionCode.fromValue(permission.code);
+      final config = code == null ? null : _doctorNavRegistry[code];
+      if (code == null || config == null) continue;
+      if (!seenRoutes.add(config.routeKey)) continue;
+      final index = navItems.length;
+      final label = permission.name.trim().isNotEmpty
+          ? permission.name
+          : config.label;
+      navItems.add(
+        _DoctorNavItemData(
+          index: index,
+          routeKey: config.routeKey,
+          permissionName: permission.name,
+          label: label,
+          icon: config.icon,
+          permissionCode: code,
+        ),
       );
-    });
-  }
+    }
 
-  IconData _permissionIcon(String permissionName) {
-    final normalized = normalizePermissionKey(permissionName);
-    if (normalized == 'doctor_dashboard_page') {
-      return Icons.home_outlined;
-    }
-    if (normalized == 'examination_list_page') {
-      return Icons.assignment_outlined;
-    }
-    if (normalized.contains('patient') ||
-        normalized.contains('benh_nhan') ||
-        normalized == 'patient_list_page' ||
-        normalized == 'patient_detail_page') {
-      return Icons.people_outline;
-    }
-    if (normalized == 'dicom_upload_page' || normalized == 'file_upload_page') {
-      return Icons.medical_information_outlined;
-    }
-    if (normalized.contains('report')) {
-      return Icons.description_outlined;
-    }
-    if (normalized.contains('notification') ||
-        normalized.contains('thong_bao')) {
-      return Icons.notifications_outlined;
-    }
-    return Icons.lock_outline;
+    return navItems;
   }
 
   // ─────────────────────────────────────────────
@@ -269,6 +305,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           ),
         ),
         onTap: () {
+          _setAiChatFloatingHidden(item.routeKey == 'ai_clinical_chat_page');
           setState(() {
             _selectedNavIndex = index;
             if (item.routeKey == 'examination_list_page') {
@@ -278,6 +315,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _showChangePassword = false;
             _showUploadExaminationList = false;
             _selectedPatientDetail = null;
+            _selectedExaminationDetail = null;
           });
           if (closeDrawer) {
             Navigator.pop(context);
@@ -359,6 +397,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _showDoctorProfile = true;
             _showUploadExaminationList = false;
             _selectedPatientDetail = null;
+            _selectedExaminationDetail = null;
           });
         },
       );
@@ -368,16 +407,41 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       return const DoctorProfilePage(embedded: true);
     }
 
+    final selectedExaminationDetail = _selectedExaminationDetail;
+    if (selectedExaminationDetail != null) {
+      if (!_canOpenExaminationDetail(context)) {
+        return _forbiddenPage(
+          title: 'Không có quyền xem chi tiết ca khám',
+          subtitle:
+              'Tài khoản hiện tại chưa được cấp quyền xem chi tiết ca khám.',
+          icon: Icons.lock_outline,
+        );
+      }
+      return ExaminationDetailPage(
+        examination: selectedExaminationDetail,
+        onBack: () => setState(() => _selectedExaminationDetail = null),
+        onOpenPatientDetail: (patient) => setState(() {
+          _selectedExaminationDetail = null;
+          _selectedPatientDetail = patient;
+        }),
+      );
+    }
+
     final selectedPatientDetail = _selectedPatientDetail;
     if (selectedPatientDetail != null) {
-      if (!_hasPermission(context, 'patient_detail_page')) {
+      if (!_hasPermission(context, PermissionCode.viewPatientDetail)) {
         return _forbiddenPage(
           title: 'Không có quyền xem chi tiết bệnh nhân',
           subtitle: 'Tài khoản hiện tại chưa được cấp permission cho màn này.',
           icon: Icons.lock_outline,
         );
       }
-      return PatientDetailPage(patient: selectedPatientDetail, embedded: true);
+      return PatientDetailPage(
+        patient: selectedPatientDetail,
+        embedded: true,
+        onOpenExaminationDetail: (examination) =>
+            setState(() => _selectedExaminationDetail = examination),
+      );
     }
 
     if (_showUploadExaminationList) {
@@ -397,19 +461,23 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         : null;
 
     final selectedPermission = selectedItem?.routeKey ?? '';
+    _syncAiChatFloatingVisibility(selectedPermission);
 
+    if (selectedPermission == 'ai_clinical_chat_page') {
+      return const AiClinicalChatPage();
+    }
+    if (selectedPermission == 'knowledge_documents_page') {
+      return const KnowledgeDocumentsPage();
+    }
     if (selectedPermission == 'doctor_dashboard_page') {
       return DoctorDashboardPage(
         embedded: true,
-        canOpenExaminationList: _hasPermission(
-          context,
-          'examination_list_page',
-        ),
+        canOpenExaminationList: _canOpenExaminationList(context),
         onOpenExaminationList: _openExaminationListTab,
       );
     }
     if (selectedPermission == 'examination_list_page') {
-      if (!_hasPermission(context, 'examination_list_page')) {
+      if (!_canOpenExaminationList(context)) {
         return _forbiddenPage(
           title: 'Không có quyền xem ca khám',
           subtitle: 'Màn danh sách ca khám chưa được cấp cho tài khoản này.',
@@ -428,7 +496,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       );
     }
     if (selectedPermission == 'patient_list_page') {
-      if (!_hasPermission(context, 'patient_list_page')) {
+      if (!_hasPermission(context, PermissionCode.readPatientList)) {
         return _forbiddenPage(
           title: 'Không có quyền xem bệnh nhân',
           subtitle: 'Danh sách bệnh nhân không khả dụng với tài khoản này.',
@@ -437,12 +505,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       }
       return PatientListPage(
         embedded: true,
+        onClearSearch: () => _searchController.clear(),
         onOpenPatientDetail: (patient) =>
             setState(() => _selectedPatientDetail = patient),
       );
     }
-    if (selectedPermission == 'dicom_upload_page' ||
-        selectedPermission == 'file_upload_page') {
+    if (selectedPermission == 'file_upload_page') {
       if (!_hasUploadPermission(context)) {
         return _forbiddenPage(
           title: 'Không có quyền upload DICOM',
@@ -460,10 +528,62 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     );
   }
 
+  void _syncAiChatFloatingVisibility(String selectedPermission) {
+    final shouldHideFloatingChat =
+        selectedPermission == 'ai_clinical_chat_page';
+    final chatVm = context.read<ChatViewModel>();
+    if (chatVm.isFullPageVisible == shouldHideFloatingChat) return;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _setAiChatFloatingHidden(shouldHideFloatingChat);
+    });
+  }
+
+  void _setAiChatFloatingHidden(bool hidden) {
+    final chatVm = context.read<ChatViewModel>();
+    if (chatVm.isFullPageVisible == hidden) return;
+    chatVm.setFullPageVisible(hidden);
+  }
+
+  void _handleAiChatPageRequest() {
+    final requestVersion = context.select<ChatViewModel, int>(
+      (chat) => chat.fullPageRequestVersion,
+    );
+    if (requestVersion == _handledAiChatPageRequestVersion) return;
+    _handledAiChatPageRequestVersion = requestVersion;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final navItems = _visibleNavItems(context, listen: false);
+      final aiChatIndex = navItems.indexWhere((item) {
+        return item.permissionCode == PermissionCode.useAiChat;
+      });
+      if (aiChatIndex < 0) {
+        final chatVm = context.read<ChatViewModel>();
+        chatVm.setFullPageVisible(false);
+        chatVm.open();
+        AppToast.showError('Tài khoản chưa có quyền mở trang AI chat.');
+        return;
+      }
+
+      _setAiChatFloatingHidden(true);
+      setState(() {
+        _selectedNavIndex = aiChatIndex;
+        _showDoctorProfile = false;
+        _showChangePassword = false;
+        _showUploadExaminationList = false;
+        _selectedPatientDetail = null;
+        _selectedExaminationDetail = null;
+      });
+    });
+  }
+
   void _openExaminationListTab([ExaminationListMode? mode]) {
     final navItems = _visibleNavItems(context, listen: false);
     final examIndex = navItems.indexWhere((item) {
-      return item.routeKey == 'examination_list_page';
+      return item.permissionCode == PermissionCode.createPatientExam ||
+          item.permissionCode == PermissionCode.viewExaminationList;
     });
     if (examIndex < 0) return;
     setState(() {
@@ -474,6 +594,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _showUploadExaminationList = false;
       _pendingExaminationListMode = mode;
       _selectedPatientDetail = null;
+      _selectedExaminationDetail = null;
     });
   }
 
@@ -660,14 +781,13 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       return false;
     }
     final routeKey = navItems[_selectedNavIndex].routeKey;
-    return routeKey == 'dicom_upload_page' || routeKey == 'file_upload_page';
+    return routeKey == 'file_upload_page';
   }
 
   void _openUploadTabFromMiniProgress() {
     final navItems = _visibleNavItems(context, listen: false);
     final uploadIndex = navItems.indexWhere((item) {
-      return item.routeKey == 'dicom_upload_page' ||
-          item.routeKey == 'file_upload_page';
+      return item.permissionCode == PermissionCode.uploadDicomImage;
     });
     if (uploadIndex < 0) return;
     setState(() {
@@ -676,6 +796,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _showChangePassword = false;
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
+      _selectedExaminationDetail = null;
       _isUploadMiniProgressCollapsed = false;
     });
   }
@@ -685,8 +806,8 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   // ─────────────────────────────────────────────
   Widget _buildTopBar(BuildContext context) {
     final canSearchPatients =
-        _hasPermission(context, 'patient_list_page') ||
-        _hasPermission(context, 'patient_detail_page');
+        _hasPermission(context, PermissionCode.readPatientList) ||
+        _hasPermission(context, PermissionCode.viewPatientDetail);
     return Container(
       color: Colors.white,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
@@ -710,9 +831,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                 controller: _searchController,
                 readOnly: !canSearchPatients,
                 onChanged: canSearchPatients
-                    ? (v) => context
-                          .read<DoctorViewModel>()
-                          .searchByNameDebounced(v, _token)
+                    ? _handleTopBarPatientSearchChanged
+                    : null,
+                onSubmitted: canSearchPatients
+                    ? _handleTopBarPatientSearchSubmitted
                     : null,
                 style: const TextStyle(fontSize: 13),
                 decoration: InputDecoration(
@@ -755,122 +877,129 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           const SizedBox(width: 12),
           // Doctor info menu
           Consumer<AuthViewModel>(
-            builder: (context, vm, child) =>
-                PopupMenuButton<_DoctorUserMenuAction>(
-                  tooltip: 'Tai khoan',
-                  color: Colors.white,
-                  surfaceTintColor: Colors.white,
-                  elevation: 10,
-                  offset: const Offset(0, 46),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: Color(0xFFE2E8F0)),
+            builder: (context, vm, child) => PopupMenuButton<_DoctorUserMenuAction>(
+              tooltip: 'Tai khoan',
+              color: Colors.white,
+              surfaceTintColor: Colors.white,
+              elevation: 10,
+              offset: const Offset(0, 46),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              onSelected: (action) => _handleUserMenuAction(context, action),
+              itemBuilder: (context) => [
+                if (vm.currentUser?.isDepartmentHead == true) ...[
+                  PopupMenuItem<_DoctorUserMenuAction>(
+                    value: _DoctorUserMenuAction.toggleScope,
+                    child: _ScopeToggleMenuItem(isPersonal: vm.isPersonalView),
                   ),
-                  onSelected: (action) =>
-                      _handleUserMenuAction(context, action),
-                  itemBuilder: (context) => const [
-                    PopupMenuItem<_DoctorUserMenuAction>(
-                      value: _DoctorUserMenuAction.profile,
-                      child: _UserMenuItem(
-                        icon: Icons.person_outline_rounded,
-                        label: 'Thông tin cá nhân',
-                      ),
+                  const PopupMenuDivider(),
+                ],
+                const PopupMenuItem<_DoctorUserMenuAction>(
+                  value: _DoctorUserMenuAction.profile,
+                  child: _UserMenuItem(
+                    icon: Icons.person_outline_rounded,
+                    label: 'Thông tin cá nhân',
+                  ),
+                ),
+                PopupMenuItem<_DoctorUserMenuAction>(
+                  value: _DoctorUserMenuAction.changePassword,
+                  child: _UserMenuItem(
+                    icon: Icons.lock_reset_rounded,
+                    label: 'Đổi mật khẩu',
+                  ),
+                ),
+                PopupMenuItem<_DoctorUserMenuAction>(
+                  value: _DoctorUserMenuAction.logout,
+                  child: _UserMenuItem(
+                    icon: Icons.logout_rounded,
+                    label: 'Đăng xuất',
+                    isDestructive: true,
+                  ),
+                ),
+              ],
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Consumer<DoctorProfileViewModel>(
+                      builder: (context, profileVm, _) {
+                        final avatarUrl = resolveMediaUrl(
+                          profileVm.profile?.avatarUrl ?? '',
+                        );
+                        final token = vm.currentUser?.token ?? '';
+                        final initial =
+                            vm.currentUser?.displayName.isNotEmpty == true
+                            ? vm.currentUser!.displayName[0].toUpperCase()
+                            : 'B';
+                        final fallback = Text(
+                          initial,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: _primaryGreen,
+                          ),
+                        );
+                        return CircleAvatar(
+                          radius: 15,
+                          backgroundColor: const Color(0xFFE6F4F1),
+                          child: avatarUrl.isEmpty
+                              ? fallback
+                              : ClipOval(
+                                  child: SizedBox.expand(
+                                    child: AuthenticatedAvatarImage(
+                                      imageUrl: avatarUrl,
+                                      token: token,
+                                      fallback: fallback,
+                                    ),
+                                  ),
+                                ),
+                        );
+                      },
                     ),
-                    PopupMenuItem<_DoctorUserMenuAction>(
-                      value: _DoctorUserMenuAction.changePassword,
-                      child: _UserMenuItem(
-                        icon: Icons.lock_reset_rounded,
-                        label: 'Đổi mật khẩu',
-                      ),
-                    ),
-                    PopupMenuItem<_DoctorUserMenuAction>(
-                      value: _DoctorUserMenuAction.logout,
-                      child: _UserMenuItem(
-                        icon: Icons.logout_rounded,
-                        label: 'Đăng xuất',
-                        isDestructive: true,
-                      ),
-                    ),
-                  ],
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Row(
+                    const SizedBox(width: 8),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Consumer<DoctorProfileViewModel>(
-                          builder: (context, profileVm, _) {
-                            final avatarUrl = resolveMediaUrl(
-                              profileVm.profile?.avatarUrl ?? '',
-                            );
-                            final token = vm.currentUser?.token ?? '';
-                            final initial =
-                                vm.currentUser?.displayName.isNotEmpty == true
-                                ? vm.currentUser!.displayName[0].toUpperCase()
-                                : 'B';
-                            final fallback = Text(
-                              initial,
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: _primaryGreen,
-                              ),
-                            );
-                            return CircleAvatar(
-                              radius: 15,
-                              backgroundColor: const Color(0xFFE6F4F1),
-                              child: avatarUrl.isEmpty
-                                  ? fallback
-                                  : ClipOval(
-                                      child: SizedBox.expand(
-                                        child: AuthenticatedAvatarImage(
-                                          imageUrl: avatarUrl,
-                                          token: token,
-                                          fallback: fallback,
-                                        ),
-                                      ),
-                                    ),
-                            );
-                          },
+                        Text(
+                          'BS. ${vm.currentUser?.displayName ?? 'Bac si'}',
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF1A2B3C),
+                          ),
                         ),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              'BS. ${vm.currentUser?.displayName ?? 'Bac si'}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF1A2B3C),
-                              ),
-                            ),
-                            const Text(
-                              'Chan doan hinh anh',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF718096),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(width: 8),
-                        const Icon(
-                          Icons.keyboard_arrow_down_rounded,
-                          size: 18,
-                          color: Color(0xFF718096),
+                        Text(
+                          vm.currentUser?.isDepartmentHead == true
+                              ? 'Chế độ: ${vm.isPersonalView ? 'Cá nhân' : 'Toàn khoa'}'
+                              : 'Chẩn đoán hình ảnh',
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: Color(0xFF718096),
+                          ),
                         ),
                       ],
                     ),
-                  ),
+                    const SizedBox(width: 8),
+                    const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: Color(0xFF718096),
+                    ),
+                  ],
                 ),
+              ),
+            ),
           ),
         ],
       ),
@@ -881,13 +1010,23 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     BuildContext context,
     _DoctorUserMenuAction action,
   ) async {
+    if (action == _DoctorUserMenuAction.toggleScope) {
+      final isPersonal = !context.read<AuthViewModel>().isPersonalView;
+      context.read<AuthViewModel>().setPersonalView(isPersonal);
+      _reloadScopedData(isPersonal: isPersonal);
+      return;
+    }
+
     switch (action) {
+      case _DoctorUserMenuAction.toggleScope:
+        return;
       case _DoctorUserMenuAction.profile:
         setState(() {
           _showDoctorProfile = true;
           _showChangePassword = false;
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
+          _selectedExaminationDetail = null;
         });
         break;
       case _DoctorUserMenuAction.changePassword:
@@ -896,12 +1035,79 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           _showDoctorProfile = false;
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
+          _selectedExaminationDetail = null;
         });
         break;
       case _DoctorUserMenuAction.logout:
         await context.read<AuthViewModel>().logout();
         break;
     }
+  }
+
+  void _reloadScopedData({required bool isPersonal}) {
+    final token = _token;
+    final navItems = _visibleNavItems(context, listen: false);
+    final selectedPermission =
+        _selectedNavIndex >= 0 && _selectedNavIndex < navItems.length
+        ? navItems[_selectedNavIndex].routeKey
+        : '';
+
+    if (selectedPermission == 'patient_list_page') {
+      context.read<DoctorViewModel>().fetchFirstPage(
+        token: token,
+        isPersonal: isPersonal,
+      );
+      return;
+    }
+
+    if (selectedPermission == 'examination_list_page') {
+      context.read<ExaminationViewModel>().loadExaminations(
+        token: token,
+        isPersonal: isPersonal,
+      );
+      return;
+    }
+
+    if (selectedPermission == 'doctor_dashboard_page') {
+      context.read<ExaminationViewModel>().loadDashboardExaminations(
+        token: token,
+        isPersonal: isPersonal,
+      );
+    }
+  }
+
+  void _handleTopBarPatientSearchChanged(String value) {
+    _openPatientListForSearch();
+    context.read<DoctorViewModel>().searchByNameDebounced(
+      value,
+      _token,
+      isPersonal: context.read<AuthViewModel>().isPersonalView,
+    );
+  }
+
+  void _handleTopBarPatientSearchSubmitted(String value) {
+    _openPatientListForSearch();
+    context.read<DoctorViewModel>().searchByNameNow(
+      value,
+      _token,
+      isPersonal: context.read<AuthViewModel>().isPersonalView,
+    );
+  }
+
+  void _openPatientListForSearch() {
+    final navItems = _visibleNavItems(context, listen: false);
+    final patientListIndex = navItems.indexWhere(
+      (item) => item.routeKey == 'patient_list_page',
+    );
+    if (patientListIndex < 0 || _selectedNavIndex == patientListIndex) return;
+    setState(() {
+      _selectedNavIndex = patientListIndex;
+      _showDoctorProfile = false;
+      _showChangePassword = false;
+      _showUploadExaminationList = false;
+      _selectedPatientDetail = null;
+      _selectedExaminationDetail = null;
+    });
   }
 
   Widget _buildFeaturePlaceholderPage({
@@ -1191,7 +1397,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _hasRequestedPatientList = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
-              context.read<DoctorViewModel>().fetchFirstPage(token: _token);
+              context.read<DoctorViewModel>().fetchFirstPage(
+                token: _token,
+                isPersonal: context.read<AuthViewModel>().isPersonalView,
+              );
             });
           }
 
@@ -1305,7 +1514,11 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     return GestureDetector(
       onTap: () {
         setState(() => _filterGender = value);
-        vm.fetchFirstPage(token: _token, gender: value);
+        vm.fetchFirstPage(
+          token: _token,
+          gender: value,
+          isPersonal: context.read<AuthViewModel>().isPersonalView,
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -1360,7 +1573,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             },
             child: RefreshIndicator(
               color: _primaryGreen,
-              onRefresh: () => vm.fetchFirstPage(token: _token),
+              onRefresh: () => vm.fetchFirstPage(
+                token: _token,
+                isPersonal: context.read<AuthViewModel>().isPersonalView,
+              ),
               child: ListView.separated(
                 itemCount: vm.patients.length + (vm.isLastPage ? 0 : 1),
                 separatorBuilder: (context, index) =>
@@ -1409,7 +1625,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   }
 
   Widget _buildPatientRow(BuildContext context, PatientEntity p) {
-    final canOpenDetail = _hasPermission(context, 'patient_detail_page');
+    final canOpenDetail = _hasPermission(
+      context,
+      PermissionCode.viewPatientDetail,
+    );
     var isHovered = false;
     return StatefulBuilder(
       builder: (context, setHoverState) {
@@ -1590,7 +1809,10 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () => vm.fetchFirstPage(token: _token),
+            onPressed: () => vm.fetchFirstPage(
+              token: _token,
+              isPersonal: context.read<AuthViewModel>().isPersonalView,
+            ),
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Thử lại'),
             style: ElevatedButton.styleFrom(
@@ -1680,6 +1902,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                 patientCode: codeCtrl.text.trim().isEmpty
                     ? null
                     : codeCtrl.text.trim(),
+                isPersonal: context.read<AuthViewModel>().isPersonalView,
               );
               Navigator.pop(ctx);
             },
@@ -1702,7 +1925,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     showDialog(
       context: context,
       builder: (ctx) => const _CreatePatientDialog(),
-    ).then((_) => vm.fetchFirstPage(token: _token));
+    ).then(
+      (_) => vm.fetchFirstPage(
+        token: _token,
+        isPersonal: context.read<AuthViewModel>().isPersonalView,
+      ),
+    );
   }
 
   */
@@ -1792,21 +2020,27 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     return '$minutes:$seconds';
   }
 
-  bool _hasPermission(BuildContext context, String key) {
-    return context.read<AuthViewModel>().hasPermissionPresentation(key);
+  bool _hasPermission(BuildContext context, PermissionCode code) {
+    return context.read<AuthViewModel>().hasPermissionCode(code);
   }
 
   bool _hasUploadPermission(BuildContext context) {
-    final auth = context.read<AuthViewModel>();
-    return auth.hasPermissionPresentation('dicom_upload_page') ||
-        auth.hasPermissionPresentation('file_upload_page');
+    return _hasPermission(context, PermissionCode.uploadDicomImage);
   }
 
-  /*
+  bool _canOpenExaminationList(BuildContext context) {
+    return _hasPermission(context, PermissionCode.createPatientExam) ||
+        _hasPermission(context, PermissionCode.viewExaminationList);
+  }
+
+  bool _canOpenExaminationDetail(BuildContext context) {
+    return _hasPermission(context, PermissionCode.viewExaminationDetail) ||
+        _canOpenExaminationList(context);
+  }
+
   void _showPermissionDeniedToast(String message) {
     AppToast.showWarning(message);
   }
-  */
 
   Widget _forbiddenPage({
     required String title,
@@ -1887,7 +2121,86 @@ class _TableHeader extends StatelessWidget {
 }
 */
 
-enum _DoctorUserMenuAction { profile, changePassword, logout }
+enum _DoctorUserMenuAction { toggleScope, profile, changePassword, logout }
+
+class _ScopeToggleMenuItem extends StatelessWidget {
+  final bool isPersonal;
+
+  const _ScopeToggleMenuItem({required this.isPersonal});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isPersonal
+        ? const Color(0xFF2D7E6E)
+        : const Color(0xFF2563EB);
+    final bg = isPersonal ? const Color(0xFFDDF5EC) : const Color(0xFFDCEBFF);
+    final borderColor = isPersonal
+        ? const Color(0xFF9FD8C7)
+        : const Color(0xFF9DBDFF);
+    final knobAlignment = isPersonal
+        ? Alignment.centerLeft
+        : Alignment.centerRight;
+
+    return Container(
+      width: 176,
+      height: 36,
+      padding: const EdgeInsets.all(3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: borderColor),
+      ),
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          AnimatedAlign(
+            alignment: knobAlignment,
+            duration: const Duration(milliseconds: 160),
+            curve: Curves.easeOut,
+            child: Container(
+              width: 84,
+              height: 30,
+              decoration: BoxDecoration(
+                color: color,
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'Cá nhân',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isPersonal
+                        ? Colors.white
+                        : color.withValues(alpha: 0.82),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  'Toàn khoa',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: isPersonal
+                        ? color.withValues(alpha: 0.82)
+                        : Colors.white,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _UserMenuItem extends StatelessWidget {
   final IconData icon;
@@ -1922,12 +2235,25 @@ class _UserMenuItem extends StatelessWidget {
   }
 }
 
+class _DoctorNavConfig {
+  final String routeKey;
+  final String label;
+  final IconData icon;
+
+  const _DoctorNavConfig({
+    required this.routeKey,
+    required this.label,
+    required this.icon,
+  });
+}
+
 class _DoctorNavItemData {
   final int index;
   final String routeKey;
   final String permissionName;
   final String label;
   final IconData icon;
+  final PermissionCode permissionCode;
 
   const _DoctorNavItemData({
     required this.index,
@@ -1935,6 +2261,7 @@ class _DoctorNavItemData {
     required this.permissionName,
     required this.label,
     required this.icon,
+    required this.permissionCode,
   });
 }
 

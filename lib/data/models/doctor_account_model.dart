@@ -27,28 +27,18 @@ class DoctorAccountModel extends DoctorAccountEntity {
   });
 
   factory DoctorAccountModel.fromJson(Map<String, dynamic> json) {
-    String roleName = 'DOCTOR';
-    int? roleIdParsed;
-    final rawRole = json['role'];
-    if (rawRole is String) {
-      roleName = rawRole;
-    } else if (rawRole is Map<String, dynamic>) {
-      roleName = rawRole['name']?.toString() ?? 'UNKNOWN';
-      roleIdParsed = rawRole['id'] is int
-          ? rawRole['id'] as int
-          : int.tryParse(rawRole['id']?.toString() ?? '');
-    }
+    final roleInfo = _parseRole(json);
 
     return DoctorAccountModel(
       id: _parseId(json),
-      username: json['username'] as String? ?? '',
-      fullName: json['fullName'] as String? ?? '',
-      role: roleName,
-      roleId: roleIdParsed,
-      email: json['email'] as String? ?? '',
-      phone: json['phone'] as String? ?? '',
+      username: _readString(json, const ['username', 'email']),
+      fullName: _readString(json, const ['fullName', 'name', 'displayName']),
+      role: roleInfo.name,
+      roleId: roleInfo.id,
+      email: _readString(json, const ['email']),
+      phone: _readString(json, const ['phone', 'phoneNumber']),
       avatarUrl: json['avatarUrl'] as String?,
-      status: json['status'] as String? ?? 'INACTIVE',
+      status: _parseStatus(json),
       userType: json['userType'] as String?,
       doctorCode: json['doctorCode'] as String?,
       licenseNumber: json['licenseNumber'] as String?,
@@ -73,12 +63,70 @@ class DoctorAccountModel extends DoctorAccountEntity {
   }
 
   static int _parseId(Map<String, dynamic> json) {
-    for (final key in const ['doctorId', 'id', 'userId']) {
+    for (final key in const ['doctorId', 'userId', 'id']) {
       final value = json[key];
       if (value is int) return value;
       final parsed = int.tryParse(value?.toString() ?? '');
       if (parsed != null) return parsed;
     }
     return 0;
+  }
+
+  static _RoleInfo _parseRole(Map<String, dynamic> json) {
+    final rawRole = json['role'] ?? json['roleName'] ?? json['roleCode'];
+    if (rawRole is String) {
+      return _RoleInfo(name: rawRole.replaceAll('ROLE_', ''));
+    }
+    if (rawRole is Map<String, dynamic>) {
+      return _RoleInfo.fromMap(rawRole);
+    }
+
+    final rawRoles = json['roles'];
+    if (rawRoles is List && rawRoles.isNotEmpty) {
+      final first = rawRoles.first;
+      if (first is String) {
+        return _RoleInfo(name: first.replaceAll('ROLE_', ''));
+      }
+      if (first is Map<String, dynamic>) {
+        return _RoleInfo.fromMap(first);
+      }
+    }
+
+    return const _RoleInfo(name: 'UNKNOWN');
+  }
+
+  static String _parseStatus(Map<String, dynamic> json) {
+    final rawStatus = json['status']?.toString();
+    if (rawStatus != null && rawStatus.trim().isNotEmpty) {
+      return rawStatus;
+    }
+    final active = json['active'] ?? json['enabled'];
+    if (active is bool) return active ? 'ACTIVE' : 'INACTIVE';
+    return 'INACTIVE';
+  }
+
+  static String _readString(Map<String, dynamic> json, List<String> keys) {
+    for (final key in keys) {
+      final value = json[key]?.toString().trim();
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return '';
+  }
+}
+
+class _RoleInfo {
+  final String name;
+  final int? id;
+
+  const _RoleInfo({required this.name, this.id});
+
+  factory _RoleInfo.fromMap(Map<String, dynamic> json) {
+    final name =
+        (json['name'] ?? json['code'] ?? json['authority'] ?? 'UNKNOWN')
+            .toString()
+            .replaceAll('ROLE_', '');
+    final rawId = json['id'] ?? json['roleId'];
+    final id = rawId is int ? rawId : int.tryParse(rawId?.toString() ?? '');
+    return _RoleInfo(name: name, id: id);
   }
 }

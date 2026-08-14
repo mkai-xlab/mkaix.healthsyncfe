@@ -5,14 +5,51 @@ import 'package:provider/provider.dart';
 import 'package:fe/core/constants/app_colors.dart';
 import 'package:fe/core/routes/app_router.dart';
 import 'package:fe/data/datasources/auth_remote_datasource.dart';
+import 'package:fe/data/repositories/admin_dashboard_repository_impl.dart';
+import 'package:fe/data/repositories/admin_repository_impl.dart';
+import 'package:fe/data/repositories/audit_log_repository_impl.dart';
 import 'package:fe/data/repositories/auth_repository_impl.dart';
+import 'package:fe/data/repositories/chat_repository_impl.dart';
+import 'package:fe/data/repositories/dicom_repository_impl.dart';
+import 'package:fe/data/repositories/doctor_profile_repository_impl.dart';
+import 'package:fe/data/repositories/knowledge_document_repository_impl.dart';
+import 'package:fe/data/repositories/notification_repository_impl.dart';
 import 'package:fe/data/datasources/patient_remote_datasource.dart';
 import 'package:fe/data/repositories/patient_repository_impl.dart';
 import 'package:fe/data/datasources/examination_remote_datasource.dart';
 import 'package:fe/data/repositories/examination_repository_impl.dart';
+import 'package:fe/domain/usecases/create_doctor_usecase.dart';
+import 'package:fe/domain/usecases/ask_chat_usecase.dart';
+import 'package:fe/domain/usecases/change_password_usecase.dart';
+import 'package:fe/domain/usecases/create_chat_session_usecase.dart';
+import 'package:fe/domain/usecases/create_user_usecase.dart';
+import 'package:fe/domain/usecases/forgot_password_usecase.dart';
+import 'package:fe/domain/usecases/get_admin_dashboard_stats_usecase.dart';
+import 'package:fe/domain/usecases/get_admin_roles_usecase.dart';
+import 'package:fe/domain/usecases/get_audit_logs_usecase.dart';
+import 'package:fe/domain/usecases/get_chat_session_messages_usecase.dart';
+import 'package:fe/domain/usecases/get_chat_sessions_usecase.dart';
 import 'package:fe/domain/usecases/login_usecase.dart';
+import 'package:fe/domain/usecases/logout_usecase.dart';
 import 'package:fe/domain/usecases/get_all_patients_usecase.dart';
+import 'package:fe/domain/usecases/get_doctor_accounts_usecase.dart';
+import 'package:fe/domain/usecases/get_doctor_profile_usecase.dart';
 import 'package:fe/domain/usecases/get_patient_examinations_usecase.dart';
+import 'package:fe/domain/usecases/get_knowledge_documents_usecase.dart';
+import 'package:fe/domain/usecases/get_notifications_usecase.dart';
+import 'package:fe/domain/usecases/get_unread_notifications_usecase.dart';
+import 'package:fe/domain/usecases/mark_all_notifications_as_read_usecase.dart';
+import 'package:fe/domain/usecases/mark_notification_as_read_usecase.dart';
+import 'package:fe/domain/usecases/reset_password_usecase.dart';
+import 'package:fe/domain/usecases/toggle_doctor_status_usecase.dart';
+import 'package:fe/domain/usecases/update_chat_session_usecase.dart';
+import 'package:fe/domain/usecases/update_doctor_profile_usecase.dart';
+import 'package:fe/domain/usecases/upload_dicom_batch_usecase.dart';
+import 'package:fe/domain/usecases/upload_dicom_zip_batch_usecase.dart';
+import 'package:fe/domain/usecases/upload_doctor_avatar_usecase.dart';
+import 'package:fe/domain/usecases/upload_knowledge_document_usecase.dart';
+import 'package:fe/domain/usecases/upload_knowledge_documents_batch_usecase.dart';
+import 'package:fe/domain/usecases/verify_dicom_upload_session_usecase.dart';
 import 'package:fe/presentation/viewmodels/auth_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/doctor_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/examination_viewmodel.dart';
@@ -22,12 +59,14 @@ import 'package:fe/data/datasources/audit_log_remote_datasource.dart';
 import 'package:fe/data/datasources/chat_remote_datasource.dart';
 import 'package:fe/data/datasources/dicom_remote_datasource.dart';
 import 'package:fe/data/datasources/doctor_profile_remote_datasource.dart';
+import 'package:fe/data/datasources/knowledge_document_remote_datasource.dart';
 import 'package:fe/data/datasources/notification_remote_datasource.dart';
 import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_dashboard_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/audit_log_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/dicom_upload_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/doctor_profile_viewmodel.dart';
+import 'package:fe/presentation/viewmodels/knowledge_document_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/chat_viewmodel.dart';
 import 'package:fe/presentation/widgets/ai_chat/ai_chat_widget.dart';
@@ -62,42 +101,114 @@ Future<void> main() async {
 
   // Admin
   final adminRemoteDataSource = AdminRemoteDataSourceImpl(httpClient);
-  final adminAccountViewModel = AdminAccountViewModel(adminRemoteDataSource);
+  final adminRepository = AdminRepositoryImpl(
+    remoteDataSource: adminRemoteDataSource,
+  );
+  final adminAccountViewModel = AdminAccountViewModel(
+    getDoctorAccountsUseCase: GetDoctorAccountsUseCase(adminRepository),
+    createDoctorUseCase: CreateDoctorUseCase(adminRepository),
+    createUserUseCase: CreateUserUseCase(adminRepository),
+    getRolesUseCase: GetAdminRolesUseCase(adminRepository),
+    toggleDoctorStatusUseCase: ToggleDoctorStatusUseCase(adminRepository),
+  );
   final adminDashboardRemoteDataSource = AdminDashboardRemoteDataSource(
     httpClient,
   );
+  final adminDashboardRepository = AdminDashboardRepositoryImpl(
+    remoteDataSource: adminDashboardRemoteDataSource,
+  );
   final adminDashboardViewModel = AdminDashboardViewModel(
-    adminDashboardRemoteDataSource,
+    GetAdminDashboardStatsUseCase(adminDashboardRepository),
   );
 
   // Audit logs
   final auditLogRemoteDataSource = AuditLogRemoteDataSource(httpClient);
-  final auditLogViewModel = AuditLogViewModel(auditLogRemoteDataSource);
+  final auditLogRepository = AuditLogRepositoryImpl(
+    remoteDataSource: auditLogRemoteDataSource,
+  );
+  final auditLogViewModel = AuditLogViewModel(
+    GetAuditLogsUseCase(auditLogRepository),
+  );
 
   // DICOM upload
   final dicomRemoteDataSource = DicomRemoteDataSourceImpl(httpClient);
-  final dicomUploadViewModel = DicomUploadViewModel(dicomRemoteDataSource);
+  final dicomRepository = DicomRepositoryImpl(
+    remoteDataSource: dicomRemoteDataSource,
+  );
+  final dicomUploadViewModel = DicomUploadViewModel(
+    uploadBatchUseCase: UploadDicomBatchUseCase(dicomRepository),
+    uploadZipBatchUseCase: UploadDicomZipBatchUseCase(dicomRepository),
+    verifyUploadSessionUseCase: VerifyDicomUploadSessionUseCase(
+      dicomRepository,
+    ),
+  );
 
   // Doctor profile
   final doctorProfileRemoteDataSource = DoctorProfileRemoteDataSource(
     httpClient,
   );
+  final doctorProfileRepository = DoctorProfileRepositoryImpl(
+    remoteDataSource: doctorProfileRemoteDataSource,
+  );
   final doctorProfileViewModel = DoctorProfileViewModel(
-    doctorProfileRemoteDataSource,
+    getProfileUseCase: GetDoctorProfileUseCase(doctorProfileRepository),
+    updateProfileUseCase: UpdateDoctorProfileUseCase(doctorProfileRepository),
+    uploadAvatarUseCase: UploadDoctorAvatarUseCase(doctorProfileRepository),
   );
 
   // Notifications
   final notificationRemoteDataSource = NotificationRemoteDataSource(httpClient);
+  final notificationRepository = NotificationRepositoryImpl(
+    remoteDataSource: notificationRemoteDataSource,
+  );
   final notificationViewModel = NotificationViewModel(
-    notificationRemoteDataSource,
+    getNotificationsUseCase: GetNotificationsUseCase(notificationRepository),
+    getUnreadNotificationsUseCase: GetUnreadNotificationsUseCase(
+      notificationRepository,
+    ),
+    markNotificationAsReadUseCase: MarkNotificationAsReadUseCase(
+      notificationRepository,
+    ),
+    markAllNotificationsAsReadUseCase: MarkAllNotificationsAsReadUseCase(
+      notificationRepository,
+    ),
   );
   final chatRemoteDataSource = ChatRemoteDataSource(httpClient);
-  final chatViewModel = ChatViewModel(remoteDataSource: chatRemoteDataSource);
+  final chatRepository = ChatRepositoryImpl(
+    remoteDataSource: chatRemoteDataSource,
+  );
+  final chatViewModel = ChatViewModel(
+    askChatUseCase: AskChatUseCase(chatRepository),
+    getSessionsUseCase: GetChatSessionsUseCase(chatRepository),
+    createSessionUseCase: CreateChatSessionUseCase(chatRepository),
+    updateSessionUseCase: UpdateChatSessionUseCase(chatRepository),
+    getSessionMessagesUseCase: GetChatSessionMessagesUseCase(chatRepository),
+  );
+  final knowledgeDocumentRemoteDataSource = KnowledgeDocumentRemoteDataSource(
+    httpClient,
+  );
+  final knowledgeDocumentRepository = KnowledgeDocumentRepositoryImpl(
+    remoteDataSource: knowledgeDocumentRemoteDataSource,
+  );
+  final knowledgeDocumentViewModel = KnowledgeDocumentViewModel(
+    getDocumentsUseCase: GetKnowledgeDocumentsUseCase(
+      knowledgeDocumentRepository,
+    ),
+    uploadDocumentUseCase: UploadKnowledgeDocumentUseCase(
+      knowledgeDocumentRepository,
+    ),
+    uploadDocumentsBatchUseCase: UploadKnowledgeDocumentsBatchUseCase(
+      knowledgeDocumentRepository,
+    ),
+  );
 
   // ViewModels
   final authViewModel = AuthViewModel(
     loginUseCase: loginUseCase,
-    authRepository: authRepository,
+    logoutUseCase: LogoutUseCase(authRepository),
+    changePasswordUseCase: ChangePasswordUseCase(authRepository),
+    forgotPasswordUseCase: ForgotPasswordUseCase(authRepository),
+    resetPasswordUseCase: ResetPasswordUseCase(authRepository),
   );
   await authViewModel.restoreSession();
   final doctorViewModel = DoctorViewModel(
@@ -122,6 +233,7 @@ Future<void> main() async {
         ChangeNotifierProvider.value(value: doctorProfileViewModel),
         ChangeNotifierProvider.value(value: notificationViewModel),
         ChangeNotifierProvider.value(value: chatViewModel),
+        ChangeNotifierProvider.value(value: knowledgeDocumentViewModel),
       ],
       child: MyApp(appRouter: appRouter),
     ),
@@ -244,7 +356,7 @@ class _RealtimeNotificationConnectorState
 
     if (token.trim().isEmpty) {
       if (_connectedToken != null) {
-        notificationVm.reset();
+        _resetSessionScopedState();
         _connectedToken = null;
       }
       return;
@@ -252,13 +364,27 @@ class _RealtimeNotificationConnectorState
 
     if (_connectedToken == token) return;
     if (_connectedToken != null) {
-      notificationVm.reset();
+      _resetSessionScopedState();
     }
     _connectedToken = token;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _connectedToken != token) return;
       notificationVm.connectRealtime(token);
     });
+  }
+
+  void _resetSessionScopedState() {
+    context.read<DoctorViewModel>().reset();
+    context.read<ExaminationViewModel>().clear();
+    context.read<AdminAccountViewModel>().reset();
+    context.read<AdminDashboardViewModel>().reset();
+    context.read<AuditLogViewModel>().reset();
+    context.read<DicomUploadViewModel>().clear();
+    context.read<DicomUploadViewModel>().clearUploadedFiles();
+    context.read<DoctorProfileViewModel>().clear();
+    context.read<NotificationViewModel>().reset();
+    context.read<ChatViewModel>().reset();
+    context.read<KnowledgeDocumentViewModel>().reset();
   }
 
   @override

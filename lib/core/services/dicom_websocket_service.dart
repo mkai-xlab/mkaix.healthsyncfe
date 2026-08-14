@@ -52,6 +52,10 @@ class DicomWebSocketService {
         stompConnectHeaders: _authHeaders(token),
         webSocketConnectHeaders: _authHeaders(token),
         onConnect: (frame) {
+          debugPrint(
+            '[DICOM WebSocket] connected. subscribing to '
+            '/user/queue/notifications',
+          );
           _client?.subscribe(
             destination: '/user/queue/notifications',
             callback: _handleNotificationFrame,
@@ -134,11 +138,18 @@ class DicomWebSocketService {
 
   void _handleNotificationFrame(StompFrame frame) {
     final body = frame.body;
-    if (body == null || body.trim().isEmpty) return;
+    _logIncomingFrame(frame);
+    if (body == null || body.trim().isEmpty) {
+      debugPrint('[DICOM WebSocket received] empty body');
+      return;
+    }
 
     try {
       final decoded = jsonDecode(body);
-      if (decoded is! Map) return;
+      if (decoded is! Map) {
+        debugPrint('[DICOM WebSocket received] non-map payload: $decoded');
+        return;
+      }
       final payload = Map<String, dynamic>.from(decoded);
       final type = payload['type']?.toString() ?? '';
       final title = payload['title']?.toString() ?? '';
@@ -146,6 +157,12 @@ class DicomWebSocketService {
       final directBatchPayload = _looksLikeBatchResult(payload)
           ? payload
           : null;
+
+      debugPrint(
+        '[DICOM WebSocket notification] '
+        'type=$type, title=$title, message=$message, '
+        'data=${_prettyJson(payload['data'])}',
+      );
 
       _notificationController.add(
         DicomUploadNotification(
@@ -168,6 +185,13 @@ class DicomWebSocketService {
             _decodeBatchPayload(payload['message']);
         if (resultPayload != null) {
           final result = BatchDicomUploadModel.fromJson(resultPayload);
+          debugPrint(
+            '[DICOM WebSocket batch result] '
+            'uploadSessionId=${result.uploadSessionId}, '
+            'patients=${result.successfulPatients.length}, '
+            'errors=${result.errors.length}, '
+            'payload=${_prettyJson(resultPayload)}',
+          );
           if (!_batchResultController.hasListener) {
             _pendingBatchResult = result;
           }
@@ -215,5 +239,22 @@ class DicomWebSocketService {
         payload.containsKey('uploadSessionId') ||
         payload.containsKey('upload_session_id') ||
         payload.containsKey('errors');
+  }
+
+  void _logIncomingFrame(StompFrame frame) {
+    debugPrint(
+      '[DICOM WebSocket received] '
+      'command=${frame.command}, headers=${_prettyJson(frame.headers)}',
+    );
+    debugPrint('[DICOM WebSocket received body] ${frame.body ?? '<null>'}');
+  }
+
+  String _prettyJson(Object? value) {
+    if (value == null) return '<null>';
+    try {
+      return const JsonEncoder.withIndent('  ').convert(value);
+    } catch (_) {
+      return value.toString();
+    }
   }
 }

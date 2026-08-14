@@ -1,16 +1,25 @@
 import 'package:flutter/material.dart';
 
-import '../../data/datasources/doctor_profile_remote_datasource.dart';
 import '../../domain/entities/doctor_account_entity.dart';
+import '../../domain/usecases/get_doctor_profile_usecase.dart';
+import '../../domain/usecases/update_doctor_profile_usecase.dart';
+import '../../domain/usecases/upload_doctor_avatar_usecase.dart';
 import '../../core/utils/error_message_utils.dart';
 
 class DoctorProfileViewModel extends ChangeNotifier {
-  final DoctorProfileRemoteDataSource dataSource;
+  final GetDoctorProfileUseCase getProfileUseCase;
+  final UpdateDoctorProfileUseCase updateProfileUseCase;
+  final UploadDoctorAvatarUseCase uploadAvatarUseCase;
 
-  DoctorProfileViewModel(this.dataSource);
+  DoctorProfileViewModel({
+    required this.getProfileUseCase,
+    required this.updateProfileUseCase,
+    required this.uploadAvatarUseCase,
+  });
 
   DoctorAccountEntity? _profile;
   DoctorAccountEntity? get profile => _profile;
+  String? _profileToken;
 
   bool _isLoading = false;
   bool get isLoading => _isLoading;
@@ -25,15 +34,25 @@ class DoctorProfileViewModel extends ChangeNotifier {
     required String token,
     bool forceRefresh = false,
   }) async {
+    final normalizedToken = token.trim();
+    if (_profileToken != null && _profileToken != normalizedToken) {
+      _profile = null;
+      _profileToken = null;
+      _errorMessage = null;
+    }
+
     if (_isLoading) return;
-    if (!forceRefresh && _profile != null) return;
+    if (!forceRefresh && _profile != null && _profileToken == normalizedToken) {
+      return;
+    }
 
     _isLoading = true;
     _errorMessage = null;
     notifyListeners();
 
     try {
-      _profile = await dataSource.getProfile(token: token);
+      _profile = await getProfileUseCase.execute(token: normalizedToken);
+      _profileToken = normalizedToken;
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
     } finally {
@@ -53,7 +72,12 @@ class DoctorProfileViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _profile = await dataSource.updateProfile(token: token, payload: payload);
+      final normalizedToken = token.trim();
+      _profile = await updateProfileUseCase.execute(
+        token: normalizedToken,
+        payload: payload,
+      );
+      _profileToken = normalizedToken;
       return true;
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
@@ -76,11 +100,13 @@ class DoctorProfileViewModel extends ChangeNotifier {
     notifyListeners();
 
     try {
-      _profile = await dataSource.uploadAvatar(
-        token: token,
+      final normalizedToken = token.trim();
+      _profile = await uploadAvatarUseCase.execute(
+        token: normalizedToken,
         bytes: bytes,
         filename: filename,
       );
+      _profileToken = normalizedToken;
       return true;
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
@@ -93,6 +119,7 @@ class DoctorProfileViewModel extends ChangeNotifier {
 
   void clear() {
     _profile = null;
+    _profileToken = null;
     _errorMessage = null;
     _isLoading = false;
     _isUpdating = false;

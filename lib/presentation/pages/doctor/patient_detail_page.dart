@@ -8,15 +8,18 @@ import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
 import '../../widgets/pagination_bar.dart';
+import 'examination_detail_page.dart';
 
 class PatientDetailPage extends StatefulWidget {
   final PatientEntity patient;
   final bool embedded;
+  final ValueChanged<ExaminationEntity>? onOpenExaminationDetail;
 
   const PatientDetailPage({
     super.key,
     required this.patient,
     this.embedded = false,
+    this.onOpenExaminationDetail,
   });
 
   @override
@@ -462,6 +465,7 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
         return _ExaminationDialog(
           examinations: examinations,
           initialIndex: selectedIndex,
+          onOpenExaminationDetail: widget.onOpenExaminationDetail,
         );
       },
     );
@@ -555,10 +559,12 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
 class _ExaminationDialog extends StatefulWidget {
   final List<ExaminationEntity> examinations;
   final int initialIndex;
+  final ValueChanged<ExaminationEntity>? onOpenExaminationDetail;
 
   const _ExaminationDialog({
     required this.examinations,
     required this.initialIndex,
+    this.onOpenExaminationDetail,
   });
 
   @override
@@ -594,6 +600,22 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
     if (urls.isNotEmpty) return urls;
     if (examination.thumbnailUrl.isNotEmpty) return [examination.thumbnailUrl];
     return const [];
+  }
+
+  ExaminationImageEntity? _imageFor(
+    ExaminationEntity examination,
+    int imageIndex,
+  ) {
+    if (examination.images.isEmpty) return null;
+    final safeIndex = imageIndex.clamp(0, examination.images.length - 1);
+    return examination.images[safeIndex.toInt()];
+  }
+
+  AiPredictionResultEntity? _aiResultForImage(ExaminationImageEntity? image) {
+    if (image == null || image.aiResults.isEmpty) return null;
+    return image.aiResults
+        .where((result) => result.displayGrade != null)
+        .firstOrNull;
   }
 
   @override
@@ -655,6 +677,7 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(18),
             child: _panelContent(
+              context,
               token,
               _primaryExamination,
               imageIndex: _primaryImageIndex,
@@ -707,6 +730,7 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
               children: [
                 Expanded(
                   child: _panelContent(
+                    context,
                     token,
                     _primaryExamination,
                     imageIndex: _primaryImageIndex,
@@ -724,6 +748,7 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
                 const SizedBox(width: 18),
                 Expanded(
                   child: _panelContent(
+                    context,
                     token,
                     secondaryExamination,
                     imageIndex: _secondaryImageIndex,
@@ -814,6 +839,7 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
   }
 
   Widget _panelContent(
+    BuildContext context,
     String token,
     ExaminationEntity examination, {
     required int imageIndex,
@@ -831,6 +857,8 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          _openFullDetailButton(context, token, examination),
+          const SizedBox(height: 12),
           _xrayViewer(
             token,
             examination,
@@ -875,6 +903,67 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
     );
   }
 
+  Widget _openFullDetailButton(
+    BuildContext context,
+    String token,
+    ExaminationEntity examination,
+  ) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: OutlinedButton.icon(
+        onPressed: () =>
+            _openFullExaminationDetail(context, token, examination),
+        icon: const Icon(Icons.open_in_new_rounded, size: 18),
+        label: const Text('Chi tiết ca khám'),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: _primaryGreen,
+          side: const BorderSide(color: Color(0xFFCFE3DC)),
+          backgroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openFullExaminationDetail(
+    BuildContext context,
+    String token,
+    ExaminationEntity examination,
+  ) async {
+    final navigator = Navigator.of(context);
+    final messenger = ScaffoldMessenger.of(context);
+    final vm = context.read<ExaminationViewModel>();
+    final opened = await vm.openExaminationDetail(
+      examination: examination,
+      token: token,
+    );
+    if (!context.mounted) return;
+    if (!opened || vm.selectedExamination == null) {
+      final message = vm.detailErrorMessage ?? 'Khong the tai chi tiet ca kham';
+      messenger.showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: AppColors.error),
+      );
+      return;
+    }
+
+    final selectedExamination = vm.selectedExamination!;
+    navigator.pop();
+    final callback = widget.onOpenExaminationDetail;
+    if (callback != null) {
+      callback(selectedExamination);
+      return;
+    }
+    navigator.push(
+      MaterialPageRoute(
+        builder: (_) => ExaminationDetailPage(
+          examination: selectedExamination,
+          onBack: navigator.pop,
+        ),
+      ),
+    );
+  }
+
   Widget _xrayViewer(
     String token,
     ExaminationEntity examination, {
@@ -886,6 +975,9 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
     final selectedUrl = hasImages
         ? imageUrls[imageIndex.clamp(0, imageUrls.length - 1)]
         : '';
+    final selectedResult = _aiResultForImage(
+      _imageFor(examination, imageIndex),
+    );
     return AspectRatio(
       aspectRatio: 1,
       child: Container(
@@ -924,37 +1016,47 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
               ),
             ),
             Expanded(
-              child: Center(
-                child: hasImages
-                    ? Image.network(
-                        selectedUrl,
-                        headers: token.isEmpty
-                            ? null
-                            : {'Authorization': 'Bearer $token'},
-                        fit: BoxFit.contain,
-                        errorBuilder: (context, error, stackTrace) {
-                          return const Icon(
-                            Icons.broken_image_outlined,
-                            color: Colors.white54,
-                            size: 60,
-                          );
-                        },
-                      )
-                    : const Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.image_not_supported_outlined,
-                            color: Colors.white54,
-                            size: 60,
+              child: Stack(
+                children: [
+                  Center(
+                    child: hasImages
+                        ? Image.network(
+                            selectedUrl,
+                            headers: token.isEmpty
+                                ? null
+                                : {'Authorization': 'Bearer $token'},
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              return const Icon(
+                                Icons.broken_image_outlined,
+                                color: Colors.white54,
+                                size: 60,
+                              );
+                            },
+                          )
+                        : const Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                Icons.image_not_supported_outlined,
+                                color: Colors.white54,
+                                size: 60,
+                              ),
+                              SizedBox(height: 10),
+                              Text(
+                                'Ca khám này chưa có ảnh X-quang',
+                                style: TextStyle(color: Colors.white54),
+                              ),
+                            ],
                           ),
-                          SizedBox(height: 10),
-                          Text(
-                            'Ca khám này chưa có ảnh X-quang',
-                            style: TextStyle(color: Colors.white54),
-                          ),
-                        ],
-                      ),
+                  ),
+                  if (selectedResult != null)
+                    Positioned(
+                      top: 12,
+                      right: 12,
+                      child: _klGradeBadge(selectedResult),
+                    ),
+                ],
               ),
             ),
             if (imageUrls.length > 1)
@@ -1005,6 +1107,40 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
         ),
       ),
     );
+  }
+
+  Widget _klGradeBadge(AiPredictionResultEntity result) {
+    final grade = result.displayGrade ?? 0;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: _klGradeColor(grade),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.28),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        child: Text(
+          'KL $grade • ${result.confidenceDisplay}',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _klGradeColor(int grade) {
+    if (grade >= 4) return const Color(0xFFE53E3E);
+    if (grade >= 2) return const Color(0xFFD97706);
+    return _primaryGreen;
   }
 
   Widget _detailField(String label, String value) {

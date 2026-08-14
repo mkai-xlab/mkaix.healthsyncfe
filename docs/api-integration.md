@@ -6,21 +6,33 @@
 - API version: `v1`
 - Base URL: `http://47.131.63.48:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-08-08`
+- Last OpenAPI refresh: `2026-08-12`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
+- The `2026-08-12` pasted OpenAPI spec is the latest local source. It keeps OpenAPI `3.1.0` / API `v1` and confirms base URL `http://47.131.63.48:8000/api/v1`.
+- Compared with the older `54.254.113.71` notes, use `47.131.63.48` as the current documented backend host unless runtime testing proves otherwise. `ApiConstants.baseUrl` still defaults to localhost and must be overridden with `--dart-define=API_BASE_URL=...` for non-local runs.
+- The latest spec has 86 paths. It confirms the same major groups already documented here: auth, users/staff/roles, doctors/profile/avatar, patients, examinations/statistics, DICOM/verify/raw image, AI prediction/review/images, reports, notifications, permissions/features, audit logs, AI chat, and knowledge documents.
+- There is still no documented `GET /users`. User/account lists should use `GET /users/staff`, role counts, `/roles`, and doctor-specific endpoints instead of assuming a generic users list exists.
+- The latest spec confirms `GET /users/staff`, `GET /roles`, and `PUT /users/{userId}/role { roleId }` for admin account/role management.
+- `DELETE /permissions/{id}` and `DELETE /features/{id}` return `204 No Content`; `DELETE /patients/{id}` and doctor deactivate endpoints are documented as successful with no useful response body. Do not require JSON parsing after these calls.
+- `PUT /notifications/{id}/read` returns `text/plain`, while `PUT /notifications/read-all` returns `{ updatedCount }`.
+- Current exam counters remain split between `GET /examinations/total*` with required `userId` and current-user counters `GET /examinations/my-total*`; do not mix the two flows.
+- The OpenAPI text in the pasted file is mojibake, but endpoint paths, methods, schemas, required fields, response codes, and examples are structurally valid JSON and should be treated as the source of truth.
 - OpenAPI is now `3.1.0` / API `v1` and uses base URL `http://47.131.63.48:8000/api/v1`.
-- The `2026-08-08` spec confirms the current v1 contract and adds AI chat plus medical knowledge indexing endpoints.
+- The `2026-08-11` spec confirms the current v1 contract, including AI chat sessions/messages and medical knowledge indexing endpoints.
 - Auth is bearer-token based. Login returns `accessToken`, `refreshToken`, `role`, `username`, `fullName`, and a full `permissions` array.
+- Passwords for reset/change flows must be 8-32 characters and include uppercase, lowercase, digit, and special character.
 - First-time login is explicitly modeled as `FirstTimeLoginRequired` with body `{ error: "FIRST_TIME_LOGIN_REQUIRED", message: "..." }`.
 - `GET /examinations/total`, `/total-verified`, `/total-unverified`, and `/total-severe` require query `userId` and optionally accept `isPersonal`.
 - For doctor/current-user views, every endpoint that supports `isPersonal` must send `isPersonal=true`.
 - The current-user dashboard counters remain available as `/examinations/my-total*`, which do not require `userId`.
 - Current-user dashboard also has `GET /examinations/my-total-last-7-days`.
-- New AI chat endpoint: `POST /chat/ask`, request `{ question }`, response `ChatAnswerResponse` with `route`, `answer`, `sources`, `warning`, and `generatedAt`.
+- New daily chart endpoint: `GET /examinations/stats/daily-last-7-days`, returning `DailyStatDto[]`.
+- AI chat supports `POST /chat/ask`, request `{ question, sessionId? }`, response `ChatAnswerResponse` with `sessionId`, `messageId`, `route`, `answer`, `sources`, `warning`, `generatedAt`, and `tokensUsed`.
+- New AI chat session endpoints are documented: `GET|POST /chat/sessions`, `PATCH /chat/sessions/{sessionId}`, and `GET /chat/sessions/{sessionId}/messages`.
 - New medical knowledge endpoints under `/knowledge-documents` support listing documents, single/batch upload, URL registration, report sync, reindex, and delete.
 - Knowledge indexing upload/reindex/sync endpoints use `202 Accepted` when the document is queued for asynchronous indexing.
 - Examination status filter enum is `AI_PROCESSING`, `AI_FAILED`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`.
@@ -41,6 +53,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - Notification APIs now include `GET /notifications` for all notifications, `GET /notifications/unread`, `PUT /notifications/{id}/read`, and test send `POST /notifications/send`.
 - New notification bulk-read endpoint: `PUT /notifications/read-all`, returning `MarkAllNotificationsReadResponse` with `updatedCount`.
 - `GET /roles` is now documented and returns `RoleDto[]` for administrator role assignment.
+- Admin can update a user's role with `PUT /users/{userId}/role`, body `{ roleId }`, response `UserResponse`.
 - Utility/test endpoints are documented: `GET /mail-test/send`, `POST /files/upload-avatar`, and `POST /s3/test-upload`.
 
 ## Frontend Change Checklist
@@ -54,16 +67,18 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - Update `PatientModel.fromJson` to fall back from `patientCode` to `patient_id`; the new response may include both, but existing parser currently ignores `patient_id`.
 - Add patient upload-date filter support for `GET /patients/filter/upload-date` if the patient list has upload-date filtering.
 - Doctor patient and examination lists must include `isPersonal=true` on supported endpoints so backend scopes data to the logged-in doctor.
-- Review examination image parsing: `ExaminationImageModel` currently ignores `aiAnalysisStatus` and `aiErrorMessage`. Add fields to the entity/model if the UI should show AI progress or per-image AI failures.
+- Examination image parsing now keeps `aiAnalysisStatus` and `aiErrorMessage`; show `FAILED` as an AI failure state with the backend error message instead of a processing state.
 - Use `confirmedGrade` or `effectiveGrade` for final clinical display when available. `predictedGrade` alone is no longer enough after doctor review.
 - Confirm KL-grade UI should call `PUT /ai/results/{aiResultId}/confirm` for accept and `PUT /ai/results/{aiResultId}/kl-grade` for adjustment with `confirmedKlGrade` and required `reviewNote`.
 - Admin dashboard counters using `/examinations/total*` must send `userId` and optional `isPersonal`. Doctor dashboard should keep using `/examinations/my-total*`.
 - Permission role management already sends numeric `permissionIds`; keep that behavior. Add delete calls for permissions/features if the admin UI exposes deletion.
 - `PermissionRemoteDataSource` currently assumes known roles `ADMIN` and `DOCTOR`. If backend adds more medical/staff roles through `/users/staff` or other role sources, replace the hardcoded role list.
 - `CreateDoctorRequest` only requires `fullName`, `email`, and `phone`; optional fields `yearsOfExperience`, `degree`, and `biography` can be added to the create/edit UI without contract changes.
-- Error handling should parse standard `ErrorResponse.message` for `400`, `401`, `403`, `415`, and `500`. Keep the special first-time-login branch for `FIRST_TIME_LOGIN_REQUIRED`.
+- Error handling should parse standard `ErrorResponse.message` for `400`, `401`, `403`, `415`, `423`, and `500`. Keep the special first-time-login branch for `FIRST_TIME_LOGIN_REQUIRED`.
 - Add a notification datasource method for `PUT /notifications/read-all` if the notification panel needs a "mark all as read" action. Parse `updatedCount` and refresh unread count/list after success.
-- Add chat and knowledge datasources before wiring those admin/assistant screens. Constants already exist as `ApiConstants.chatAskEndpoint` and `ApiConstants.knowledgeDocument*Endpoint`.
+- AI chat is wired through `ChatRemoteDataSource` and `ChatViewModel`. Knowledge document constants exist; add a remote datasource when the admin document list needs real backend data.
+- Add chat session/message datasource methods when the floating AI chat should persist conversation history: create/list/update sessions and page through messages.
+- Add admin user role update UI/API call if role assignment is managed from the user list instead of only permission-role mapping.
 
 ## Authentication
 
@@ -77,12 +92,15 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 
 Authenticated requests should send `Authorization: Bearer <accessToken>`.
 
+Password validation for `newPassword`: length 8-32, at least one uppercase letter, one lowercase letter, one digit, and one special character.
+
 ## Users And Doctors
 
 | Method | Path | Purpose | Response |
 | --- | --- | --- | --- |
 | `POST` | `/users` | Create user account | `UserResponse` |
 | `GET` | `/users/staff` | Get staff users | `UserResponse[]` |
+| `PUT` | `/users/{userId}/role` | Update a user's role with `UpdateUserRoleRequest { roleId }` | `UserResponse` |
 | `GET` | `/users/count/doctors` | Count doctor users | `number` |
 | `GET` | `/users/count/heads` | Count department-head users | `number` |
 | `GET` | `/roles` | Get all roles for role assignment | `RoleDto[]` |
@@ -134,6 +152,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/examinations/my-total-unverified` | Current doctor's unverified examinations | `number` |
 | `GET` | `/examinations/my-total-severe` | Current doctor's severe examinations | `number` |
 | `GET` | `/examinations/my-total-last-7-days` | Current doctor's examinations in the last 7 days | `number` |
+| `GET` | `/examinations/stats/daily-last-7-days` | Daily examination counts for the last 7 days | `DailyStatDto[]` |
 | `GET` | `/examinations/statistics/patients-by-grade` | Patient count by predicted grade | `PatientGradeStatsDto[]` |
 
 ## Examination Statistics
@@ -149,6 +168,7 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `GET` | `/examinations/my-total-unverified` | Current doctor's unverified examinations | number |
 | `GET` | `/examinations/my-total-severe` | Current doctor's severe examinations | number |
 | `GET` | `/examinations/my-total-last-7-days` | Current doctor's examinations in the last 7 days | number |
+| `GET` | `/examinations/stats/daily-last-7-days` | Daily examination counts for the last 7 days | `DailyStatDto[]` |
 | `GET` | `/examinations/statistics/patients-by-grade` | Patient count by predicted grade | `PatientGradeStatsDto[]` |
 
 ## DICOM And AI
@@ -175,7 +195,11 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 
 | Method | Path | Purpose | Request | Response |
 | --- | --- | --- | --- | --- |
-| `POST` | `/chat/ask` | Ask a business or medical RAG question | `ChatQuestionRequest` with required `question`, max 2000 chars | `ChatAnswerResponse` |
+| `POST` | `/chat/ask` | Ask a business or medical RAG question | `ChatQuestionRequest` with required `question`, optional `sessionId`, max 2000 chars | `ChatAnswerResponse` |
+| `GET` | `/chat/sessions` | Get paged chat sessions for the current user | Spring pageable query | `PageResponseChatSessionResponse` |
+| `POST` | `/chat/sessions` | Create a chat session | `CreateChatSessionRequest` with optional `title`, `examinationId` | `ChatSessionResponse` |
+| `PATCH` | `/chat/sessions/{sessionId}` | Update chat session metadata or active state | `UpdateChatSessionRequest` with optional `title`, `active` | `ChatSessionResponse` |
+| `GET` | `/chat/sessions/{sessionId}/messages` | Get paged messages in a chat session | Spring pageable query | `PageResponseChatMessageResponse` |
 | `GET` | `/knowledge-documents` | List knowledge sources and indexing status | none | `KnowledgeDocumentResponse[]` |
 | `POST` | `/knowledge-documents/upload` | Upload one medical knowledge file for async indexing | multipart `file`, optional query `title`, `accessScope` | `202 Accepted`, `KnowledgeDocumentResponse` |
 | `POST` | `/knowledge-documents/upload/batch` | Upload multiple knowledge files for async indexing | multipart `files`, optional query `accessScope` | `202 Accepted`, `KnowledgeBatchUploadResponse` |
@@ -184,9 +208,13 @@ Authenticated requests should send `Authorization: Bearer <accessToken>`.
 | `POST` | `/knowledge-documents/reports/{reportId}/sync` | Queue an approved report as a knowledge source | path `reportId` | `202 Accepted`, `KnowledgeDocumentResponse` |
 | `DELETE` | `/knowledge-documents/{id}` | Delete a knowledge document and indexed content | path `id` | `204 No Content` |
 
-`ChatAnswerResponse` fields: `route`, `answer`, `sources`, `warning`, `generatedAt`.
+`ChatAnswerResponse` fields: `sessionId`, `messageId`, `route`, `answer`, `sources`, `warning`, `generatedAt`, `tokensUsed`.
 
 `ChatSourceResponse` fields: `sourceId`, `title`, `sourceType`, `locator`, `score`.
+
+`ChatSessionResponse` fields: `id`, `examinationId`, `title`, `active`, `createdAt`, `updatedAt`.
+
+`ChatMessageResponse` fields: `id`, `sessionId`, `role`, `content`, `route`, `tokensUsed`, `createdAt`.
 
 `KnowledgeDocumentResponse` fields: `id`, `title`, `sourceType`, `sourceUrl`, `originalName`, `accessScope`, `status`, `chunkCount`, `errorMessage`, `createdAt`, `indexedAt`.
 
@@ -248,7 +276,9 @@ Export report flow:
 | --- | --- |
 | Network unavailable or timeout | Network error state with retry option |
 | `400` validation error | Field or form validation message |
+| Login `400` because password is shorter than 8 characters | Show `Mật khẩu phải có ít nhất 8 ký tự.` |
 | `401` unauthorized | Session expired or login-required state |
+| Login `423` after 5 wrong password attempts | Show account locked for 15 minutes message |
 | `403` forbidden | Permission error state |
 | `404` not found | Empty or not-found state depending on screen |
 | `500` server error | Generic server error with retry option |

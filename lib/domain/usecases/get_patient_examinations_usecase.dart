@@ -1,4 +1,5 @@
 import '../entities/examination_dashboard_totals_entity.dart';
+import '../entities/daily_examination_stat_entity.dart';
 import '../entities/examination_entity.dart';
 import '../entities/examination_page_entity.dart';
 import '../entities/patient_grade_stats_entity.dart';
@@ -35,19 +36,25 @@ class GetPatientExaminationsUseCase {
 
   Future<ExaminationDashboardTotalsEntity> executeMyDashboardTotals({
     required String token,
+    bool isPersonal = false,
   }) {
-    return repository.getMyDashboardTotals(token: token);
+    return repository.getMyDashboardTotals(
+      token: token,
+      isPersonal: isPersonal,
+    );
   }
 
   Future<ExaminationPageEntity> executeMyRecentPage({
     required String token,
     int page = 0,
     int size = 10,
+    bool isPersonal = false,
   }) {
     return repository.getMyRecentExaminationsPage(
       token: token,
       page: page,
       size: size,
+      isPersonal: isPersonal,
     );
   }
 
@@ -56,6 +63,16 @@ class GetPatientExaminationsUseCase {
     bool isPersonal = false,
   }) {
     return repository.getPatientGradeStatistics(
+      token: token,
+      isPersonal: isPersonal,
+    );
+  }
+
+  Future<List<DailyExaminationStatEntity>> executeDailyLast7DaysStatistics({
+    required String token,
+    bool isPersonal = false,
+  }) {
+    return repository.getDailyLast7DaysStatistics(
       token: token,
       isPersonal: isPersonal,
     );

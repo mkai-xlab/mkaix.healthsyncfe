@@ -13,13 +13,23 @@ import 'package:fe/presentation/viewmodels/admin_account_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/admin_dashboard_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/audit_log_viewmodel.dart';
 import 'package:fe/presentation/viewmodels/notification_viewmodel.dart';
+import 'package:fe/data/models/role_model.dart';
 import 'package:fe/domain/entities/doctor_account_entity.dart';
 import 'package:fe/domain/entities/notification_entity.dart';
 import 'package:fe/data/datasources/permission_remote_datasource.dart';
+import 'package:fe/data/repositories/permission_repository_impl.dart';
+import 'package:fe/domain/usecases/create_permission_feature_usecase.dart';
+import 'package:fe/domain/usecases/create_permission_usecase.dart';
+import 'package:fe/domain/usecases/get_permission_catalog_usecase.dart';
+import 'package:fe/domain/usecases/get_permission_roles_usecase.dart';
+import 'package:fe/domain/usecases/update_permission_feature_usecase.dart';
+import 'package:fe/domain/usecases/update_permission_usecase.dart';
+import 'package:fe/domain/usecases/update_role_permissions_usecase.dart';
 import 'package:fe/presentation/viewmodels/permission_viewmodel.dart';
 import 'package:fe/presentation/pages/admin/permission_page.dart';
 import 'package:fe/presentation/pages/admin/feature_permission_catalog_page.dart';
 import 'package:fe/presentation/pages/admin/audit_log_page.dart';
+import 'package:fe/presentation/pages/admin/knowledge_documents_page.dart';
 import 'package:fe/presentation/pages/auth/account_change_password_page.dart';
 import 'package:fe/presentation/widgets/pagination_bar.dart';
 import 'package:fe/presentation/widgets/authenticated_avatar_image.dart';
@@ -90,7 +100,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
 
   // @override
   // void dispose() {
-  //   _debounce?.cancel(); // Hủy bỏ timer khi widget bị dispose
+  //   _debounce?.cancel(); // H?y b? timer khi widget b? dispose
   //   _scrollController.dispose();
   //   super.dispose();
   // }
@@ -480,9 +490,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             _buildTopBar(context),
             Expanded(
               child: ChangeNotifierProvider(
-                create: (_) => PermissionViewModel(
-                  PermissionRemoteDataSourceImpl(http.Client(), token: token),
-                ),
+                create: (_) => _createPermissionViewModel(token),
                 child: const FeaturePermissionCatalogPage(),
               ),
             ),
@@ -491,7 +499,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
       );
     }
 
-    // Mặc định hiển thị Dashboard (index 0)
+    // M?c ??nh hi?n th? Dashboard (index 0)
     if (_selectedNavIndex == 3) {
       return Container(
         color: _pageBackground,
@@ -507,7 +515,15 @@ class _AdminHomepageState extends State<AdminHomepage> {
       return _buildSystemSettingsPage(context);
     }
     if (_selectedNavIndex == 6) {
-      return _buildKnowledgeDocumentsPage(context);
+      return Container(
+        color: _pageBackground,
+        child: Column(
+          children: [
+            _buildTopBar(context),
+            const Expanded(child: KnowledgeDocumentsPage()),
+          ],
+        ),
+      );
     }
 
     return Container(
@@ -1074,12 +1090,12 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // ── LEFT: main list ──
+                    // LEFT: main list
                     Expanded(
                       flex: 7,
                       child: _buildUserListPanel(context, viewModel),
                     ),
-                    // ── RIGHT: detail panel ──
+                    // RIGHT: detail panel
                     Container(
                       width: 320,
                       color: Colors.white,
@@ -1095,7 +1111,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
-  // ─── LEFT PANEL ───────────────────────────────────────────
+  // LEFT PANEL
   Widget _buildUserListPanel(
     BuildContext context,
     AdminAccountViewModel viewModel,
@@ -1123,7 +1139,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Danh sách bác sĩ, kỹ thuật viên và nhân viên hệ thống.',
+                      'Danh sách người dùng, kỹ thuật viên và nhân viên hệ thống.',
                       style: TextStyle(fontSize: 13, color: Color(0xFF718096)),
                     ),
                   ],
@@ -1150,7 +1166,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               ElevatedButton.icon(
                 onPressed: () => _showCreateUserDialog(context),
                 icon: const Icon(Icons.person_add_outlined, size: 16),
-                label: const Text('Thêm bác sĩ'),
+                label: const Text('Thêm tài khoản'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: const Color(0xFF2D7E6E),
                   foregroundColor: Colors.white,
@@ -1173,7 +1189,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
           // const SizedBox(height: 20),
 
           // Filter bar
-          _buildFilterBar(),
+          _buildFilterBar(context, viewModel),
           const SizedBox(height: 16),
 
           // Table header
@@ -1236,7 +1252,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
         ),
         const SizedBox(width: 10),
         _buildUMStatCard(
-          label: 'KỸ THUẬT VIA?N',
+          label: 'KỸ THUẬT VIÊN',
           value: ktv.toString(),
           sub: 'Hỗ trợ CDHA',
         ),
@@ -1314,13 +1330,83 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
-  Widget _buildFilterBar() {
+  Widget _buildFilterBar(
+    BuildContext context,
+    AdminAccountViewModel viewModel,
+  ) {
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
     return Row(
       children: [
-        _buildFilterChip('Trạng thái'),
-        const SizedBox(width: 8),
-        _buildFilterChip('Khoa phòng'),
+        Expanded(
+          child: SizedBox(
+            height: 44,
+            child: TextField(
+              onChanged: (value) =>
+                  viewModel.searchByNameDebounced(value, token),
+              decoration: InputDecoration(
+                prefixIcon: const Icon(
+                  Icons.search,
+                  size: 20,
+                  color: Color(0xFF718096),
+                ),
+                hintText: 'Tìm kiếm người dùng...',
+                hintStyle: const TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF8A9A96),
+                ),
+                filled: true,
+                fillColor: Colors.white,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 12,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: const BorderSide(
+                    color: Color(0xFF2D7E6E),
+                    width: 1.4,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        _buildStatusFilterDropdown(context, viewModel),
       ],
+    );
+  }
+
+  Widget _buildStatusFilterDropdown(
+    BuildContext context,
+    AdminAccountViewModel viewModel,
+  ) {
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    final currentStatus = viewModel.currentStatus;
+    final label = switch (currentStatus) {
+      'ACTIVE' => 'Active',
+      'INACTIVE' => 'Inactive',
+      _ => 'Trạng thái',
+    };
+
+    return PopupMenuButton<String>(
+      tooltip: 'Lọc trạng thái',
+      onSelected: (value) =>
+          viewModel.filterByStatus(value.isEmpty ? null : value, token),
+      itemBuilder: (context) => const [
+        PopupMenuItem<String>(value: '', child: Text('Tất cả trạng thái')),
+        PopupMenuItem<String>(value: 'ACTIVE', child: Text('Active')),
+        PopupMenuItem<String>(value: 'INACTIVE', child: Text('Inactive')),
+      ],
+      child: _buildFilterChip(label),
     );
   }
 
@@ -1361,11 +1447,10 @@ class _AdminHomepageState extends State<AdminHomepage> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: const [
-          Expanded(flex: 2, child: Text('VAI TRÒ', style: style)),
-          Expanded(flex: 3, child: Text('TÀI KHOẢN', style: style)),
-          Expanded(flex: 2, child: Text('VAI TRÒ', style: style)),
-          Expanded(flex: 2, child: Text('KHOA', style: style)),
-          Expanded(flex: 3, child: Text('TRẠNG THÁI', style: style)),
+          Expanded(flex: 3, child: Text('TÊN', style: style)),
+          Expanded(flex: 2, child: Text('CHỨC VỤ', style: style)),
+          Expanded(flex: 3, child: Text('EMAIL', style: style)),
+          Expanded(flex: 2, child: Text('TRẠNG THÁI', style: style)),
           SizedBox(width: 32),
         ],
       ),
@@ -1385,26 +1470,11 @@ class _AdminHomepageState extends State<AdminHomepage> {
     final statusLabel = _userStatusLabel(account.status);
     final isSelected = _selectedUser?.id == account.id;
     final isHovered = _hoveredUserId == account.id;
-
-    Color roleColor;
-    Color roleBg;
-    String roleLabel;
-    switch (account.role) {
-      case 'DOCTOR':
-        roleLabel = 'Bác sĩ';
-        roleColor = const Color(0xFF2D7E6E);
-        roleBg = const Color(0xFFE6F4F1);
-        break;
-      case 'ADMIN':
-        roleLabel = 'Admin';
-        roleColor = const Color(0xFFD97706);
-        roleBg = const Color(0xFFFEF3C7);
-        break;
-      default:
-        roleLabel = 'KTV';
-        roleColor = const Color(0xFF3B82F6);
-        roleBg = const Color(0xFFEFF6FF);
-    }
+    final roleLabel = account.role.trim().isEmpty ? '-' : account.role.trim();
+    final displayName = account.fullName.trim().isEmpty
+        ? '-'
+        : account.fullName.trim();
+    final email = account.email.trim().isEmpty ? '-' : account.email.trim();
 
     return GestureDetector(
       onTap: () => setState(() => _selectedUser = account),
@@ -1445,13 +1515,13 @@ class _AdminHomepageState extends State<AdminHomepage> {
             children: [
               // Avatar + name
               Expanded(
-                flex: 5,
+                flex: 3,
                 child: Row(
                   children: [
                     Stack(
                       children: [
                         _buildAccountAvatar(
-                          name: account.fullName,
+                          name: displayName,
                           avatarUrl: account.avatarUrl,
                           radius: 20,
                           color: const Color(0xFF2D7E6E),
@@ -1482,19 +1552,12 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            account.fullName,
+                            displayName,
+                            maxLines: 1,
                             style: const TextStyle(
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF1A2B3C),
-                            ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          Text(
-                            account.specialization ?? roleLabel,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: Color(0xFF718096),
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),
@@ -1504,45 +1567,24 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   ],
                 ),
               ),
-              // Username
               Expanded(
-                flex: 3,
+                flex: 2,
                 child: Text(
-                  account.username,
+                  roleLabel,
+                  maxLines: 1,
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF4A5568),
+                    fontWeight: FontWeight.w500,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
-              // Role badge
               Expanded(
-                flex: 2,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: roleBg,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    roleLabel,
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: roleColor,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ),
-              // Department
-              Expanded(
-                flex: 2,
+                flex: 3,
                 child: Text(
-                  account.hospitalName?.split(' ').last ?? '—',
+                  email,
+                  maxLines: 1,
                   style: const TextStyle(
                     fontSize: 12,
                     color: Color(0xFF4A5568),
@@ -1552,7 +1594,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               ),
               // Status
               Expanded(
-                flex: 3,
+                flex: 2,
                 child: Row(
                   children: [
                     Container(
@@ -1589,8 +1631,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 onSelected: (v) {
                   if (v == 'detail') {
                     _showAccountDetailDialog(context, account);
-                  } else if (v == 'permission') {
-                    _showRolePermissionDialog(context);
                   } else if (v == 'toggle') {
                     _showToggleStatusDialog(context, account);
                   }
@@ -1607,20 +1647,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         ),
                         SizedBox(width: 8),
                         Text('Xem chi tiết'),
-                      ],
-                    ),
-                  ),
-                  const PopupMenuItem(
-                    value: 'permission',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.admin_panel_settings_outlined,
-                          size: 16,
-                          color: Color(0xFF2D7E6E),
-                        ),
-                        SizedBox(width: 8),
-                        Text('Phan quyen'),
                       ],
                     ),
                   ),
@@ -1664,7 +1690,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
-  // ─── RIGHT DETAIL SIDEBAR ─────────────────────────────────
+  // RIGHT DETAIL SIDEBAR
   void _showRolePermissionDialog(BuildContext context) {
     final token = context.read<AuthViewModel>().currentUser?.token ?? '';
 
@@ -1677,13 +1703,29 @@ class _AdminHomepageState extends State<AdminHomepage> {
           width: 1100,
           height: 760,
           child: ChangeNotifierProvider(
-            create: (_) => PermissionViewModel(
-              PermissionRemoteDataSourceImpl(http.Client(), token: token),
-            ),
+            create: (_) => _createPermissionViewModel(token),
             child: PermissionPage(showTopBar: false),
           ),
         ),
       ),
+    );
+  }
+
+  PermissionViewModel _createPermissionViewModel(String token) {
+    final repository = PermissionRepositoryImpl(
+      remoteDataSource: PermissionRemoteDataSourceImpl(
+        http.Client(),
+        token: token,
+      ),
+    );
+    return PermissionViewModel(
+      getPermissionCatalogUseCase: GetPermissionCatalogUseCase(repository),
+      getRolesUseCase: GetPermissionRolesUseCase(repository),
+      updateRolePermissionsUseCase: UpdateRolePermissionsUseCase(repository),
+      createFeatureUseCase: CreatePermissionFeatureUseCase(repository),
+      updateFeatureUseCase: UpdatePermissionFeatureUseCase(repository),
+      createPermissionUseCase: CreatePermissionUseCase(repository),
+      updatePermissionUseCase: UpdatePermissionUseCase(repository),
     );
   }
 
@@ -1698,7 +1740,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // ── User card ──
+          // User card
           if (user != null) ...[
             const SizedBox(height: 8),
             Center(
@@ -1754,7 +1796,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             const SizedBox(height: 16),
             _buildSidebarInfoBox(
               'EMAIL',
-              user.email.isEmpty ? '—' : user.email,
+              user.email.isEmpty ? '-' : user.email,
             ),
             const SizedBox(height: 12),
             SizedBox(
@@ -1795,22 +1837,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
               ),
             ),
           ],
-
-          const SizedBox(height: 24),
-          const Divider(color: Color(0xFFEDF2F7)),
-          const SizedBox(height: 16),
-
-          // ── Cơ cấu nhân sự ──
-          const Text(
-            'Cơ cấu nhân sự',
-            style: TextStyle(
-              fontSize: 13,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1A2B3C),
-            ),
-          ),
-          const SizedBox(height: 16),
-          _buildStaffStructure(viewModel),
         ],
       ),
     );
@@ -1853,91 +1879,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
     );
   }
 
-  Widget _buildStaffStructure(AdminAccountViewModel viewModel) {
-    final total = viewModel.accounts.isEmpty ? 128 : viewModel.accounts.length;
-    final doctors = viewModel.accounts.isEmpty
-        ? 84
-        : viewModel.accounts.where((a) => a.role == 'DOCTOR').length;
-    final ktv = viewModel.accounts.isEmpty
-        ? 32
-        : viewModel.accounts.where((a) => a.role == 'KTV').length;
-    final admin = viewModel.accounts.isEmpty
-        ? 12
-        : viewModel.accounts.where((a) => a.role == 'ADMIN').length;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        // mini donut
-        SizedBox(
-          width: 56,
-          height: 56,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CustomPaint(
-                size: const Size(56, 56),
-                painter: _MiniDonutPainter(
-                  total: total,
-                  doctors: doctors,
-                  ktv: ktv,
-                  admin: admin,
-                ),
-              ),
-              Text(
-                '${total > 0 ? ((doctors / total) * 100).round() : 65}%',
-                style: const TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1A2B3C),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            children: [
-              _buildStructureRow('Bác sĩ', doctors, const Color(0xFF2D7E6E)),
-              const SizedBox(height: 4),
-              _buildStructureRow('KTV', ktv, const Color(0xFFD97706)),
-              const SizedBox(height: 4),
-              _buildStructureRow('Admin', admin, const Color(0xFF3B82F6)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStructureRow(String label, int count, Color color) {
-    return Row(
-      children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        ),
-        const SizedBox(width: 6),
-        Expanded(
-          child: Text(
-            label,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF4A5568)),
-          ),
-        ),
-        Text(
-          count.toString(),
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1A2B3C),
-          ),
-        ),
-      ],
-    );
-  }
-
   void _showCreateUserDialog(BuildContext context) {
     final pageContext = context;
     final formKey = GlobalKey<FormState>();
@@ -1948,6 +1889,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
     final viewModel = pageContext.read<AdminAccountViewModel>();
     bool isSubmitting = false;
     String? submitError;
+    RoleModel? selectedRole;
+    late final Future<List<RoleModel>> rolesFuture = viewModel.getRoles(token);
 
     showDialog<bool>(
           context: context,
@@ -1991,7 +1934,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'Thêm bác sĩ mới',
+                              'Thêm tài khoản mới',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
@@ -2000,7 +1943,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             ),
                             SizedBox(height: 3),
                             Text(
-                              'Tạo hồ sơ bác sĩ theo API mới',
+                              'Tạo người dùng theo vai trò',
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Color(0xFF4F6F68),
@@ -2023,39 +1966,6 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF7FBFA),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: const Color(0xFFD8E7E3),
-                              ),
-                            ),
-                            child: const Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Icon(
-                                  Icons.info_outline,
-                                  color: Color(0xFF2D7E6E),
-                                  size: 18,
-                                ),
-                                SizedBox(width: 10),
-                                Expanded(
-                                  child: Text(
-                                    'API mới tạo bác sĩ qua /doctors với họ tên, email và số điện thoại.',
-                                    style: TextStyle(
-                                      fontSize: 13,
-                                      height: 1.4,
-                                      color: Color(0xFF4F6F68),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(height: 20),
                           _buildFieldLabel('Họ và tên *'),
                           TextFormField(
                             controller: nameController,
@@ -2086,6 +1996,79 @@ class _AdminHomepageState extends State<AdminHomepage> {
                                 return 'Email không hợp lệ';
                               }
                               return null;
+                            },
+                          ),
+                          const SizedBox(height: 16),
+                          _buildFieldLabel('Vai trò *'),
+                          FutureBuilder<List<RoleModel>>(
+                            future: rolesFuture,
+                            builder: (context, snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return const Padding(
+                                  padding: EdgeInsets.symmetric(vertical: 12),
+                                  child: Row(
+                                    children: [
+                                      SizedBox(
+                                        width: 18,
+                                        height: 18,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      ),
+                                      SizedBox(width: 10),
+                                      Text('Đang tải danh sách vai trò...'),
+                                    ],
+                                  ),
+                                );
+                              }
+
+                              if (snapshot.hasError) {
+                                return Text(
+                                  'Không thể tải danh sách vai trò: ${snapshot.error}',
+                                  style: const TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFFE53E3E),
+                                  ),
+                                );
+                              }
+
+                              final roles =
+                                  snapshot.data ?? const <RoleModel>[];
+                              if (roles.isEmpty) {
+                                return const Text(
+                                  'Chưa có vai trò hợp lệ để chọn.',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Color(0xFFE53E3E),
+                                  ),
+                                );
+                              }
+
+                              selectedRole ??= roles.first;
+                              return DropdownButtonFormField<RoleModel>(
+                                value: selectedRole,
+                                decoration: _buildInputDecoration(
+                                  'Chọn vai trò',
+                                  Icons.badge_outlined,
+                                ),
+                                items: roles
+                                    .map(
+                                      (role) => DropdownMenuItem<RoleModel>(
+                                        value: role,
+                                        child: Text(role.name),
+                                      ),
+                                    )
+                                    .toList(),
+                                validator: (value) => value == null
+                                    ? 'Vui lòng chọn vai trò'
+                                    : null,
+                                onChanged: isSubmitting
+                                    ? null
+                                    : (value) => setDialogState(
+                                        () => selectedRole = value,
+                                      ),
+                              );
                             },
                           ),
                           const SizedBox(height: 16),
@@ -2166,25 +2149,32 @@ class _AdminHomepageState extends State<AdminHomepage> {
                         ? null
                         : () async {
                             if (formKey.currentState!.validate()) {
+                              final role = selectedRole;
+                              final roleId = int.tryParse(role?.id ?? '');
+                              if (role == null || roleId == null) {
+                                setDialogState(() {
+                                  submitError = 'Vui lòng chọn vai trò hợp lệ';
+                                });
+                                return;
+                              }
                               setDialogState(() {
                                 isSubmitting = true;
                                 submitError = null;
                               });
-                              final success = await viewModel
-                                  .createDoctorSilently(
-                                    doctorData: {
-                                      'fullName': nameController.text.trim(),
-                                      'email': emailController.text.trim(),
-                                      'phone': phoneController.text.trim(),
-                                    },
-                                    token: token,
-                                  );
+                              final success = await viewModel.createUser(
+                                fullName: nameController.text.trim(),
+                                email: emailController.text.trim(),
+                                phone: phoneController.text.trim(),
+                                roleId: roleId,
+                                token: token,
+                              );
                               if (!mounted ||
                                   !context.mounted ||
                                   !dialogContext.mounted) {
                                 return;
                               }
                               if (success) {
+                                FocusScope.of(dialogContext).unfocus();
                                 Navigator.pop(dialogContext, true);
                                 return;
                               }
@@ -2193,7 +2183,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                                   isSubmitting = false;
                                   submitError =
                                       viewModel.errorMessage ??
-                                      'Không thể tạo bác sĩ';
+                                      'Không thể tạo tài khoản';
                                 });
                               }
                             }
@@ -2234,294 +2224,12 @@ class _AdminHomepageState extends State<AdminHomepage> {
         .then((created) async {
           if (created == true && mounted && pageContext.mounted) {
             await viewModel.fetchFirstPage(token);
+            if (!mounted || !pageContext.mounted) return;
             if (mounted && pageContext.mounted) {
-              AppToast.showSuccess('Tạo bác sĩ thành công');
+              AppToast.showSuccess('Tạo tài khoản thành công');
             }
           }
         });
-  }
-
-  void _showCreateAccountDialog(BuildContext context) {
-    final formKey = GlobalKey<FormState>();
-    final nameController = TextEditingController();
-    final emailController = TextEditingController();
-    final phoneController = TextEditingController();
-    bool showLegacyDescription = false;
-    // roleId mặc định — có thể mở rộng thành dropdown khi có API lấy danh sách role
-    int selectedRoleId = 1;
-
-    // Danh sách role tạm thời — khi có API roles thì thay bằng dữ liệu thực
-    final roles = [
-      {'id': 3, 'name': 'Quản trị viên'},
-      {'id': 2, 'name': 'Kỹ thuật viên'},
-      {'id': 3, 'name': 'Quản trị viên'},
-    ];
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => Consumer<AdminAccountViewModel>(
-          builder: (context, viewModel, child) {
-            return AlertDialog(
-              backgroundColor: Colors.white,
-              surfaceTintColor: Colors.white,
-              insetPadding: const EdgeInsets.symmetric(
-                horizontal: 24,
-                vertical: 24,
-              ),
-              titlePadding: EdgeInsets.zero,
-              contentPadding: const EdgeInsets.fromLTRB(28, 24, 28, 8),
-              actionsPadding: const EdgeInsets.fromLTRB(28, 8, 28, 24),
-              titleTextStyle: const TextStyle(
-                color: Color(0xFF1A2B3C),
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-              ),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: const Row(
-                children: [
-                  Icon(Icons.person_add_outlined, color: Color(0xFF2D7E6E)),
-                  SizedBox(width: 10),
-                  Text('Thêm tài khoản mới'),
-                ],
-              ),
-              content: SizedBox(
-                width: 480,
-                child: Form(
-                  key: formKey,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                  child: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(14),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFE6F4F1),
-                            borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: const Color(0xFFD8E7E3)),
-                          ),
-                          child: const Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Icon(
-                                Icons.info_outline,
-                                color: Color(0xFF2D7E6E),
-                                size: 18,
-                              ),
-                              SizedBox(width: 10),
-                              Expanded(
-                                child: Text(
-                                  'Điền thông tin để tạo tài khoản. Hệ thống sẽ gán tài khoản theo vai trò đã chọn.',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    height: 1.4,
-                                    color: Color(0xFF4F6F68),
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 14),
-                        if (showLegacyDescription)
-                          const Text(
-                            'Điền thông tin để tạo tài khoản. Hệ thống sẽ tự động gửi mật khẩu tạm thời qua email.',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.black54,
-                            ),
-                          ),
-                        const SizedBox(height: 20),
-
-                        _buildFieldLabel('Họ và tên *'),
-                        TextFormField(
-                          controller: nameController,
-                          decoration: _buildInputDecoration(
-                            'Nhập họ và tên',
-                            Icons.person_outline,
-                          ),
-                          validator: (v) => (v == null || v.trim().isEmpty)
-                              ? 'Vui lòng nhập họ tên'
-                              : null,
-                        ),
-                        const SizedBox(height: 16),
-
-                        _buildFieldLabel('Email *'),
-                        TextFormField(
-                          controller: emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: _buildInputDecoration(
-                            'example@email.com',
-                            Icons.email_outlined,
-                          ),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) {
-                              return 'Vui lòng nhập email';
-                            }
-                            if (!RegExp(
-                              r'^[\w\-\.]+@([\w\-]+\.)+[\w\-]{2,4}$',
-                            ).hasMatch(v.trim())) {
-                              return 'Email không hợp lệ';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        _buildFieldLabel('Số điện thoại'),
-                        TextFormField(
-                          controller: phoneController,
-                          keyboardType: TextInputType.phone,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                            LengthLimitingTextInputFormatter(10),
-                          ],
-                          decoration: _buildInputDecoration(
-                            'Số điện thoại',
-                            Icons.phone_outlined,
-                          ),
-                          validator: (v) {
-                            if (v != null &&
-                                v.isNotEmpty &&
-                                !RegExp(r'^\d+$').hasMatch(v)) {
-                              return 'Số điện thoại chỉ chứa chữ số';
-                            }
-                            if (v != null &&
-                                v.trim().isNotEmpty &&
-                                v.trim().length != 10) {
-                              return 'Số điện thoại phải có đúng 10 chữ số';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        _buildFieldLabel('Vai trò *'),
-                        DropdownButtonFormField<int>(
-                          value: selectedRoleId,
-                          decoration: _buildInputDecoration(
-                            'Chọn vai trò',
-                            Icons.admin_panel_settings_outlined,
-                          ),
-                          items: roles
-                              .map(
-                                (r) => DropdownMenuItem<int>(
-                                  value: r['id'] as int,
-                                  child: Text(r['name'] as String),
-                                ),
-                              )
-                              .toList(),
-                          onChanged: (v) {
-                            if (v != null) {
-                              setDialogState(() => selectedRoleId = v);
-                            }
-                          },
-                        ),
-
-                        if (viewModel.errorMessage != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 12),
-                            child: Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: Colors.red.shade50,
-                                borderRadius: BorderRadius.circular(8),
-                                border: Border.all(color: Colors.red.shade200),
-                              ),
-                              child: Text(
-                                viewModel.errorMessage!,
-                                style: TextStyle(
-                                  color: Colors.red.shade700,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 8),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: viewModel.isLoading
-                      ? null
-                      : () => Navigator.pop(context),
-                  style: TextButton.styleFrom(
-                    foregroundColor: const Color(0xFF2D7E6E),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
-                      vertical: 12,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: const Text(
-                    'Hủy',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                ),
-                ElevatedButton(
-                  onPressed: viewModel.isLoading
-                      ? null
-                      : () async {
-                          if (formKey.currentState!.validate()) {
-                            final token =
-                                context
-                                    .read<AuthViewModel>()
-                                    .currentUser
-                                    ?.token ??
-                                '';
-                            final success = await viewModel.createUser(
-                              fullName: nameController.text.trim(),
-                              email: emailController.text.trim(),
-                              phone: phoneController.text.trim(),
-                              roleId: selectedRoleId,
-                              token: token,
-                            );
-                            if (success && context.mounted) {
-                              Navigator.pop(context);
-                              AppToast.showSuccess('Tạo tài khoản thành công');
-                            }
-                          }
-                        },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2D7E6E),
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 13,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                  child: viewModel.isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
-                        )
-                      : const Text('Xác nhận tạo'),
-                ),
-              ],
-            );
-          },
-        ),
-      ),
-    );
   }
 
   Widget _buildFieldLabel(String label) {
@@ -2602,7 +2310,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
       builder: (context) => AlertDialog(
         title: Text('$actionText tài khoản'),
         content: Text(
-          'Bạn có chắc chắn muốn $actionText tài khoản của bác sĩ ${account.fullName} không?',
+          'Bạn có chắc chắn muốn $actionText tài khoản của người dùng ${account.fullName} không?',
         ),
         actions: [
           TextButton(
@@ -2655,7 +2363,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Bạn có chắc chắn muốn khóa tài khoản của bác sĩ ${account.fullName} không?',
+                'Bạn có chắc chắn muốn khóa tài khoản của người dùng ${account.fullName} không?',
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -3128,7 +2836,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
             child: TextField(
               onChanged: (value) {},
               decoration: InputDecoration(
-                hintText: 'Tìm kiếm nhân viên, người dùng...',
+                hintText: 'Tìm kiếm người dùng...',
                 prefixIcon: const Icon(Icons.search, color: Colors.grey),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(8),
@@ -3433,14 +3141,19 @@ class _AdminHomepageState extends State<AdminHomepage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey,
-                    fontWeight: FontWeight.w500,
+                Expanded(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: Colors.grey,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
+                const SizedBox(width: 8),
                 Icon(icon, color: color, size: 18),
               ],
             ),
@@ -3836,7 +3549,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                     style: TextStyle(fontSize: 11, color: Colors.grey),
                   ),
                   Text(
-                    '4.2 TB',
+                    'Kết nối ổn định',
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -3869,7 +3582,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  'TỔNG CÔNG SUẤT: 85%',
+                  'CẢNH BÁO',
                   style: TextStyle(
                     fontSize: 10,
                     color: Colors.red.shade700,
@@ -3885,7 +3598,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  'CẢN BÁO',
+                  'CẢNH BÁO',
                   style: TextStyle(
                     fontSize: 10,
                     color: Colors.red.shade700,
@@ -4395,7 +4108,7 @@ class _AdminNotificationBody extends StatelessWidget {
     if (vm.errorMessage != null && vm.notifications.isEmpty) {
       return _AdminNotificationEmpty(
         icon: Icons.error_outline,
-        message: vm.errorMessage!,
+        message: 'Chưa có thông báo.',
       );
     }
     if (vm.notifications.isEmpty) {
@@ -4567,52 +4280,6 @@ class _DocumentHeaderCell extends StatelessWidget {
       ),
     );
   }
-}
-
-// Mini Donut for sidebar staff structure
-class _MiniDonutPainter extends CustomPainter {
-  final int total, doctors, ktv, admin;
-  const _MiniDonutPainter({
-    required this.total,
-    required this.doctors,
-    required this.ktv,
-    required this.admin,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = size.width / 2 - 4;
-    final paint = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 10
-      ..strokeCap = StrokeCap.butt;
-
-    final t = total == 0 ? 1 : total;
-    final docAngle = (doctors / t) * 2 * 3.14159;
-    final ktvAngle = (ktv / t) * 2 * 3.14159;
-    final adminAngle = (admin / t) * 2 * 3.14159;
-
-    final rect = Rect.fromCircle(center: center, radius: radius);
-
-    paint.color = const Color(0xFF2D7E6E);
-    canvas.drawArc(rect, -3.14159 / 2, docAngle, false, paint);
-
-    paint.color = const Color(0xFFD97706);
-    canvas.drawArc(rect, -3.14159 / 2 + docAngle, ktvAngle, false, paint);
-
-    paint.color = const Color(0xFF3B82F6);
-    canvas.drawArc(
-      rect,
-      -3.14159 / 2 + docAngle + ktvAngle,
-      adminAngle,
-      false,
-      paint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_MiniDonutPainter old) => false;
 }
 
 class _AdminGradeSegment {

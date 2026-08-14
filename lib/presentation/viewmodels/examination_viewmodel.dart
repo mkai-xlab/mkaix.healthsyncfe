@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/entities/examination_dashboard_totals_entity.dart';
+import '../../domain/entities/daily_examination_stat_entity.dart';
 import '../../domain/entities/examination_entity.dart';
 import '../../domain/entities/patient_grade_stats_entity.dart';
 import '../../domain/usecases/get_patient_examinations_usecase.dart';
@@ -43,6 +44,10 @@ class ExaminationViewModel extends ChangeNotifier {
   List<ExaminationEntity> _examinations = [];
   List<ExaminationEntity> get examinations => List.unmodifiable(_examinations);
 
+  List<ExaminationEntity> _dashboardSevereExaminations = [];
+  List<ExaminationEntity> get dashboardSevereExaminations =>
+      List.unmodifiable(_dashboardSevereExaminations);
+
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
@@ -74,16 +79,25 @@ class ExaminationViewModel extends ChangeNotifier {
   List<PatientGradeStatsEntity> get patientGradeStats =>
       List.unmodifiable(_patientGradeStats);
 
+  List<DailyExaminationStatEntity> _dailyLast7DaysStats = [];
+  List<DailyExaminationStatEntity> get dailyLast7DaysStats =>
+      List.unmodifiable(_dailyLast7DaysStats);
+
   int _totalPages = 1;
   int get totalPages => _totalPages;
 
   ExaminationListMode _listMode = ExaminationListMode.all;
   ExaminationListMode get listMode => _listMode;
+  bool _isPersonal = true;
 
   DateTime? _filterDate;
   DateTime? get filterDate => _filterDate;
 
-  Future<void> loadExaminations({required String token}) async {
+  Future<void> loadExaminations({
+    required String token,
+    bool isPersonal = true,
+  }) async {
+    _isPersonal = isPersonal;
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
@@ -99,7 +113,7 @@ class ExaminationViewModel extends ChangeNotifier {
         mode: _listMode.name,
         direction: _listMode.name.endsWith('Asc') ? 'asc' : 'desc',
         date: _filterDate == null ? null : _formatApiDate(_filterDate!),
-        isPersonal: true,
+        isPersonal: _isPersonal,
       );
       _examinations = result.content;
       _totalElements = result.totalElements;
@@ -113,19 +127,25 @@ class ExaminationViewModel extends ChangeNotifier {
     }
   }
 
-  Future<void> loadDashboardExaminations({required String token}) async {
+  Future<void> loadDashboardExaminations({
+    required String token,
+    bool isPersonal = true,
+  }) async {
+    _isPersonal = isPersonal;
     _isLoading = true;
     _errorMessage = null;
     _examinations = [];
+    _dashboardSevereExaminations = [];
     _dashboardTotals = null;
     _patientGradeStats = [];
+    _dailyLast7DaysStats = [];
     _selectedExamination = null;
     _detailErrorMessage = null;
     notifyListeners();
 
     try {
       final dashboardTotals = await getPatientExaminationsUseCase
-          .executeMyDashboardTotals(token: token);
+          .executeMyDashboardTotals(token: token, isPersonal: _isPersonal);
       _totalElements = dashboardTotals.total;
       _totalPages = 1;
       _currentPage = 0;
@@ -136,8 +156,14 @@ class ExaminationViewModel extends ChangeNotifier {
       }
 
       try {
-        final recentPage = await getPatientExaminationsUseCase
-            .executeMyRecentPage(token: token, page: 0, size: 5);
+        final recentPage = await getPatientExaminationsUseCase.executeAllPage(
+          token: token,
+          page: 0,
+          size: 5,
+          mode: ExaminationListMode.all.name,
+          direction: 'desc',
+          isPersonal: _isPersonal,
+        );
         _examinations = recentPage.content;
       } catch (e) {
         final recentError = userFriendlyErrorMessage(e);
@@ -146,17 +172,50 @@ class ExaminationViewModel extends ChangeNotifier {
       }
 
       try {
+        final severePage = await getPatientExaminationsUseCase.executeAllPage(
+          token: token,
+          page: 0,
+          size: 3,
+          mode: ExaminationListMode.grade4.name,
+          direction: 'desc',
+          isPersonal: _isPersonal,
+        );
+        _dashboardSevereExaminations = severePage.content;
+      } catch (e) {
+        final severeError = userFriendlyErrorMessage(e);
+        _errorMessage = _appendDashboardError(_errorMessage, severeError);
+        _dashboardSevereExaminations = [];
+      }
+
+      try {
         _patientGradeStats = await getPatientExaminationsUseCase
-            .executePatientGradeStatistics(token: token, isPersonal: true);
+            .executePatientGradeStatistics(
+              token: token,
+              isPersonal: _isPersonal,
+            );
       } catch (e) {
         final gradeError = userFriendlyErrorMessage(e);
         _errorMessage = _appendDashboardError(_errorMessage, gradeError);
         _patientGradeStats = [];
       }
+
+      try {
+        _dailyLast7DaysStats = await getPatientExaminationsUseCase
+            .executeDailyLast7DaysStatistics(
+              token: token,
+              isPersonal: _isPersonal,
+            );
+      } catch (e) {
+        final dailyError = userFriendlyErrorMessage(e);
+        _errorMessage = _appendDashboardError(_errorMessage, dailyError);
+        _dailyLast7DaysStats = [];
+      }
     } catch (e) {
       _errorMessage = userFriendlyErrorMessage(e);
       _examinations = [];
+      _dashboardSevereExaminations = [];
       _patientGradeStats = [];
+      _dailyLast7DaysStats = [];
       _totalElements = 0;
       _totalPages = 1;
       _currentPage = 0;
@@ -178,7 +237,7 @@ class ExaminationViewModel extends ChangeNotifier {
     _currentPage = page
         .clamp(0, (_totalPages <= 0 ? 1 : _totalPages) - 1)
         .toInt();
-    await loadExaminations(token: token);
+    await loadExaminations(token: token, isPersonal: _isPersonal);
   }
 
   Future<void> changePageSize({
@@ -188,25 +247,28 @@ class ExaminationViewModel extends ChangeNotifier {
     if (_pageSize == size) return;
     _pageSize = size;
     _currentPage = 0;
-    await loadExaminations(token: token);
+    await loadExaminations(token: token, isPersonal: _isPersonal);
   }
 
   Future<void> applyListMode({
     required String token,
     required ExaminationListMode mode,
     DateTime? date,
+    bool? isPersonal,
   }) async {
     _listMode = mode;
     _filterDate = date;
     _currentPage = 0;
-    await loadExaminations(token: token);
+    if (isPersonal != null) _isPersonal = isPersonal;
+    await loadExaminations(token: token, isPersonal: _isPersonal);
   }
 
-  Future<void> clearListMode({required String token}) async {
+  Future<void> clearListMode({required String token, bool? isPersonal}) async {
     _listMode = ExaminationListMode.all;
     _filterDate = null;
     _currentPage = 0;
-    await loadExaminations(token: token);
+    if (isPersonal != null) _isPersonal = isPersonal;
+    await loadExaminations(token: token, isPersonal: _isPersonal);
   }
 
   Future<void> loadDoctorExaminations({
@@ -355,6 +417,10 @@ class ExaminationViewModel extends ChangeNotifier {
       if (item.examinationId != examinationId || item.isViewed) return item;
       return item.copyWith(isViewed: true);
     }).toList();
+    _dashboardSevereExaminations = _dashboardSevereExaminations.map((item) {
+      if (item.examinationId != examinationId || item.isViewed) return item;
+      return item.copyWith(isViewed: true);
+    }).toList();
     final selected = _selectedExamination;
     if (selected != null &&
         selected.examinationId == examinationId &&
@@ -371,6 +437,7 @@ class ExaminationViewModel extends ChangeNotifier {
 
   void clear() {
     _examinations = [];
+    _dashboardSevereExaminations = [];
     _errorMessage = null;
     _selectedExamination = null;
     _detailErrorMessage = null;
@@ -379,6 +446,7 @@ class ExaminationViewModel extends ChangeNotifier {
     _currentPage = 0;
     _dashboardTotals = null;
     _patientGradeStats = [];
+    _dailyLast7DaysStats = [];
     _listMode = ExaminationListMode.all;
     _filterDate = null;
     notifyListeners();

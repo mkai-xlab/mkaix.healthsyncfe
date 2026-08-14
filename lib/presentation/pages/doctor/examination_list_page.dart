@@ -102,14 +102,20 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+      final auth = context.read<AuthViewModel>();
+      final token = auth.currentUser?.token ?? '';
+      final isPersonal = auth.isPersonalView;
       final vm = context.read<ExaminationViewModel>();
       if (widget.patient == null) {
         final initialMode = widget.initialMode;
         if (initialMode == null || initialMode == ExaminationListMode.all) {
-          vm.clearListMode(token: token);
+          vm.clearListMode(token: token, isPersonal: isPersonal);
         } else {
-          vm.applyListMode(token: token, mode: initialMode);
+          vm.applyListMode(
+            token: token,
+            mode: initialMode,
+            isPersonal: isPersonal,
+          );
         }
       } else {
         vm.loadPatientExaminations(patientId: _patientDetailId, token: token);
@@ -595,7 +601,13 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
                   final currentUser = context.read<AuthViewModel>().currentUser;
                   final token = currentUser?.token ?? '';
                   if (widget.patient == null) {
-                    return vm.loadExaminations(token: token);
+                    final isPersonal = context
+                        .read<AuthViewModel>()
+                        .isPersonalView;
+                    return vm.loadExaminations(
+                      token: token,
+                      isPersonal: isPersonal,
+                    );
                   }
                   return vm.loadPatientExaminations(
                     patientId: _patientDetailId,
@@ -878,7 +890,10 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
               final currentUser = context.read<AuthViewModel>().currentUser;
               final token = currentUser?.token ?? '';
               if (widget.patient == null) {
-                vm.loadExaminations(token: token);
+                vm.loadExaminations(
+                  token: token,
+                  isPersonal: context.read<AuthViewModel>().isPersonalView,
+                );
               } else {
                 vm.loadPatientExaminations(
                   patientId: _patientDetailId,

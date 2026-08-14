@@ -23,6 +23,9 @@ class DoctorViewModel extends ChangeNotifier {
   bool _isLoading = false;
   bool get isLoading => _isLoading;
 
+  bool _hasPendingSearch = false;
+  bool get hasPendingSearch => _hasPendingSearch;
+
   String? _errorMessage;
   String? get errorMessage => _errorMessage;
 
@@ -31,6 +34,7 @@ class DoctorViewModel extends ChangeNotifier {
 
   int _pageSize = 10;
   int get pageSize => _pageSize;
+  bool _isPersonal = true;
 
   // Filter state
   String _filterFullName = '';
@@ -46,11 +50,13 @@ class DoctorViewModel extends ChangeNotifier {
     String? fullName,
     String? patientCode,
     String? gender,
+    bool isPersonal = true,
   }) async {
     _currentPage = 0;
     _patients.clear();
     _isLastPage = false;
     _errorMessage = null;
+    _isPersonal = isPersonal;
 
     if (fullName != null) _filterFullName = fullName;
     if (patientCode != null) _filterPatientCode = patientCode;
@@ -87,15 +93,40 @@ class DoctorViewModel extends ChangeNotifier {
   Future<void> changePageSize(String token, int size) async {
     if (_pageSize == size) return;
     _pageSize = size;
-    await fetchFirstPage(token: token);
+    await fetchFirstPage(token: token, isPersonal: _isPersonal);
   }
 
   /// Tìm kiếm debounce 500ms theo tên
-  void searchByNameDebounced(String name, String token) {
+  void searchByNameDebounced(String name, String token, {bool? isPersonal}) {
     _debounce?.cancel();
+    _hasPendingSearch = true;
+    notifyListeners();
     _debounce = Timer(const Duration(milliseconds: 500), () {
-      fetchFirstPage(token: token, fullName: name);
+      _hasPendingSearch = false;
+      _filterPatientCode = '';
+      _filterGender = '';
+      fetchFirstPage(
+        token: token,
+        fullName: name.trim(),
+        isPersonal: isPersonal ?? _isPersonal,
+      );
     });
+  }
+
+  Future<void> searchByNameNow(
+    String name,
+    String token, {
+    bool? isPersonal,
+  }) async {
+    _debounce?.cancel();
+    _hasPendingSearch = false;
+    _filterPatientCode = '';
+    _filterGender = '';
+    await fetchFirstPage(
+      token: token,
+      fullName: name.trim(),
+      isPersonal: isPersonal ?? _isPersonal,
+    );
   }
 
   Future<void> _load(String token) async {
@@ -105,7 +136,7 @@ class DoctorViewModel extends ChangeNotifier {
         fullName: _filterFullName.isEmpty ? null : _filterFullName,
         patientCode: _filterPatientCode.isEmpty ? null : _filterPatientCode,
         gender: _filterGender.isEmpty ? null : _filterGender,
-        isPersonal: true,
+        isPersonal: _isPersonal,
         page: _currentPage,
         size: _pageSize,
       );
@@ -127,11 +158,31 @@ class DoctorViewModel extends ChangeNotifier {
     }
   }
 
-  void clearFilters(String token) {
+  void clearFilters(String token, {bool? isPersonal}) {
+    _debounce?.cancel();
+    _hasPendingSearch = false;
     _filterFullName = '';
     _filterPatientCode = '';
     _filterGender = '';
-    fetchFirstPage(token: token);
+    fetchFirstPage(token: token, isPersonal: isPersonal ?? _isPersonal);
+  }
+
+  void reset() {
+    _debounce?.cancel();
+    _hasPendingSearch = false;
+    _patients = [];
+    _totalElements = 0;
+    _totalPages = 0;
+    _isLastPage = true;
+    _isLoading = false;
+    _errorMessage = null;
+    _currentPage = 0;
+    _pageSize = 10;
+    _isPersonal = true;
+    _filterFullName = '';
+    _filterPatientCode = '';
+    _filterGender = '';
+    notifyListeners();
   }
 
   @override

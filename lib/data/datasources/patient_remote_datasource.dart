@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
 import '../models/patient_model.dart';
@@ -30,19 +31,23 @@ class PatientRemoteDataSourceImpl implements PatientRemoteDataSource {
     int page = 0,
     int size = 10,
   }) async {
+    final keyword = fullName?.trim() ?? '';
+    final code = patientCode?.trim() ?? '';
+    final genderFilter = gender?.trim() ?? '';
     final Map<String, String> queryParams = {
       'page': page.toString(),
       'size': size.toString(),
-      if (isPersonal) 'isPersonal': 'true',
-      if (fullName != null && fullName.isNotEmpty) 'fullName': fullName,
-      if (patientCode != null && patientCode.isNotEmpty)
-        'patientCode': patientCode,
-      if (gender != null && gender.isNotEmpty) 'gender': gender,
+      'sort': 'asc',
+      'isPersonal': isPersonal.toString(),
+      if (keyword.isNotEmpty || code.isNotEmpty)
+        'keyword': [keyword, code].where((value) => value.isNotEmpty).join(' '),
+      if (genderFilter.isNotEmpty) 'gender': genderFilter,
     };
 
     final uri = Uri.parse(
       ApiConstants.patientsEndpoint,
     ).replace(queryParameters: queryParams);
+    debugPrint('[Patient API] GET $uri');
 
     final response = await client
         .get(
@@ -59,6 +64,12 @@ class PatientRemoteDataSourceImpl implements PatientRemoteDataSource {
       final dynamic responseData = jsonDecode(decodedBody);
       return _parsePage(responseData, fallbackPage: page, fallbackSize: size);
     }
+
+    debugPrint(
+      '[Patient API] list error status=${response.statusCode}, '
+      'body=${utf8.decode(response.bodyBytes)}',
+      wrapWidth: 1024,
+    );
 
     throw Exception(
       'Không thể tải danh sách bệnh nhân (${response.statusCode})',

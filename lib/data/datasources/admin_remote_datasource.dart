@@ -11,6 +11,7 @@ abstract class AdminRemoteDataSource {
     required int size,
     required String token,
     String? name,
+    String? status,
   });
 
   Future<void> createDoctor({
@@ -46,16 +47,21 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
     required int size,
     required String token,
     String? name,
+    String? status,
   }) async {
+    final keyword = name?.trim() ?? '';
+    final statusFilter = status?.trim() ?? '';
     final queryParams = <String, String>{
       'page': page.toString(),
       'size': size.toString(),
-      if (name != null && name.isNotEmpty) 'keyword': name,
+      if (keyword.isNotEmpty) 'keyword': keyword,
+      if (statusFilter.isNotEmpty) 'status': statusFilter,
     };
 
-    final uri = Uri.parse(
-      ApiConstants.doctorsEndpoint,
-    ).replace(queryParameters: queryParams);
+    final endpoint = keyword.isEmpty && statusFilter.isEmpty
+        ? ApiConstants.staffUsersEndpoint
+        : ApiConstants.staffUsersSearchEndpoint;
+    final uri = Uri.parse(endpoint).replace(queryParameters: queryParams);
 
     try {
       final response = await client
@@ -72,20 +78,28 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
         final decodedBody = utf8.decode(response.bodyBytes);
         final responseData = jsonDecode(decodedBody);
 
-        if (responseData is List && responseData.isNotEmpty) {
-          return _parseDoctorPage(responseData.first as Map<String, dynamic>);
+        if (responseData is List) {
+          return _parseUserPage(
+            {'content': responseData},
+            fallbackPage: page,
+            fallbackSize: size,
+          );
         }
         if (responseData is Map<String, dynamic>) {
-          return _parseDoctorPage(responseData);
+          return _parseUserPage(
+            responseData,
+            fallbackPage: page,
+            fallbackSize: size,
+          );
         }
 
-        throw Exception('Dinh dang danh sach bac si khong hop le');
+        throw Exception('Định dạng danh sách người dùng không hợp lệ');
       }
 
-      throw Exception('Loi he thong: ${response.statusCode}');
+      throw Exception('Lỗi hệ thống: ${response.statusCode}');
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Ket noi that bai: $e');
+      throw Exception('Kết nối thất bại: $e');
     }
   }
 
@@ -117,7 +131,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       }
 
       final decodedBody = utf8.decode(response.bodyBytes);
-      String message = 'Loi khi tao tai khoan bac si';
+      String message = 'Lỗi khi tạo tài khoản bác sĩ';
       try {
         final errorData = jsonDecode(decodedBody);
         if (errorData is Map && errorData['message'] != null) {
@@ -127,7 +141,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       throw Exception(message);
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Ket noi that bai: $e');
+      throw Exception('Kết nối thất bại: $e');
     }
   }
 
@@ -162,7 +176,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       }
 
       final decodedBody = utf8.decode(response.bodyBytes);
-      String message = 'Loi khi tao tai khoan';
+      String message = 'Lỗi khi tạo tài khoản';
       try {
         final errorData = jsonDecode(decodedBody);
         if (errorData is Map && errorData['message'] != null) {
@@ -172,7 +186,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       throw Exception(message);
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Ket noi that bai: $e');
+      throw Exception('Kết nối thất bại: $e');
     }
   }
 
@@ -208,6 +222,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
 
         return rolesJson
             .map((item) => RoleModel.fromJson(item as Map<String, dynamic>))
+            .where((role) => !_isAdminRole(role))
             .toList();
       }
 
@@ -244,7 +259,7 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
 
       if (response.statusCode != 200 && response.statusCode != 204) {
         final decodedBody = utf8.decode(response.bodyBytes);
-        String message = 'Khong the thay doi trang thai bac si';
+        String message = 'Không thể thay đổi trạng thái bác sĩ';
         try {
           final errorData = jsonDecode(decodedBody);
           if (errorData is Map && errorData['message'] != null) {
@@ -255,23 +270,92 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       }
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Loi ket noi: $e');
+      throw Exception('Lỗi kết nối: $e');
     }
   }
 
-  DoctorAccountPageEntity _parseDoctorPage(Map<String, dynamic> json) {
-    final content = json['content'] as List<dynamic>? ?? [];
-    final doctors = content
+  DoctorAccountPageEntity _parseUserPage(
+    Map<String, dynamic> json, {
+    required int fallbackPage,
+    required int fallbackSize,
+  }) {
+    final pageJson = _extractPageMap(json);
+    final content = _extractUserList(pageJson);
+    final users = content
         .map(
           (item) => DoctorAccountModel.fromJson(item as Map<String, dynamic>),
         )
         .toList();
+    final totalElements = _parseInt(
+      pageJson['totalElements'] ?? pageJson['total'] ?? pageJson['totalItems'],
+      users.length,
+    );
+    final pageSize = _parseInt(
+      pageJson['pageSize'] ?? pageJson['size'],
+      fallbackSize,
+    );
+    final totalPages = _parseTotalPages(
+      pageJson['totalPages'] ?? pageJson['pages'],
+      totalElements: totalElements,
+      pageSize: pageSize,
+    );
+    final pageNumber = _parseInt(
+      pageJson['pageNumber'] ?? pageJson['number'] ?? pageJson['page'],
+      fallbackPage,
+    );
 
     return DoctorAccountPageEntity(
-      content: doctors,
-      totalElements: json['totalElements'] as int? ?? doctors.length,
-      totalPages: json['totalPages'] as int? ?? 1,
-      isLast: json['isLast'] as bool? ?? json['last'] as bool? ?? true,
+      content: users,
+      totalElements: totalElements,
+      totalPages: totalPages,
+      pageNumber: pageNumber,
+      pageSize: pageSize,
+      isLast:
+          pageJson['isLast'] as bool? ??
+          pageJson['last'] as bool? ??
+          pageNumber >= totalPages - 1,
     );
+  }
+
+  List<dynamic> _extractUserList(Map<String, dynamic> json) {
+    for (final key in const ['content', 'data', 'items', 'users']) {
+      final value = json[key];
+      if (value is List) return value;
+    }
+    return const [];
+  }
+
+  Map<String, dynamic> _extractPageMap(Map<String, dynamic> json) {
+    for (final key in const ['data', 'result', 'payload']) {
+      final value = json[key];
+      if (value is Map) return Map<String, dynamic>.from(value);
+    }
+    return json;
+  }
+
+  int _parseInt(Object? value, int fallback) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  int _parseTotalPages(
+    Object? value, {
+    required int totalElements,
+    required int pageSize,
+  }) {
+    final parsed = _parseInt(value, 0);
+    if (parsed > 0) return parsed;
+    if (totalElements <= 0 || pageSize <= 0) return 1;
+    return (totalElements / pageSize).ceil();
+  }
+
+  bool _isAdminRole(RoleModel role) {
+    final code = role.code.trim().toUpperCase();
+    final name = role.name.trim().toUpperCase();
+    return code == 'ADMIN' ||
+        code == 'ROLE_ADMIN' ||
+        name == 'ADMIN' ||
+        name == 'ROLE_ADMIN';
   }
 }

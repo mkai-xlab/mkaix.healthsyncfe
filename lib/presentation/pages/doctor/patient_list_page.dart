@@ -12,11 +12,13 @@ import 'patient_detail_page.dart';
 
 class PatientListPage extends StatefulWidget {
   final bool embedded;
+  final VoidCallback? onClearSearch;
   final ValueChanged<PatientEntity>? onOpenPatientDetail;
 
   const PatientListPage({
     super.key,
     this.embedded = false,
+    this.onClearSearch,
     this.onOpenPatientDetail,
   });
 
@@ -33,6 +35,7 @@ class _PatientListPageState extends State<PatientListPage> {
   String? _hoveredPatientKey;
 
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
+  bool get _isPersonalView => context.read<AuthViewModel>().isPersonalView;
 
   @override
   Widget build(BuildContext context) {
@@ -41,13 +44,17 @@ class _PatientListPageState extends State<PatientListPage> {
       child: Consumer<DoctorViewModel>(
         builder: (context, vm, _) {
           if (!_hasRequestedPatientList &&
+              !vm.hasPendingSearch &&
               !vm.isLoading &&
               vm.patients.isEmpty &&
               vm.errorMessage == null) {
             _hasRequestedPatientList = true;
             WidgetsBinding.instance.addPostFrameCallback((_) {
               if (!mounted) return;
-              context.read<DoctorViewModel>().fetchFirstPage(token: _token);
+              context.read<DoctorViewModel>().fetchFirstPage(
+                token: _token,
+                isPersonal: _isPersonalView,
+              );
             });
           }
 
@@ -140,6 +147,23 @@ class _PatientListPageState extends State<PatientListPage> {
                   ],
                 ),
               ),
+              const SizedBox(width: 12),
+              OutlinedButton.icon(
+                onPressed: () {
+                  widget.onClearSearch?.call();
+                  setState(() => _filterGender = '');
+                  vm.clearFilters(_token, isPersonal: _isPersonalView);
+                },
+                icon: const Icon(Icons.groups_outlined, size: 16),
+                label: const Text('Tất cả'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _primaryGreen,
+                  side: const BorderSide(color: _primaryGreen),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -153,7 +177,11 @@ class _PatientListPageState extends State<PatientListPage> {
     return GestureDetector(
       onTap: () {
         setState(() => _filterGender = value);
-        vm.fetchFirstPage(token: _token, gender: value);
+        vm.fetchFirstPage(
+          token: _token,
+          gender: value,
+          isPersonal: _isPersonalView,
+        );
       },
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -198,7 +226,8 @@ class _PatientListPageState extends State<PatientListPage> {
         Expanded(
           child: RefreshIndicator(
             color: _primaryGreen,
-            onRefresh: () => vm.fetchFirstPage(token: _token),
+            onRefresh: () =>
+                vm.fetchFirstPage(token: _token, isPersonal: _isPersonalView),
             child: ListView.separated(
               itemCount: vm.patients.length,
               separatorBuilder: (context, index) =>
@@ -383,7 +412,8 @@ class _PatientListPageState extends State<PatientListPage> {
           ),
           const SizedBox(height: 16),
           ElevatedButton.icon(
-            onPressed: () => vm.fetchFirstPage(token: _token),
+            onPressed: () =>
+                vm.fetchFirstPage(token: _token, isPersonal: _isPersonalView),
             icon: const Icon(Icons.refresh, size: 16),
             label: const Text('Thử lại'),
             style: ElevatedButton.styleFrom(
@@ -470,6 +500,7 @@ class _PatientListPageState extends State<PatientListPage> {
                 patientCode: codeCtrl.text.trim().isEmpty
                     ? null
                     : codeCtrl.text.trim(),
+                isPersonal: _isPersonalView,
               );
               Navigator.pop(ctx);
             },
@@ -492,7 +523,9 @@ class _PatientListPageState extends State<PatientListPage> {
     showDialog(
       context: context,
       builder: (ctx) => const _CreatePatientDialog(),
-    ).then((_) => vm.fetchFirstPage(token: _token));
+    ).then(
+      (_) => vm.fetchFirstPage(token: _token, isPersonal: _isPersonalView),
+    );
   }
 
   void _openPatientDetail(PatientEntity patient) {

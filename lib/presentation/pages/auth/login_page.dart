@@ -863,25 +863,29 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
   }
 
   Widget _buildFooterText() {
-    return Column(
-      children: [
-        const Text(
-          '© 2026 . Bản quyền thuộc Viện Y học Cổ truyền Quân sự.',
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 11, color: Color(0xFFADB5BD)),
-        ),
-        const SizedBox(height: 4),
-        const Text(
-          'VERSION V2.5.0-MILITARY',
-          textAlign: TextAlign.center,
-          style: TextStyle(
-            fontSize: 10,
-            color: Color(0xFFCBD5E0),
-            letterSpacing: 1,
-            fontWeight: FontWeight.w600,
+    return SizedBox(
+      width: double.infinity,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const Text(
+            '© 2026 . Bản quyền thuộc Viện Y học Cổ truyền Quân sự.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 11, color: Color(0xFFADB5BD)),
           ),
-        ),
-      ],
+          const SizedBox(height: 4),
+          const Text(
+            'VERSION V2.5.0-MILITARY',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 10,
+              color: Color(0xFFCBD5E0),
+              letterSpacing: 1,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

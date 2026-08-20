@@ -2,6 +2,17 @@ String userFriendlyErrorMessage(Object error) {
   final raw = error.toString().replaceAll('Exception: ', '').trim();
   final normalized = raw.toLowerCase();
 
+  final isTimeoutError =
+      normalized.contains('timeoutexception') ||
+      normalized.contains('future not completed') ||
+      normalized.contains('timed out') ||
+      normalized.contains('quá thời gian') ||
+      normalized.contains('qua thoi gian');
+
+  if (isTimeoutError) {
+    return 'Máy chủ phản hồi quá lâu. Vui lòng kiểm tra mạng hoặc thử lại sau.';
+  }
+
   final isNetworkError =
       normalized.contains('clientexception') ||
       normalized.contains('socketexception') ||

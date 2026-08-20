@@ -391,9 +391,7 @@ class ExaminationViewModel extends ChangeNotifier {
             token: token,
           );
           _markExaminationViewedLocally(examinationId);
-        } catch (e) {
-          debugPrint('[Examination mark viewed] ignored error: $e');
-        }
+        } catch (_) {}
       }
 
       final detail = await getPatientExaminationsUseCase.executeDetail(

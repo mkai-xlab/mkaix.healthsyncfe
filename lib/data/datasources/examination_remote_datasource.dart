@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
@@ -459,7 +458,6 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       );
       return _DashboardTotalResult(value: value);
     } catch (e) {
-      debugPrint('[Examination total API fallback] $endpoint -> 0, error=$e');
       return _DashboardTotalResult(
         value: 0,
         errorMessage: e.toString().replaceAll('Exception: ', ''),
@@ -487,12 +485,6 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
-      final body = utf8.decode(response.bodyBytes);
-      debugPrint(
-        '[Examination total API error] GET $uri '
-        'status=${response.statusCode}, body=$body',
-        wrapWidth: 1024,
-      );
       throw Exception(_httpErrorMessage(response.statusCode, errorMessage));
     }
 

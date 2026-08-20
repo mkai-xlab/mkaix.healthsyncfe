@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
@@ -184,9 +184,6 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
 
       final body = utf8.decode(response.bodyBytes);
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        debugPrint(
-          '[DICOM notification poll] status=${response.statusCode}, body=$body',
-        );
         return DicomUploadNotificationPollResult.failure(
           'HTTP ${response.statusCode}',
         );
@@ -194,7 +191,6 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
 
       final data = jsonDecode(body);
       if (data is! List) {
-        debugPrint('[DICOM notification poll] response is not a list: $body');
         return const DicomUploadNotificationPollResult.failure(
           'Notification response is not a list',
         );
@@ -208,12 +204,8 @@ class DicomRemoteDataSourceImpl implements DicomRemoteDataSource {
             ),
           )
           .toList();
-      debugPrint(
-        '[DICOM notification poll] success=true, count=${notifications.length}',
-      );
       return DicomUploadNotificationPollResult.success(notifications);
     } catch (e) {
-      debugPrint('[DICOM notification poll] ignored error: $e');
       return DicomUploadNotificationPollResult.failure(e.toString());
     }
   }

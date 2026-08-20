@@ -244,6 +244,8 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                   padding: EdgeInsets.all(horizontalPadding),
                   child: Column(
                     children: [
+                      _aiDisclaimer(),
+                      const SizedBox(height: 12),
                       if (isNarrow) ...[
                         _imageViewer(token, height: 460),
                         const SizedBox(height: 16),
@@ -854,6 +856,39 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
         const SizedBox(height: 16),
         _aiReviewButton(result),
       ],
+    );
+  }
+
+  Widget _aiDisclaimer() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFACC15)),
+      ),
+      child: const Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: '⚠️ '),
+            TextSpan(
+              text: 'Lưu ý:',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            TextSpan(
+              text:
+                  ' Kết quả phân tích từ Trợ lý ảo chỉ mang tính chất tham khảo và không thay thế chẩn đoán của bác sĩ!',
+            ),
+          ],
+        ),
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.45,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF92400E),
+        ),
+      ),
     );
   }
 
@@ -1837,6 +1872,8 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
                 ],
               ),
               const SizedBox(height: 14),
+              _aiDisclaimer(),
+              const SizedBox(height: 14),
               _aiResultCard(widget.result),
               const SizedBox(height: 18),
               const Text(
@@ -1863,6 +1900,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
                       label: 'Không đồng ý',
                       selected: !_agreeWithAi,
                       onTap: () => setState(_markDisagreeWithAi),
+                      selectedColor: AppColors.error,
                     ),
                   ),
                 ],
@@ -2068,6 +2106,39 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
     }
   }
 
+  Widget _aiDisclaimer() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFACC15)),
+      ),
+      child: const Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: '⚠️ '),
+            TextSpan(
+              text: 'Lưu ý:',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            TextSpan(
+              text:
+                  ' Kết quả phân tích từ Trợ lý ảo chỉ mang tính chất tham khảo và không thay thế chẩn đoán của bác sĩ!',
+            ),
+          ],
+        ),
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.45,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF92400E),
+        ),
+      ),
+    );
+  }
+
   Widget _aiResultCard(AiPredictionResultEntity result) {
     return Container(
       width: double.infinity,
@@ -2129,6 +2200,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
     required String label,
     required bool selected,
     required VoidCallback onTap,
+    Color selectedColor = AppColors.primary,
   }) {
     return InkWell(
       onTap: onTap,
@@ -2136,10 +2208,10 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primaryXLight : Colors.white,
+          color: selected ? selectedColor.withValues(alpha: 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
+            color: selected ? selectedColor : AppColors.border,
           ),
         ),
         child: Row(
@@ -2147,7 +2219,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
             Icon(
               selected ? Icons.radio_button_checked : Icons.radio_button_off,
               size: 19,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
+              color: selected ? selectedColor : AppColors.textSecondary,
             ),
             const SizedBox(width: 10),
             Text(

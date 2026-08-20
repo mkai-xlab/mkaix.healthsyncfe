@@ -452,15 +452,13 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               width: double.infinity,
               child: _viewerUrl.isEmpty
                   ? _emptyImageState()
-                  : Image.network(
-                      _viewerUrl,
-                      headers: token.isEmpty
-                          ? null
-                          : {'Authorization': 'Bearer $token'},
+                  : _NetworkImageFrame(
+                      url: _viewerUrl,
+                      token: token,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return _emptyImageState();
-                      },
+                      backgroundColor: Colors.black,
+                      loadingIconSize: 34,
+                      errorIconSize: 54,
                     ),
             ),
           ),
@@ -544,22 +542,13 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
-                    imageUrl,
-                    headers: token.isEmpty
-                        ? null
-                        : {'Authorization': 'Bearer $token'},
+                  _NetworkImageFrame(
+                    url: imageUrl,
+                    token: token,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const ColoredBox(
-                        color: Colors.black,
-                        child: Icon(
-                          Icons.broken_image_outlined,
-                          color: Colors.white54,
-                          size: 22,
-                        ),
-                      );
-                    },
+                    backgroundColor: Colors.black,
+                    loadingIconSize: 18,
+                    errorIconSize: 22,
                   ),
                   Positioned(
                     right: 4,
@@ -606,19 +595,13 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                   minScale: 0.5,
                   maxScale: 5,
                   child: Center(
-                    child: Image.network(
-                      _viewerUrl,
-                      headers: token.isEmpty
-                          ? null
-                          : {'Authorization': 'Bearer $token'},
+                    child: _NetworkImageFrame(
+                      url: _viewerUrl,
+                      token: token,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(
-                          Icons.broken_image_outlined,
-                          color: Colors.white54,
-                          size: 64,
-                        );
-                      },
+                      backgroundColor: Colors.black,
+                      loadingIconSize: 38,
+                      errorIconSize: 64,
                     ),
                   ),
                 ),
@@ -2184,5 +2167,120 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
   String _formatDate(DateTime date) {
     String two(int value) => value.toString().padLeft(2, '0');
     return '${two(date.day)}/${two(date.month)}/${date.year}';
+  }
+}
+
+class _NetworkImageFrame extends StatelessWidget {
+  final String url;
+  final String token;
+  final BoxFit fit;
+  final Color backgroundColor;
+  final double loadingIconSize;
+  final double errorIconSize;
+
+  const _NetworkImageFrame({
+    required this.url,
+    required this.token,
+    required this.fit,
+    required this.backgroundColor,
+    required this.loadingIconSize,
+    required this.errorIconSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (url.isEmpty) {
+      return _ImageFrameState(
+        backgroundColor: backgroundColor,
+        icon: Icons.image_not_supported_outlined,
+        iconSize: errorIconSize,
+      );
+    }
+
+    return Image.network(
+      url,
+      headers: token.isEmpty ? null : {'Authorization': 'Bearer $token'},
+      fit: fit,
+      gaplessPlayback: true,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded || frame != null) return child;
+        return _ImageLoadingState(
+          backgroundColor: backgroundColor,
+          size: loadingIconSize,
+          progress: null,
+        );
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return _ImageLoadingState(
+          backgroundColor: backgroundColor,
+          size: loadingIconSize,
+          progress: loadingProgress.expectedTotalBytes == null
+              ? null
+              : loadingProgress.cumulativeBytesLoaded /
+                    loadingProgress.expectedTotalBytes!,
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return _ImageFrameState(
+          backgroundColor: backgroundColor,
+          icon: Icons.broken_image_outlined,
+          iconSize: errorIconSize,
+        );
+      },
+    );
+  }
+}
+
+class _ImageLoadingState extends StatelessWidget {
+  final Color backgroundColor;
+  final double size;
+  final double? progress;
+
+  const _ImageLoadingState({
+    required this.backgroundColor,
+    required this.size,
+    required this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: Center(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: CircularProgressIndicator(
+            value: progress,
+            strokeWidth: size <= 20 ? 2 : 3,
+            color: Colors.white70,
+            backgroundColor: Colors.white12,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ImageFrameState extends StatelessWidget {
+  final Color backgroundColor;
+  final IconData icon;
+  final double iconSize;
+
+  const _ImageFrameState({
+    required this.backgroundColor,
+    required this.icon,
+    required this.iconSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: Center(
+        child: Icon(icon, color: Colors.white54, size: iconSize),
+      ),
+    );
   }
 }

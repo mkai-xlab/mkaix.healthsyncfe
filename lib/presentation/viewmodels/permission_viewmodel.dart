@@ -6,6 +6,8 @@ import '../../data/models/role_model.dart';
 import '../../core/utils/error_message_utils.dart';
 import '../../domain/usecases/create_permission_feature_usecase.dart';
 import '../../domain/usecases/create_permission_usecase.dart';
+import '../../domain/usecases/delete_permission_feature_usecase.dart';
+import '../../domain/usecases/delete_permission_usecase.dart';
 import '../../domain/usecases/get_permission_catalog_usecase.dart';
 import '../../domain/usecases/get_permission_roles_usecase.dart';
 import '../../domain/usecases/update_permission_feature_usecase.dart';
@@ -20,6 +22,8 @@ class PermissionViewModel extends ChangeNotifier {
   final UpdatePermissionFeatureUseCase updateFeatureUseCase;
   final CreatePermissionUseCase createPermissionUseCase;
   final UpdatePermissionUseCase updatePermissionUseCase;
+  final DeletePermissionFeatureUseCase deleteFeatureUseCase;
+  final DeletePermissionUseCase deletePermissionUseCase;
 
   PermissionViewModel({
     required this.getPermissionCatalogUseCase,
@@ -29,6 +33,8 @@ class PermissionViewModel extends ChangeNotifier {
     required this.updateFeatureUseCase,
     required this.createPermissionUseCase,
     required this.updatePermissionUseCase,
+    required this.deleteFeatureUseCase,
+    required this.deletePermissionUseCase,
   });
 
   List<PermissionFeatureModel> _features = [];
@@ -149,6 +155,21 @@ class PermissionViewModel extends ChangeNotifier {
     });
   }
 
+  Future<bool> deleteFeature(String id) async {
+    return _runMutation(() async {
+      await deleteFeatureUseCase.execute(id);
+      _features = _features.where((feature) => feature.id != id).toList();
+      final removedPermissionIds = _permissions
+          .where((permission) => permission.featureId == id)
+          .map((permission) => permission.id)
+          .toSet();
+      _permissions = _permissions
+          .where((permission) => permission.featureId != id)
+          .toList();
+      _removePermissionsFromRoles(removedPermissionIds);
+    });
+  }
+
   Future<bool> createPermission({
     required String code,
     required String name,
@@ -184,6 +205,17 @@ class PermissionViewModel extends ChangeNotifier {
         priority: priority,
         requiresPermissionId: requiresPermissionId,
       );
+    });
+  }
+
+  Future<bool> deletePermission(String id) async {
+    return _runMutation(() async {
+      await deletePermissionUseCase.execute(id);
+      final removedPermissionIds = _collectPermissionIdsForRemoval(id);
+      _permissions = _permissions
+          .where((permission) => !removedPermissionIds.contains(permission.id))
+          .toList();
+      _removePermissionsFromRoles(removedPermissionIds);
     });
   }
 
@@ -395,6 +427,30 @@ class PermissionViewModel extends ChangeNotifier {
     for (final childId in children) {
       current.remove(childId);
       _removeChildren(current, childId);
+    }
+  }
+
+  Set<String> _collectPermissionIdsForRemoval(String permissionId) {
+    final ids = <String>{permissionId};
+    var changed = true;
+    while (changed) {
+      changed = false;
+      for (final permission in _permissions) {
+        if (permission.parentId != null &&
+            ids.contains(permission.parentId) &&
+            ids.add(permission.id)) {
+          changed = true;
+        }
+      }
+    }
+    return ids;
+  }
+
+  void _removePermissionsFromRoles(Set<String> permissionIds) {
+    if (permissionIds.isEmpty) return;
+    for (final roleId in _draft.keys.toList()) {
+      _draft[roleId]?.removeAll(permissionIds);
+      _saved[roleId]?.removeAll(permissionIds);
     }
   }
 

@@ -20,6 +20,8 @@ import 'package:fe/data/datasources/permission_remote_datasource.dart';
 import 'package:fe/data/repositories/permission_repository_impl.dart';
 import 'package:fe/domain/usecases/create_permission_feature_usecase.dart';
 import 'package:fe/domain/usecases/create_permission_usecase.dart';
+import 'package:fe/domain/usecases/delete_permission_feature_usecase.dart';
+import 'package:fe/domain/usecases/delete_permission_usecase.dart';
 import 'package:fe/domain/usecases/get_permission_catalog_usecase.dart';
 import 'package:fe/domain/usecases/get_permission_roles_usecase.dart';
 import 'package:fe/domain/usecases/update_permission_feature_usecase.dart';
@@ -1726,6 +1728,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
       updateFeatureUseCase: UpdatePermissionFeatureUseCase(repository),
       createPermissionUseCase: CreatePermissionUseCase(repository),
       updatePermissionUseCase: UpdatePermissionUseCase(repository),
+      deleteFeatureUseCase: DeletePermissionFeatureUseCase(repository),
+      deletePermissionUseCase: DeletePermissionUseCase(repository),
     );
   }
 

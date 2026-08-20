@@ -1,5 +1,6 @@
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -213,6 +214,7 @@ class _DocumentTable extends StatelessWidget {
                 Expanded(child: _DocumentHeaderCell('PHẠM VI')),
                 Expanded(child: _DocumentHeaderCell('NGÀY TẢI')),
                 Expanded(child: _DocumentHeaderCell('TRẠNG THÁI\nAI')),
+                SizedBox(width: 96, child: _DocumentHeaderCell('')),
               ],
             ),
           ),
@@ -263,6 +265,9 @@ class _DocumentRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final statusView = _DocumentStatusView.fromStatus(document.status);
+    final isDeleting = context.select<KnowledgeDocumentViewModel, bool>(
+      (vm) => vm.isDeletingDocument(document.id),
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       decoration: const BoxDecoration(
@@ -328,9 +333,90 @@ class _DocumentRow extends StatelessWidget {
               ),
             ),
           ),
+          SizedBox(
+            width: 96,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                IconButton(
+                  tooltip: 'Xem trước tài liệu',
+                  onPressed: () => _showPreviewUnsupported(context),
+                  icon: const Icon(Icons.visibility_outlined, size: 20),
+                  color: AppColors.primaryLight,
+                ),
+                isDeleting
+                    ? const SizedBox(
+                        width: 34,
+                        height: 34,
+                        child: Center(
+                          child: SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                        ),
+                      )
+                    : IconButton(
+                        tooltip: 'Xóa tài liệu',
+                        onPressed: () => _confirmDelete(context),
+                        icon: const Icon(Icons.delete_outline, size: 20),
+                        color: AppColors.error,
+                      ),
+              ],
+            ),
+          ),
         ],
       ),
     );
+  }
+
+  void _showPreviewUnsupported(BuildContext context) {
+    AppToast.showError('Chức năng xem trước tài liệu chưa được hỗ trợ.');
+  }
+
+  Future<void> _confirmDelete(BuildContext context) async {
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Xóa tài liệu?',
+            style: TextStyle(fontWeight: FontWeight.w800),
+          ),
+          content: Text(
+            'Tài liệu "${document.displayName}" và nội dung đã index sẽ bị xóa khỏi kho tri thức.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Hủy'),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              icon: const Icon(Icons.delete_outline, size: 18),
+              label: const Text('Xóa'),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    final vm = context.read<KnowledgeDocumentViewModel>();
+    final success = await vm.deleteDocument(token: token, id: document.id);
+    if (!context.mounted) return;
+
+    if (success) {
+      AppToast.showSuccess('Đã xóa tài liệu.');
+      return;
+    }
+    AppToast.showError(vm.errorMessage ?? 'Không thể xóa tài liệu.');
   }
 
   String _sourceTypeLabel(String value) {
@@ -385,7 +471,15 @@ class _AccessScopeOption {
 }
 
 class _KnowledgeUploadDialogState extends State<_KnowledgeUploadDialog> {
-  static const _allowedExtensions = ['pdf', 'doc', 'docx', 'docs'];
+  static const _allowedExtensions = [
+    'pdf',
+    'doc',
+    'docx',
+    'docs',
+    'ppt',
+    'pptx',
+    'txt',
+  ];
   static const _accessScopeOptions = [
     _AccessScopeOption(value: 'ALL', label: 'Tất cả'),
     _AccessScopeOption(value: 'DOCTOR', label: 'Bác sĩ'),
@@ -428,6 +522,15 @@ class _KnowledgeUploadDialogState extends State<_KnowledgeUploadDialog> {
             ),
             const SizedBox(height: 16),
             _dropZone(isUploading),
+            const SizedBox(height: 10),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                onPressed: isUploading ? null : _pickFiles,
+                icon: const Icon(Icons.folder_open_outlined, size: 18),
+                label: const Text('Chọn file từ máy'),
+              ),
+            ),
             const SizedBox(height: 14),
             DropdownButtonFormField<String>(
               initialValue: _selectedAccessScope,
@@ -558,7 +661,7 @@ class _KnowledgeUploadDialogState extends State<_KnowledgeUploadDialog> {
               ),
               const SizedBox(height: 4),
               const Text(
-                'Định dạng: .pdf, .doc, .docx, .docs',
+                'Định dạng: .pdf, .doc, .docx, .docs, .ppt, .pptx, .txt',
                 style: TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
               ),
             ],
@@ -624,26 +727,61 @@ class _KnowledgeUploadDialogState extends State<_KnowledgeUploadDialog> {
   }
 
   Future<void> _pickFiles() async {
-    final result = await FilePicker.platform.pickFiles(
-      type: FileType.custom,
-      allowedExtensions: _allowedExtensions,
-      allowMultiple: true,
-      withData: true,
-    );
-    if (result == null || result.files.isEmpty) return;
+    FocusManager.instance.primaryFocus?.unfocus();
+    await Future<void>.delayed(Duration.zero);
+    if (!mounted) return;
 
-    _addFiles(
-      result.files
-          .map(
-            (file) => KnowledgeUploadFile(
-              name: file.name,
-              size: file.size,
-              path: file.path,
-              bytes: file.bytes,
-            ),
-          )
-          .toList(),
-    );
+    try {
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.any,
+        allowMultiple: true,
+        withData: true,
+      );
+      if (result == null) return;
+      if (result.files.isEmpty) {
+        setState(() {
+          _validationError = 'Không có file nào được trả về từ bộ chọn file.';
+        });
+        return;
+      }
+
+      final selectedFiles = <KnowledgeUploadFile>[];
+      for (var index = 0; index < result.files.length; index += 1) {
+        final file = result.files[index];
+        var bytes = file.bytes;
+        final path = kIsWeb ? null : file.path;
+        final readStream = file.readStream;
+        if (bytes == null &&
+            readStream == null &&
+            (path == null || path.isEmpty)) {
+          continue;
+        }
+        selectedFiles.add(
+          KnowledgeUploadFile(
+            name: file.name,
+            size: file.size,
+            path: path,
+            bytes: bytes,
+            readStream: readStream,
+          ),
+        );
+      }
+
+      if (selectedFiles.isEmpty) {
+        setState(() {
+          _validationError =
+              'Không thể đọc file đã chọn. Vui lòng thử chọn lại hoặc kéo-thả file.';
+        });
+        return;
+      }
+      _addFiles(selectedFiles);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _validationError =
+            'Không thể đọc file đã chọn. Vui lòng thử chọn lại hoặc kéo-thả file.';
+      });
+    }
   }
 
   void _addFiles(List<KnowledgeUploadFile> files) {
@@ -654,7 +792,7 @@ class _KnowledgeUploadDialogState extends State<_KnowledgeUploadDialog> {
     if (invalid.isNotEmpty) {
       setState(() {
         _validationError =
-            'Chỉ hỗ trợ PDF, DOC, DOCX hoặc DOCS. Vui lòng kiểm tra lại file.';
+            'Chỉ hỗ trợ PDF, DOC, DOCX, DOCS, PPT, PPTX hoặc TXT. Vui lòng kiểm tra lại file.';
       });
       return;
     }

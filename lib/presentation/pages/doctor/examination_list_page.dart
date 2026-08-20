@@ -733,17 +733,17 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
               padding: EdgeInsets.fromLTRB(isNew ? 18 : 16, 14, 16, 14),
               child: Row(
                 children: [
-                  Expanded(
-                    flex: 2,
+                  SizedBox(
+                    width: 76,
                     child: _cell(
                       'ID ca khám',
                       examination.examinationId > 0
                           ? examination.examinationId.toString()
                           : '---',
                       isStrong: true,
-                      trailing: isNew ? _newMarker() : null,
                     ),
                   ),
+                  SizedBox(width: 206, child: _badgeColumn(examination, isNew)),
                   Expanded(
                     flex: 4,
                     child: _cell(
@@ -771,7 +771,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
                     child: _cell('Ngày chụp', examination.studyDateDisplay),
                   ),
                   const SizedBox(width: 12),
-                  _statusBadge(examination),
+                  _examinationBadges(examination),
                 ],
               ),
             ),
@@ -789,7 +789,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     Widget? trailing,
   }) {
     return Padding(
-      padding: const EdgeInsets.only(right: 12),
+      padding: EdgeInsets.only(right: trailing == null ? 12 : 6),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -828,19 +828,19 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFFFFF0F0),
+        color: const Color(0xFFEFF6FF),
         borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: const Color(0xFFFFCDD2)),
+        border: Border.all(color: const Color(0xFFBFDBFE)),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.circle, size: 6, color: Color(0xFFE53E3E)),
+          Icon(Icons.circle, size: 6, color: Color(0xFF2563EB)),
           SizedBox(width: 4),
           Text(
             'Mới',
             style: TextStyle(
-              color: Color(0xFFE53E3E),
+              color: Color(0xFF1D4ED8),
               fontSize: 10,
               fontWeight: FontWeight.w800,
               letterSpacing: 0,
@@ -848,6 +848,32 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget? _idBadges(ExaminationEntity examination, {required bool isNew}) {
+    final showLowConfidenceBadge = _shouldShowLowConfidenceBadge(examination);
+    if (!isNew && !showLowConfidenceBadge) return null;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (isNew) _newMarker(),
+        if (isNew && showLowConfidenceBadge) const SizedBox(width: 8),
+        if (showLowConfidenceBadge) _lowConfidenceBadge(),
+      ],
+    );
+  }
+
+  bool _shouldShowLowConfidenceBadge(ExaminationEntity examination) {
+    return examination.statusGroup == ExaminationStatusUtils.needVerify &&
+        examination.hasLowConfidenceAiResult;
+  }
+
+  Widget _badgeColumn(ExaminationEntity examination, bool isNew) {
+    final badges = _idBadges(examination, isNew: isNew);
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: badges ?? const SizedBox.shrink(),
     );
   }
 
@@ -868,6 +894,42 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
           fontSize: 11,
           fontWeight: FontWeight.w700,
         ),
+      ),
+    );
+  }
+
+  Widget _examinationBadges(ExaminationEntity examination) {
+    return SizedBox(
+      width: 150,
+      child: Align(
+        alignment: Alignment.centerRight,
+        child: _statusBadge(examination),
+      ),
+    );
+  }
+
+  Widget _lowConfidenceBadge() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF0F0),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFFFCDD2)),
+      ),
+      child: const Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.warning_amber_rounded, size: 13, color: Color(0xFFE53E3E)),
+          SizedBox(width: 4),
+          Text(
+            'Độ tin cậy thấp',
+            style: TextStyle(
+              color: Color(0xFFE53E3E),
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ],
       ),
     );
   }

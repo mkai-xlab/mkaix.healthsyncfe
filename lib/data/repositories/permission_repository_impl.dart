@@ -49,6 +49,11 @@ class PermissionRepositoryImpl implements PermissionRepository {
   }
 
   @override
+  Future<void> deleteFeature(String id) {
+    return remoteDataSource.deleteFeature(id);
+  }
+
+  @override
   Future<PermissionModel> createPermission({
     required String code,
     required String name,
@@ -82,5 +87,10 @@ class PermissionRepositoryImpl implements PermissionRepository {
       priority: priority,
       requiresPermissionId: requiresPermissionId,
     );
+  }
+
+  @override
+  Future<void> deletePermission(String id) {
+    return remoteDataSource.deletePermission(id);
   }
 }

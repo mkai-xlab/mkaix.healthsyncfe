@@ -71,6 +71,17 @@ class KnowledgeDocumentRemoteDataSource {
     await _sendMultipart(request);
   }
 
+  Future<void> deleteDocument({required String token, required int id}) async {
+    final response = await client.delete(
+      Uri.parse(ApiConstants.knowledgeDocumentByIdEndpoint(id)),
+      headers: _headers(token),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_httpErrorMessage(response));
+    }
+  }
+
   Future<void> _sendMultipart(http.MultipartRequest request) async {
     final streamedResponse = await client.send(request);
     final response = await http.Response.fromStream(streamedResponse);
@@ -88,6 +99,14 @@ class KnowledgeDocumentRemoteDataSource {
       return http.MultipartFile.fromBytes(
         field,
         file.bytes!,
+        filename: file.name,
+      );
+    }
+    if (file.readStream != null) {
+      return http.MultipartFile(
+        field,
+        file.readStream!,
+        file.size,
         filename: file.name,
       );
     }
@@ -144,11 +163,13 @@ class KnowledgeUploadFile {
   final int size;
   final String? path;
   final List<int>? bytes;
+  final Stream<List<int>>? readStream;
 
   const KnowledgeUploadFile({
     required this.name,
     required this.size,
     this.path,
     this.bytes,
+    this.readStream,
   });
 }

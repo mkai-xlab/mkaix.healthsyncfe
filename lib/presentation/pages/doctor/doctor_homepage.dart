@@ -439,6 +439,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       return PatientDetailPage(
         patient: selectedPatientDetail,
         embedded: true,
+        onBack: () => setState(() => _selectedPatientDetail = null),
         onOpenExaminationDetail: (examination) =>
             setState(() => _selectedExaminationDetail = examination),
       );

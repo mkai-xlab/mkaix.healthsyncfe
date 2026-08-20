@@ -272,4 +272,17 @@ class ExaminationEntity {
     if (visitTime == null) return '---';
     return DateFormat('dd/MM/yyyy HH:mm').format(visitTime!);
   }
+
+  bool get hasLowConfidenceAiResult {
+    for (final image in images) {
+      for (final result in image.aiResults) {
+        if (result.confidence <= 0) continue;
+        final confidencePercent = result.confidence > 1
+            ? result.confidence
+            : result.confidence * 100;
+        if (confidencePercent < 40) return true;
+      }
+    }
+    return false;
+  }
 }

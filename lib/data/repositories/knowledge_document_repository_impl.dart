@@ -39,4 +39,9 @@ class KnowledgeDocumentRepositoryImpl implements KnowledgeDocumentRepository {
       accessScope: accessScope,
     );
   }
+
+  @override
+  Future<void> deleteDocument({required String token, required int id}) {
+    return remoteDataSource.deleteDocument(token: token, id: id);
+  }
 }

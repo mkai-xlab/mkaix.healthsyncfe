@@ -21,6 +21,7 @@ abstract class PermissionRemoteDataSource {
     required String name,
     String? description,
   });
+  Future<void> deleteFeature(String id);
   Future<PermissionModel> createPermission({
     required String code,
     required String name,
@@ -36,6 +37,7 @@ abstract class PermissionRemoteDataSource {
     int? priority,
     String? requiresPermissionId,
   });
+  Future<void> deletePermission(String id);
 }
 
 class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
@@ -121,6 +123,18 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
   }
 
   @override
+  Future<void> deleteFeature(String id) async {
+    final uri = Uri.parse(ApiConstants.featureByIdEndpoint(id));
+    final response = await client
+        .delete(uri, headers: _headers)
+        .timeout(const Duration(seconds: 10));
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      return;
+    }
+    throw Exception('Lỗi xóa feature (${response.statusCode})');
+  }
+
+  @override
   Future<PermissionModel> createPermission({
     required String code,
     required String name,
@@ -195,6 +209,18 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
       );
     }
     throw Exception('Loi cap nhat permission (${response.statusCode})');
+  }
+
+  @override
+  Future<void> deletePermission(String id) async {
+    final uri = Uri.parse(ApiConstants.permissionByIdEndpoint(id));
+    final response = await client
+        .delete(uri, headers: _headers)
+        .timeout(const Duration(seconds: 10));
+    if (response.statusCode == 200 || response.statusCode == 204) {
+      return;
+    }
+    throw Exception('Lỗi xóa permission (${response.statusCode})');
   }
 
   @override

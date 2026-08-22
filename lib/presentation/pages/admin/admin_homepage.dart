@@ -20,6 +20,8 @@ import 'package:fe/data/datasources/permission_remote_datasource.dart';
 import 'package:fe/data/repositories/permission_repository_impl.dart';
 import 'package:fe/domain/usecases/create_permission_feature_usecase.dart';
 import 'package:fe/domain/usecases/create_permission_usecase.dart';
+import 'package:fe/domain/usecases/delete_permission_feature_usecase.dart';
+import 'package:fe/domain/usecases/delete_permission_usecase.dart';
 import 'package:fe/domain/usecases/get_permission_catalog_usecase.dart';
 import 'package:fe/domain/usecases/get_permission_roles_usecase.dart';
 import 'package:fe/domain/usecases/update_permission_feature_usecase.dart';
@@ -910,7 +912,15 @@ class _AdminHomepageState extends State<AdminHomepage> {
   }
 
   Future<void> _showUploadKnowledgeDocumentDialog(BuildContext context) async {
-    const allowedExtensions = ['pdf', 'doc', 'docx', 'docs'];
+    const allowedExtensions = [
+      'pdf',
+      'doc',
+      'docx',
+      'docs',
+      'ppt',
+      'pptx',
+      'txt',
+    ];
     PlatformFile? selectedFile;
     String? validationError;
 
@@ -921,8 +931,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
           builder: (context, setDialogState) {
             Future<void> pickFile() async {
               final result = await FilePicker.platform.pickFiles(
-                type: FileType.custom,
-                allowedExtensions: allowedExtensions,
+                type: FileType.any,
                 allowMultiple: false,
                 withData: true,
               );
@@ -934,7 +943,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                 setDialogState(() {
                   selectedFile = null;
                   validationError =
-                      'Chỉ hỗ trợ file PDF, DOC, DOCX hoặc DOCS. Vui lòng chọn lại.';
+                      'Chỉ hỗ trợ file PDF, DOC, DOCX, DOCS, PPT, PPTX hoặc TXT. Vui lòng chọn lại.';
                 });
                 return;
               }
@@ -964,7 +973,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Chọn tài liệu để bổ sung vào kho tri thức. Hệ thống hiện hỗ trợ PDF, DOC, DOCX và DOCS.',
+                      'Chọn tài liệu để bổ sung vào kho tri thức. Hệ thống hiện hỗ trợ PDF, DOC, DOCX, DOCS, PPT, PPTX và TXT.',
                       style: TextStyle(color: Color(0xFF6B7280), height: 1.35),
                     ),
                     const SizedBox(height: 16),
@@ -1006,7 +1015,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                             const SizedBox(height: 4),
                             Text(
                               file == null
-                                  ? 'Định dạng: .pdf, .doc, .docx, .docs'
+                                  ? 'Định dạng: .pdf, .doc, .docx, .docs, .ppt, .pptx, .txt'
                                   : _formatFileSize(file.size),
                               style: const TextStyle(
                                 fontSize: 12,
@@ -1726,6 +1735,8 @@ class _AdminHomepageState extends State<AdminHomepage> {
       updateFeatureUseCase: UpdatePermissionFeatureUseCase(repository),
       createPermissionUseCase: CreatePermissionUseCase(repository),
       updatePermissionUseCase: UpdatePermissionUseCase(repository),
+      deleteFeatureUseCase: DeletePermissionFeatureUseCase(repository),
+      deletePermissionUseCase: DeletePermissionUseCase(repository),
     );
   }
 

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../../data/datasources/knowledge_document_remote_datasource.dart';
 import '../../data/models/knowledge_document_model.dart';
+import '../../domain/usecases/delete_knowledge_document_usecase.dart';
 import '../../domain/usecases/get_knowledge_documents_usecase.dart';
 import '../../domain/usecases/upload_knowledge_document_usecase.dart';
 import '../../domain/usecases/upload_knowledge_documents_batch_usecase.dart';
@@ -10,14 +11,17 @@ class KnowledgeDocumentViewModel extends ChangeNotifier {
   final GetKnowledgeDocumentsUseCase getDocumentsUseCase;
   final UploadKnowledgeDocumentUseCase uploadDocumentUseCase;
   final UploadKnowledgeDocumentsBatchUseCase uploadDocumentsBatchUseCase;
+  final DeleteKnowledgeDocumentUseCase deleteDocumentUseCase;
 
   KnowledgeDocumentViewModel({
     required this.getDocumentsUseCase,
     required this.uploadDocumentUseCase,
     required this.uploadDocumentsBatchUseCase,
+    required this.deleteDocumentUseCase,
   });
 
   final List<KnowledgeDocumentModel> _documents = [];
+  final Set<int> _deletingDocumentIds = {};
 
   bool _isLoading = false;
   bool _isUploading = false;
@@ -31,6 +35,7 @@ class KnowledgeDocumentViewModel extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   String get searchQuery => _searchQuery;
   String get selectedStatus => _selectedStatus;
+  bool isDeletingDocument(int id) => _deletingDocumentIds.contains(id);
 
   List<KnowledgeDocumentModel> get filteredDocuments {
     final query = _searchQuery.trim().toLowerCase();
@@ -94,6 +99,7 @@ class KnowledgeDocumentViewModel extends ChangeNotifier {
 
   void reset() {
     _documents.clear();
+    _deletingDocumentIds.clear();
     _isLoading = false;
     _isUploading = false;
     _errorMessage = null;
@@ -142,6 +148,32 @@ class KnowledgeDocumentViewModel extends ChangeNotifier {
       return false;
     } finally {
       _isUploading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> deleteDocument({required String token, required int id}) async {
+    if (_deletingDocumentIds.contains(id)) return false;
+    if (token.trim().isEmpty) {
+      _errorMessage =
+          'PhiĂªn Ä‘Äƒng nháº­p Ä‘Ă£ háº¿t háº¡n. Vui lĂ²ng Ä‘Äƒng nháº­p láº¡i.';
+      notifyListeners();
+      return false;
+    }
+
+    _deletingDocumentIds.add(id);
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await deleteDocumentUseCase.execute(token: token, id: id);
+      _documents.removeWhere((document) => document.id == id);
+      return true;
+    } catch (error) {
+      _errorMessage = _friendlyError(error);
+      return false;
+    } finally {
+      _deletingDocumentIds.remove(id);
       notifyListeners();
     }
   }

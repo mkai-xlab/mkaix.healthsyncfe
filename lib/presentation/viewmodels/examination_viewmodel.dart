@@ -34,7 +34,7 @@ class ExaminationViewModel extends ChangeNotifier {
         verified: 0,
         unverified: 0,
         severe: 0,
-        warningMessage: 'Khong the tai so lieu dashboard',
+        warningMessage: 'Không thể tải dữ liệu dashboard',
       );
 
   final GetPatientExaminationsUseCase getPatientExaminationsUseCase;

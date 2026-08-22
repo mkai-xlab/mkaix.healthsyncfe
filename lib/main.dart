@@ -23,6 +23,7 @@ import 'package:fe/domain/usecases/ask_chat_usecase.dart';
 import 'package:fe/domain/usecases/change_password_usecase.dart';
 import 'package:fe/domain/usecases/create_chat_session_usecase.dart';
 import 'package:fe/domain/usecases/create_user_usecase.dart';
+import 'package:fe/domain/usecases/delete_knowledge_document_usecase.dart';
 import 'package:fe/domain/usecases/forgot_password_usecase.dart';
 import 'package:fe/domain/usecases/get_admin_dashboard_stats_usecase.dart';
 import 'package:fe/domain/usecases/get_admin_roles_usecase.dart';
@@ -198,6 +199,9 @@ Future<void> main() async {
       knowledgeDocumentRepository,
     ),
     uploadDocumentsBatchUseCase: UploadKnowledgeDocumentsBatchUseCase(
+      knowledgeDocumentRepository,
+    ),
+    deleteDocumentUseCase: DeleteKnowledgeDocumentUseCase(
       knowledgeDocumentRepository,
     ),
   );

@@ -16,4 +16,6 @@ abstract class KnowledgeDocumentRepository {
     required List<KnowledgeUploadFile> files,
     required String accessScope,
   });
+
+  Future<void> deleteDocument({required String token, required int id});
 }

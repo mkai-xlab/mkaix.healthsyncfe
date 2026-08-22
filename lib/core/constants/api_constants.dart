@@ -18,6 +18,7 @@ class ApiConstants {
   static String examinationReportEndpoint(int id) =>
       '$examinationsEndpoint/$id/generate-report';
   static const String reportsEndpoint = '$baseUrl/reports';
+  static const String generatedReportsEndpoint = reportsEndpoint;
   static String reportPreviewEndpoint(int examinationId) =>
       '$reportsEndpoint/$examinationId/preview';
   static String reportDownloadEndpoint(int examinationId) =>
@@ -69,6 +70,8 @@ class ApiConstants {
   static const String headCountEndpoint = '$baseUrl/users/count/heads';
   static const String rolesEndpoint = '$baseUrl/roles';
   static String userRoleEndpoint(int userId) => '$baseUrl/users/$userId/role';
+  static String userStatusToggleEndpoint(int userId) =>
+      '$baseUrl/users/$userId/status/toggle';
 
   // doctors endpoints
   static const String doctorsEndpoint = '$baseUrl/doctors';

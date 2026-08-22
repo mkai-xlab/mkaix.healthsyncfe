@@ -13,12 +13,14 @@ import 'examination_detail_page.dart';
 class PatientDetailPage extends StatefulWidget {
   final PatientEntity patient;
   final bool embedded;
+  final VoidCallback? onBack;
   final ValueChanged<ExaminationEntity>? onOpenExaminationDetail;
 
   const PatientDetailPage({
     super.key,
     required this.patient,
     this.embedded = false,
+    this.onBack,
     this.onOpenExaminationDetail,
   });
 
@@ -202,6 +204,24 @@ class _PatientDetailPageState extends State<PatientDetailPage> {
         children: [
           Row(
             children: [
+              if (widget.embedded && widget.onBack != null) ...[
+                IconButton(
+                  onPressed: widget.onBack,
+                  icon: const Icon(
+                    Icons.arrow_back,
+                    color: _primaryGreen,
+                    size: 20,
+                  ),
+                  tooltip: 'Quay lại',
+                  style: IconButton.styleFrom(
+                    backgroundColor: const Color(0xFFEAF8F4),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+              ],
               CircleAvatar(
                 radius: 25,
                 backgroundColor: const Color(0xFFE6F4F1),

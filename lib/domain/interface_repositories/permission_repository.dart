@@ -23,6 +23,8 @@ abstract class PermissionRepository {
     String? description,
   });
 
+  Future<void> deleteFeature(String id);
+
   Future<PermissionModel> createPermission({
     required String code,
     required String name,
@@ -39,4 +41,6 @@ abstract class PermissionRepository {
     int? priority,
     String? requiresPermissionId,
   });
+
+  Future<void> deletePermission(String id);
 }

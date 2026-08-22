@@ -76,7 +76,7 @@ class _FeaturePermissionCatalogPageState
     final actionLabel = switch (_selectedTab) {
       0 => 'Thêm tính năng',
       1 => 'Thêm quyền',
-      _ => 'Tải lại',
+      _ => null,
     };
 
     return Row(
@@ -112,25 +112,27 @@ class _FeaturePermissionCatalogPageState
             side: const BorderSide(color: _primaryGreen),
           ),
         ),
-        const SizedBox(width: 10),
-        ElevatedButton.icon(
-          onPressed: vm.isSaving
-              ? null
-              : () {
-                  if (_selectedTab == 0) {
-                    _showFeatureDialog(context, vm);
-                  } else if (_selectedTab == 1) {
-                    _showPermissionDialog(context, vm);
-                  }
-                },
-          icon: const Icon(Icons.add, size: 16),
-          label: Text(actionLabel),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: _primaryGreen,
-            foregroundColor: Colors.white,
-            elevation: 0,
+        if (actionLabel != null) ...[
+          const SizedBox(width: 10),
+          ElevatedButton.icon(
+            onPressed: vm.isSaving
+                ? null
+                : () {
+                    if (_selectedTab == 0) {
+                      _showFeatureDialog(context, vm);
+                    } else if (_selectedTab == 1) {
+                      _showPermissionDialog(context, vm);
+                    }
+                  },
+            icon: const Icon(Icons.add, size: 16),
+            label: Text(actionLabel),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _primaryGreen,
+              foregroundColor: Colors.white,
+              elevation: 0,
+            ),
           ),
-        ),
+        ],
       ],
     );
   }
@@ -272,7 +274,7 @@ class _FeaturePermissionCatalogPageState
                   ),
                 ),
                 trailing: SizedBox(
-                  width: 160,
+                  width: 200,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
@@ -301,6 +303,19 @@ class _FeaturePermissionCatalogPageState
                         icon: const Icon(Icons.add_circle_outline, size: 18),
                         color: _primaryGreen,
                         tooltip: 'Thêm quyền vào tính năng',
+                      ),
+                      IconButton(
+                        onPressed: vm.isSaving
+                            ? null
+                            : () => _confirmDeleteFeature(
+                                context,
+                                vm,
+                                feature,
+                                permissionCount: permissions.length,
+                              ),
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: const Color(0xFFE53E3E),
+                        tooltip: 'Xóa tính năng',
                       ),
                     ],
                   ),
@@ -333,6 +348,11 @@ class _FeaturePermissionCatalogPageState
                                 context,
                                 vm,
                                 permission: permission,
+                              ),
+                              onDelete: () => _confirmDeletePermission(
+                                context,
+                                vm,
+                                permission,
                               ),
                             ),
                           )
@@ -434,9 +454,97 @@ class _FeaturePermissionCatalogPageState
     );
   }
 
+  Future<void> _confirmDeleteFeature(
+    BuildContext context,
+    PermissionViewModel vm,
+    PermissionFeatureModel feature, {
+    required int permissionCount,
+  }) async {
+    final featureName = feature.name.isEmpty ? '#${feature.id}' : feature.name;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa tính năng'),
+        content: Text(
+          permissionCount > 0
+              ? 'Tính năng "$featureName" đang có $permissionCount quyền. Bạn vẫn muốn xóa?'
+              : 'Xóa tính năng "$featureName"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE53E3E),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final success = await vm.deleteFeature(feature.id);
+    if (success) {
+      await vm.loadAll();
+    }
+  }
+
+  Future<void> _confirmDeletePermission(
+    BuildContext context,
+    PermissionViewModel vm,
+    PermissionModel permission,
+  ) async {
+    final permissionName = permission.name.isEmpty
+        ? permission.code
+        : permission.name;
+    final childCount = vm.permissions
+        .where((item) => item.parentId == permission.id)
+        .length;
+    final roleCount = vm.roles
+        .where((role) => role.permissions.contains(permission.id))
+        .length;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Xóa quyền'),
+        content: Text(
+          childCount > 0 || roleCount > 0
+              ? 'Quyền "$permissionName" đang có $childCount quyền con và được gán cho $roleCount vai trò. Bạn vẫn muốn xóa?'
+              : 'Xóa quyền "$permissionName"?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: const Text('Hủy'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE53E3E),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Xóa'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+    final success = await vm.deletePermission(permission.id);
+    if (success) {
+      await vm.loadAll();
+    }
+  }
+
   Widget _permissionRow(
     PermissionModel permission, {
     required VoidCallback onTap,
+    required VoidCallback onDelete,
   }) {
     final title = permission.name.isEmpty ? permission.code : permission.name;
     final row = _HoverSurface(
@@ -501,6 +609,12 @@ class _FeaturePermissionCatalogPageState
             icon: const Icon(Icons.edit_outlined, size: 18),
             color: _primaryGreen,
             tooltip: 'Sửa quyền',
+          ),
+          IconButton(
+            onPressed: onDelete,
+            icon: const Icon(Icons.delete_outline, size: 18),
+            color: const Color(0xFFE53E3E),
+            tooltip: 'Xóa quyền',
           ),
         ],
       ),
@@ -1230,6 +1344,24 @@ class _FeaturePermissionCatalogPageState
           ),
         ),
         actions: [
+          if (feature != null)
+            TextButton(
+              onPressed: vm.isSaving
+                  ? null
+                  : () async {
+                      Navigator.pop(dialogContext);
+                      await _confirmDeleteFeature(
+                        context,
+                        vm,
+                        feature,
+                        permissionCount: feature.permissions.length,
+                      );
+                    },
+              child: const Text(
+                'Xóa',
+                style: TextStyle(color: Color(0xFFE53E3E)),
+              ),
+            ),
           TextButton(
             onPressed: vm.isSaving ? null : () => Navigator.pop(dialogContext),
             child: const Text('Hủy'),
@@ -1380,6 +1512,23 @@ class _FeaturePermissionCatalogPageState
               ),
             ),
             actions: [
+              if (permission != null)
+                TextButton(
+                  onPressed: vm.isSaving
+                      ? null
+                      : () async {
+                          Navigator.pop(dialogContext);
+                          await _confirmDeletePermission(
+                            context,
+                            vm,
+                            permission,
+                          );
+                        },
+                  child: const Text(
+                    'Xóa',
+                    style: TextStyle(color: Color(0xFFE53E3E)),
+                  ),
+                ),
               TextButton(
                 onPressed: vm.isSaving
                     ? null

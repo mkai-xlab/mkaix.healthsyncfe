@@ -244,6 +244,8 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                   padding: EdgeInsets.all(horizontalPadding),
                   child: Column(
                     children: [
+                      _aiDisclaimer(),
+                      const SizedBox(height: 12),
                       if (isNarrow) ...[
                         _imageViewer(token, height: 460),
                         const SizedBox(height: 16),
@@ -452,15 +454,13 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               width: double.infinity,
               child: _viewerUrl.isEmpty
                   ? _emptyImageState()
-                  : Image.network(
-                      _viewerUrl,
-                      headers: token.isEmpty
-                          ? null
-                          : {'Authorization': 'Bearer $token'},
+                  : _NetworkImageFrame(
+                      url: _viewerUrl,
+                      token: token,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return _emptyImageState();
-                      },
+                      backgroundColor: Colors.black,
+                      loadingIconSize: 34,
+                      errorIconSize: 54,
                     ),
             ),
           ),
@@ -544,22 +544,13 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  Image.network(
-                    imageUrl,
-                    headers: token.isEmpty
-                        ? null
-                        : {'Authorization': 'Bearer $token'},
+                  _NetworkImageFrame(
+                    url: imageUrl,
+                    token: token,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return const ColoredBox(
-                        color: Colors.black,
-                        child: Icon(
-                          Icons.broken_image_outlined,
-                          color: Colors.white54,
-                          size: 22,
-                        ),
-                      );
-                    },
+                    backgroundColor: Colors.black,
+                    loadingIconSize: 18,
+                    errorIconSize: 22,
                   ),
                   Positioned(
                     right: 4,
@@ -606,19 +597,13 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                   minScale: 0.5,
                   maxScale: 5,
                   child: Center(
-                    child: Image.network(
-                      _viewerUrl,
-                      headers: token.isEmpty
-                          ? null
-                          : {'Authorization': 'Bearer $token'},
+                    child: _NetworkImageFrame(
+                      url: _viewerUrl,
+                      token: token,
                       fit: BoxFit.contain,
-                      errorBuilder: (context, error, stackTrace) {
-                        return const Icon(
-                          Icons.broken_image_outlined,
-                          color: Colors.white54,
-                          size: 64,
-                        );
-                      },
+                      backgroundColor: Colors.black,
+                      loadingIconSize: 38,
+                      errorIconSize: 64,
                     ),
                   ),
                 ),
@@ -871,6 +856,39 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
         const SizedBox(height: 16),
         _aiReviewButton(result),
       ],
+    );
+  }
+
+  Widget _aiDisclaimer() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFACC15)),
+      ),
+      child: const Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: '⚠️ '),
+            TextSpan(
+              text: 'Lưu ý:',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            TextSpan(
+              text:
+                  ' Kết quả phân tích từ Trợ lý ảo chỉ mang tính chất tham khảo và không thay thế chẩn đoán của bác sĩ!',
+            ),
+          ],
+        ),
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.45,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF92400E),
+        ),
+      ),
     );
   }
 
@@ -1854,6 +1872,8 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
                 ],
               ),
               const SizedBox(height: 14),
+              _aiDisclaimer(),
+              const SizedBox(height: 14),
               _aiResultCard(widget.result),
               const SizedBox(height: 18),
               const Text(
@@ -1880,6 +1900,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
                       label: 'Không đồng ý',
                       selected: !_agreeWithAi,
                       onTap: () => setState(_markDisagreeWithAi),
+                      selectedColor: AppColors.error,
                     ),
                   ),
                 ],
@@ -2085,6 +2106,39 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
     }
   }
 
+  Widget _aiDisclaimer() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFFBEB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFACC15)),
+      ),
+      child: const Text.rich(
+        TextSpan(
+          children: [
+            TextSpan(text: '⚠️ '),
+            TextSpan(
+              text: 'Lưu ý:',
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            TextSpan(
+              text:
+                  ' Kết quả phân tích từ Trợ lý ảo chỉ mang tính chất tham khảo và không thay thế chẩn đoán của bác sĩ!',
+            ),
+          ],
+        ),
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.45,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF92400E),
+        ),
+      ),
+    );
+  }
+
   Widget _aiResultCard(AiPredictionResultEntity result) {
     return Container(
       width: double.infinity,
@@ -2146,6 +2200,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
     required String label,
     required bool selected,
     required VoidCallback onTap,
+    Color selectedColor = AppColors.primary,
   }) {
     return InkWell(
       onTap: onTap,
@@ -2153,10 +2208,10 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primaryXLight : Colors.white,
+          color: selected ? selectedColor.withValues(alpha: 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: selected ? AppColors.primary : AppColors.border,
+            color: selected ? selectedColor : AppColors.border,
           ),
         ),
         child: Row(
@@ -2164,7 +2219,7 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
             Icon(
               selected ? Icons.radio_button_checked : Icons.radio_button_off,
               size: 19,
-              color: selected ? AppColors.primary : AppColors.textSecondary,
+              color: selected ? selectedColor : AppColors.textSecondary,
             ),
             const SizedBox(width: 10),
             Text(
@@ -2184,5 +2239,120 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
   String _formatDate(DateTime date) {
     String two(int value) => value.toString().padLeft(2, '0');
     return '${two(date.day)}/${two(date.month)}/${date.year}';
+  }
+}
+
+class _NetworkImageFrame extends StatelessWidget {
+  final String url;
+  final String token;
+  final BoxFit fit;
+  final Color backgroundColor;
+  final double loadingIconSize;
+  final double errorIconSize;
+
+  const _NetworkImageFrame({
+    required this.url,
+    required this.token,
+    required this.fit,
+    required this.backgroundColor,
+    required this.loadingIconSize,
+    required this.errorIconSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (url.isEmpty) {
+      return _ImageFrameState(
+        backgroundColor: backgroundColor,
+        icon: Icons.image_not_supported_outlined,
+        iconSize: errorIconSize,
+      );
+    }
+
+    return Image.network(
+      url,
+      headers: token.isEmpty ? null : {'Authorization': 'Bearer $token'},
+      fit: fit,
+      gaplessPlayback: true,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (wasSynchronouslyLoaded || frame != null) return child;
+        return _ImageLoadingState(
+          backgroundColor: backgroundColor,
+          size: loadingIconSize,
+          progress: null,
+        );
+      },
+      loadingBuilder: (context, child, loadingProgress) {
+        if (loadingProgress == null) return child;
+        return _ImageLoadingState(
+          backgroundColor: backgroundColor,
+          size: loadingIconSize,
+          progress: loadingProgress.expectedTotalBytes == null
+              ? null
+              : loadingProgress.cumulativeBytesLoaded /
+                    loadingProgress.expectedTotalBytes!,
+        );
+      },
+      errorBuilder: (context, error, stackTrace) {
+        return _ImageFrameState(
+          backgroundColor: backgroundColor,
+          icon: Icons.broken_image_outlined,
+          iconSize: errorIconSize,
+        );
+      },
+    );
+  }
+}
+
+class _ImageLoadingState extends StatelessWidget {
+  final Color backgroundColor;
+  final double size;
+  final double? progress;
+
+  const _ImageLoadingState({
+    required this.backgroundColor,
+    required this.size,
+    required this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: Center(
+        child: SizedBox(
+          width: size,
+          height: size,
+          child: CircularProgressIndicator(
+            value: progress,
+            strokeWidth: size <= 20 ? 2 : 3,
+            color: Colors.white70,
+            backgroundColor: Colors.white12,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ImageFrameState extends StatelessWidget {
+  final Color backgroundColor;
+  final IconData icon;
+  final double iconSize;
+
+  const _ImageFrameState({
+    required this.backgroundColor,
+    required this.icon,
+    required this.iconSize,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ColoredBox(
+      color: backgroundColor,
+      child: Center(
+        child: Icon(icon, color: Colors.white54, size: iconSize),
+      ),
+    );
   }
 }

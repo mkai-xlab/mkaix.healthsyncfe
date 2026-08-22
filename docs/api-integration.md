@@ -6,17 +6,18 @@
 - API version: `v1`
 - Base URL: `http://47.131.63.48:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-08-12`
+- Last OpenAPI refresh: `2026-08-20`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
-- The `2026-08-12` pasted OpenAPI spec is the latest local source. It keeps OpenAPI `3.1.0` / API `v1` and confirms base URL `http://47.131.63.48:8000/api/v1`.
+- The `2026-08-20` pasted OpenAPI spec is the latest local source. It keeps OpenAPI `3.1.0` / API `v1` and confirms base URL `http://47.131.63.48:8000/api/v1`.
 - Compared with the older `54.254.113.71` notes, use `47.131.63.48` as the current documented backend host unless runtime testing proves otherwise. `ApiConstants.baseUrl` still defaults to localhost and must be overridden with `--dart-define=API_BASE_URL=...` for non-local runs.
-- The latest spec has 86 paths. It confirms the same major groups already documented here: auth, users/staff/roles, doctors/profile/avatar, patients, examinations/statistics, DICOM/verify/raw image, AI prediction/review/images, reports, notifications, permissions/features, audit logs, AI chat, and knowledge documents.
-- There is still no documented `GET /users`. User/account lists should use `GET /users/staff`, role counts, `/roles`, and doctor-specific endpoints instead of assuming a generic users list exists.
-- The latest spec confirms `GET /users/staff`, `GET /roles`, and `PUT /users/{userId}/role { roleId }` for admin account/role management.
+- The latest spec has 90 paths. It confirms the same major groups already documented here: auth, users/staff/roles, doctors/profile/avatar, patients, examinations/statistics, DICOM/verify/raw image, AI prediction/review/images, reports, notifications, permissions/features, audit logs, AI chat, and knowledge documents.
+- There is still no documented `GET /users`. User/account lists should use `GET /users/staff`, `GET /users/staff/search`, role counts, `/roles`, and doctor-specific endpoints instead of assuming a generic users list exists.
+- The latest spec confirms `POST /users`, `GET /users/staff`, `GET /users/staff/search`, `GET /roles`, `PUT /users/{userId}/role { roleId }`, and `PATCH /users/{userId}/status/toggle` for admin account/role management.
+- Reports now include `GET /reports` for paged generated-report history, returning `PageResponseReportListItemResponse`.
 - `DELETE /permissions/{id}` and `DELETE /features/{id}` return `204 No Content`; `DELETE /patients/{id}` and doctor deactivate endpoints are documented as successful with no useful response body. Do not require JSON parsing after these calls.
 - `PUT /notifications/{id}/read` returns `text/plain`, while `PUT /notifications/read-all` returns `{ updatedCount }`.
 - Current exam counters remain split between `GET /examinations/total*` with required `userId` and current-user counters `GET /examinations/my-total*`; do not mix the two flows.
@@ -44,6 +45,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - Report generation returns `ReportResponse`: `POST /examinations/{id}/generate-report`; preview/download use examination id via `/reports/{examinationId}/preview|download`.
 - Doctors now support profile editing and avatar upload through `GET|PUT /doctors/profile` and `PUT /doctors/profile/avatar`.
 - Users now expose count helpers: `GET /users/count/doctors` and `GET /users/count/heads`.
+- User status can be toggled with `PATCH /users/{userId}/status/toggle`; request body is `ToggleStatusRequest { inactiveReason? }`, response is `UserResponse`.
 - Doctor deactivation is available both as `DELETE /doctors/{id}` with optional `reason` query and as `POST /doctors/{id}/deactivate`; activation uses `POST /doctors/{id}/activate`.
 - Doctor `fullName` validation is stricter on create/edit/profile update: it must match `^[\p{L}\s]+$`, so names with numbers or punctuation can fail validation.
 - Patient create requires `patientCode` and `fullName`; patient responses expose both `patientCode` and compatibility alias `patient_id`.
@@ -52,6 +54,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - `GET /audit-logs` returns `PageResponseAuditLogResponse`; `AuditLogResponse` fields are `id`, `username`, `title`, `description`, `ipAddress`, `userAgent`, and `timeStamp`.
 - Notification APIs now include `GET /notifications` for all notifications, `GET /notifications/unread`, `PUT /notifications/{id}/read`, and test send `POST /notifications/send`.
 - New notification bulk-read endpoint: `PUT /notifications/read-all`, returning `MarkAllNotificationsReadResponse` with `updatedCount`.
+- `GET /users/staff/search` is documented for staff search with optional `keyword`, `status`, `page`, and `size`, returning `PageUserResponse`.
 - `GET /roles` is now documented and returns `RoleDto[]` for administrator role assignment.
 - Admin can update a user's role with `PUT /users/{userId}/role`, body `{ roleId }`, response `UserResponse`.
 - Utility/test endpoints are documented: `GET /mail-test/send`, `POST /files/upload-avatar`, and `POST /s3/test-upload`.
@@ -59,6 +62,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 ## Frontend Change Checklist
 
 - `ApiConstants` is aligned with the v1 spec for auth, DICOM, AI, AI chat, medical knowledge, reports, notifications, permissions, users, doctors, roles, and examinations.
+- `ApiConstants` includes `staffUsersSearchEndpoint`, `userStatusToggleEndpoint(userId)`, and `generatedReportsEndpoint` for the documented staff-search/status-toggle/report-list flows.
 - Use `ApiConstants.aiImageEndpoint(imageId)` if the UI needs to render ROI/clinical/annotated images by image id.
 - `DoctorProfileRemoteDataSource` already supports `PUT /doctors/profile/avatar`; use `ApiConstants.avatarUploadEndpoint` only for the standalone `POST /files/upload-avatar` utility endpoint.
 - Add frontend validation for doctor `fullName` before create/edit/profile update: allow letters and spaces only, and avoid punctuation or numeric suffixes that backend now rejects.
@@ -79,6 +83,8 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - AI chat is wired through `ChatRemoteDataSource` and `ChatViewModel`. Knowledge document constants exist; add a remote datasource when the admin document list needs real backend data.
 - Add chat session/message datasource methods when the floating AI chat should persist conversation history: create/list/update sessions and page through messages.
 - Add admin user role update UI/API call if role assignment is managed from the user list instead of only permission-role mapping.
+- Add admin user status-toggle UI/API call if activation/deactivation is managed from the staff account list.
+- Add generated report list models/datasource if the app needs a report archive screen. `ReportListItemResponse` includes examination, patient, doctor, file, preview, and download metadata.
 
 ## Authentication
 
@@ -100,7 +106,9 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 | --- | --- | --- | --- |
 | `POST` | `/users` | Create user account | `UserResponse` |
 | `GET` | `/users/staff` | Get staff users | `UserResponse[]` |
+| `GET` | `/users/staff/search` | Search staff users by optional `keyword`, `status`, `page`, `size` | `PageUserResponse` |
 | `PUT` | `/users/{userId}/role` | Update a user's role with `UpdateUserRoleRequest { roleId }` | `UserResponse` |
+| `PATCH` | `/users/{userId}/status/toggle` | Toggle user active status with optional `inactiveReason` | `UserResponse` |
 | `GET` | `/users/count/doctors` | Count doctor users | `number` |
 | `GET` | `/users/count/heads` | Count department-head users | `number` |
 | `GET` | `/roles` | Get all roles for role assignment | `RoleDto[]` |
@@ -238,11 +246,14 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 
 | Method | Path | Purpose | Response |
 | --- | --- | --- | --- |
+| `GET` | `/reports` | Get paged generated report history | `PageResponseReportListItemResponse` |
 | `POST` | `/examinations/{id}/generate-report` | Generate/export PDF report for an examination | `ReportResponse` |
 | `GET` | `/reports/{examinationId}/preview` | Preview generated PDF report for an examination | binary PDF |
 | `GET` | `/reports/{examinationId}/download` | Download generated PDF report for an examination | binary PDF |
 
 `ReportResponse` fields: `reportId`, `examinationId`, `fileName`, `fileSize`, `contentType`, `generatedAt`, `previewUrl`, `downloadUrl`.
+
+`ReportListItemResponse` fields: `reportId`, `examinationId`, `encounterCode`, `visitTime`, `patientCode`, `patientName`, `doctorId`, `doctorName`, `fileName`, `fileSize`, `contentType`, `generatedAt`, `previewUrl`, `downloadUrl`.
 
 Export report flow:
 

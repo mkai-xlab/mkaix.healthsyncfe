@@ -240,8 +240,18 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               builder: (context, constraints) {
                 final isNarrow = constraints.maxWidth < 1040;
                 final horizontalPadding = isNarrow ? 16.0 : 24.0;
+                final topPadding = isNarrow ? 12.0 : 14.0;
+                final workspaceHeight =
+                    (constraints.maxHeight - topPadding - 48 - 12)
+                        .clamp(500.0, 560.0)
+                        .toDouble();
                 return SingleChildScrollView(
-                  padding: EdgeInsets.all(horizontalPadding),
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding,
+                    topPadding,
+                    horizontalPadding,
+                    horizontalPadding,
+                  ),
                   child: Column(
                     children: [
                       _aiDisclaimer(),
@@ -252,7 +262,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                         _aiPanel(),
                       ] else
                         SizedBox(
-                          height: 620,
+                          height: workspaceHeight,
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.stretch,
                             children: [
@@ -653,7 +663,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     final result = _selectedAiResult;
     final image = _selectedImage;
     return Container(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(10),
@@ -781,13 +791,13 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
               children: [
                 _panelTitle(Icons.analytics_outlined, 'Kết quả phân tích'),
                 if ((_selectedImage?.aiResults.length ?? 0) > 0) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 10),
                   _kneeSelector(),
                 ],
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(18),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: riskColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(8),
@@ -810,7 +820,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                       Text(
                         result.predictedGradeDisplay.toUpperCase(),
                         style: TextStyle(
-                          fontSize: 32,
+                          fontSize: 28,
                           fontWeight: FontWeight.w900,
                           color: riskColor,
                         ),
@@ -830,17 +840,17 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 18),
+                const SizedBox(height: 14),
                 _metricBar(
                   label: 'Độ tin cậy',
                   value: result.confidence,
                   color: _primaryGreen,
                 ),
                 if (result.details.isNotEmpty) ...[
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
                   ..._sortedKlDetails(result.details).map(
                     (entry) => Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.only(bottom: 10),
                       child: _metricBar(
                         label: 'KL${entry.key}',
                         value: entry.value,

@@ -1,3 +1,5 @@
+import '../../core/utils/date_time_utils.dart';
+
 class ChatAnswerModel {
   final int? sessionId;
   final int? messageId;
@@ -36,7 +38,7 @@ class ChatAnswerModel {
                 .toList()
           : const [],
       warning: json['warning']?.toString(),
-      generatedAt: DateTime.tryParse(json['generatedAt']?.toString() ?? ''),
+      generatedAt: parseUtcInstantToLocal(json['generatedAt']),
       tokensUsed: _parseInt(json['tokensUsed']),
     );
   }
@@ -102,8 +104,8 @@ class ChatSessionModel {
       examinationId: _parseInt(json['examinationId']),
       title: json['title']?.toString() ?? '',
       active: _parseBool(json['active']),
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
-      updatedAt: DateTime.tryParse(json['updatedAt']?.toString() ?? ''),
+      createdAt: parseUtcInstantToLocal(json['createdAt']),
+      updatedAt: parseUtcInstantToLocal(json['updatedAt']),
     );
   }
 
@@ -146,7 +148,7 @@ class ChatMessageModel {
       content: json['content']?.toString() ?? '',
       route: json['route']?.toString() ?? '',
       tokensUsed: _parseInt(json['tokensUsed']),
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+      createdAt: parseUtcInstantToLocal(json['createdAt']),
     );
   }
 

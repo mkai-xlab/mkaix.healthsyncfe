@@ -1,3 +1,4 @@
+import '../../core/utils/date_time_utils.dart';
 import '../../domain/entities/patient_entity.dart';
 
 class PatientModel extends PatientEntity {
@@ -23,21 +24,15 @@ class PatientModel extends PatientEntity {
           : int.tryParse(json['id']?.toString() ?? '') ?? 0,
       patientCode: json['patientCode']?.toString() ?? '',
       fullName: json['fullName']?.toString() ?? '',
-      dateOfBirth: json['dateOfBirth'] != null
-          ? DateTime.tryParse(json['dateOfBirth'].toString())
-          : null,
+      dateOfBirth: parseLocalDate(json['dateOfBirth']),
       gender: json['gender']?.toString() ?? 'OTHER',
       phone: json['phone']?.toString(),
       email: json['email']?.toString(),
       address: json['address']?.toString(),
       emergencyContactName: json['emergencyContactName']?.toString(),
       emergencyContactPhone: json['emergencyContactPhone']?.toString(),
-      createdAt: json['createdAt'] != null
-          ? DateTime.tryParse(json['createdAt'].toString())
-          : null,
-      updatedAt: json['updatedAt'] != null
-          ? DateTime.tryParse(json['updatedAt'].toString())
-          : null,
+      createdAt: parseUtcInstantToLocal(json['createdAt']),
+      updatedAt: parseUtcInstantToLocal(json['updatedAt']),
     );
   }
 

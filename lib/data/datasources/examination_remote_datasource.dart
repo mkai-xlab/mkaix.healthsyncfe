@@ -21,6 +21,9 @@ abstract class ExaminationRemoteDataSource {
     String direction = 'desc',
     String? date,
     bool isPersonal = false,
+    List<String> statuses = const [],
+    List<int> grades = const [],
+    String? sort,
   });
 
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({
@@ -96,41 +99,12 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     String direction = 'desc',
     String? date,
     bool isPersonal = false,
+    List<String> statuses = const [],
+    List<int> grades = const [],
+    String? sort,
   }) async {
     final normalizedDirection = direction == 'asc' ? 'asc' : 'desc';
     final filterDate = date ?? '';
-
-    if (mode == 'studyDateAsc' || mode == 'studyDateDesc') {
-      return _getExaminationsPage(
-        endpoint: ApiConstants.examinationsStudyDateSortEndpoint,
-        token: token,
-        page: page,
-        size: size,
-        queryParameters: {
-          'direction': mode == 'studyDateAsc' ? 'asc' : 'desc',
-          'isPersonal': isPersonal.toString(),
-        },
-        includeSort: false,
-        shouldSortLocally: false,
-        errorMessage: 'Khong the sap xep ca kham theo ngay kham',
-      );
-    }
-
-    if (mode == 'uploadDateAsc' || mode == 'uploadDateDesc') {
-      return _getExaminationsPage(
-        endpoint: ApiConstants.examinationsUploadDateSortEndpoint,
-        token: token,
-        page: page,
-        size: size,
-        queryParameters: {
-          'direction': mode == 'uploadDateAsc' ? 'asc' : 'desc',
-          'isPersonal': isPersonal.toString(),
-        },
-        includeSort: false,
-        shouldSortLocally: false,
-        errorMessage: 'Khong the sap xep ca kham theo ngay upload',
-      );
-    }
 
     if (mode == 'studyDateFilter') {
       return _getExaminationsPage(
@@ -164,55 +138,51 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       );
     }
 
-    if (mode.startsWith('grade')) {
-      final grade = mode.replaceFirst('grade', '');
-      return _getExaminationsPage(
-        endpoint: ApiConstants.examinationsGradeEndpoint,
-        token: token,
-        page: page,
-        size: size,
-        queryParameters: {
-          'grade': grade,
-          'sort': normalizedDirection,
-          'isPersonal': isPersonal.toString(),
-        },
-        includeSort: false,
-        shouldSortLocally: false,
-        errorMessage: 'Khong the loc ca kham theo KL grade',
-      );
-    }
-
+    final effectiveStatuses = <String>{...statuses};
+    final effectiveGrades = <int>{...grades};
     if (mode.startsWith('status')) {
-      final status = _statusFilterForMode(mode);
-      return _getExaminationsPage(
-        endpoint: ApiConstants.examinationsStatusEndpoint,
-        token: token,
-        page: page,
-        size: size,
-        queryParameters: {
-          'status': status,
-          'sort': normalizedDirection,
-          'isPersonal': isPersonal.toString(),
-        },
-        includeSort: false,
-        shouldSortLocally: false,
-        errorMessage: 'Khong the loc ca kham theo trang thai',
-      );
+      effectiveStatuses.add(_statusFilterForMode(mode));
+    }
+    if (mode.startsWith('grade')) {
+      final grade = int.tryParse(mode.replaceFirst('grade', ''));
+      if (grade != null) effectiveGrades.add(grade);
     }
 
+    final effectiveSort = sort ?? _sortForMode(mode, normalizedDirection);
+    final queryParameters = <String, String>{
+      'isPersonal': isPersonal.toString(),
+      if (effectiveStatuses.isNotEmpty) 'statuses': effectiveStatuses.join(','),
+      if (effectiveGrades.isNotEmpty) 'grades': effectiveGrades.join(','),
+      if (effectiveSort != null && effectiveSort.isNotEmpty)
+        'sort': effectiveSort,
+    };
     return _getExaminationsPage(
-      endpoint: ApiConstants.examinationsEndpoint,
+      endpoint: ApiConstants.examinationsFilterEndpoint,
       token: token,
       page: page,
       size: size,
-      queryParameters: {
-        'sort': normalizedDirection,
-        'isPersonal': isPersonal.toString(),
-      },
+      queryParameters: queryParameters,
       includeSort: false,
       shouldSortLocally: false,
       errorMessage: 'Khong the tai danh sach ca kham',
     );
+  }
+
+  String? _sortForMode(String mode, String direction) {
+    switch (mode) {
+      case 'studyDateAsc':
+        return 'studyDate,asc';
+      case 'studyDateDesc':
+        return 'studyDate,desc';
+      case 'uploadDateAsc':
+        return 'createdAt,asc';
+      case 'uploadDateDesc':
+        return 'createdAt,desc';
+      case 'all':
+        return null;
+      default:
+        return direction == 'asc' ? 'studyDate,asc' : null;
+    }
   }
 
   String _statusFilterForMode(String mode) {

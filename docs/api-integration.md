@@ -6,15 +6,16 @@
 - API version: `v1`
 - Base URL: `http://47.131.63.48:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-08-22`
+- Last OpenAPI refresh: `2026-08-23`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
-- The `2026-08-22` pasted OpenAPI spec is the latest local source. It keeps OpenAPI `3.1.0` / API `v1` and confirms base URL `http://47.131.63.48:8000/api/v1`.
+- The `2026-08-23` pasted OpenAPI spec is the latest local source. It keeps OpenAPI `3.1.0` / API `v1` and confirms base URL `http://47.131.63.48:8000/api/v1`.
 - Compared with the older `54.254.113.71` notes, use `47.131.63.48` as the current documented backend host unless runtime testing proves otherwise. `ApiConstants.baseUrl` still defaults to localhost and must be overridden with `--dart-define=API_BASE_URL=...` for non-local runs.
-- The latest spec has 93 paths. It confirms the same major groups already documented here: auth, users/staff/roles, doctors/profile/avatar, patients, examinations/statistics, DICOM/verify/raw image, AI prediction/review/images, reports, notifications, permissions/features, audit logs, AI chat, and knowledge documents.
+- The latest spec has 94 paths. It confirms the same major groups already documented here: auth, users/staff/roles, doctors/profile/avatar, patients, examinations/statistics, DICOM/verify/raw image, AI prediction/review/images, reports, notifications, permissions/features, audit logs, AI chat, and knowledge documents.
+- Newly confirmed examination API: `GET /examinations/filter` for dynamic multi-condition filtering with optional `statuses`, `grades`, `isPersonal`, and required Spring pageable query.
 - New document-related APIs in the latest spec: `GET /knowledge-documents/{id}/preview`, `GET /knowledge-documents/{id}/download`, and `GET /knowledge-documents/{id}/content`.
 - `KnowledgeDocumentResponse` now exposes file access links: `contentUrl`, `previewUrl`, and `downloadUrl`, in addition to source/indexing metadata.
 - There is still no documented `GET /users`. User/account lists should use `GET /users/staff`, `GET /users/staff/search`, role counts, `/roles`, and doctor-specific endpoints instead of assuming a generic users list exists.
@@ -73,6 +74,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - Add create/update/delete patient methods in `PatientRemoteDataSource` if patient management screens need them. Current patient datasource only fetches the paged list.
 - Update `PatientModel.fromJson` to fall back from `patientCode` to `patient_id`; the new response may include both, but existing parser currently ignores `patient_id`.
 - Add patient upload-date filter support for `GET /patients/filter/upload-date` if the patient list has upload-date filtering.
+- Add examination advanced-filter support for `GET /examinations/filter` if the exam list needs combined status/grade/personal filters instead of calling separate filter endpoints.
 - Doctor patient and examination lists must include `isPersonal=true` on supported endpoints so backend scopes data to the logged-in doctor.
 - Examination image parsing now keeps `aiAnalysisStatus` and `aiErrorMessage`; show `FAILED` as an AI failure state with the backend error message instead of a processing state.
 - Use `confirmedGrade` or `effectiveGrade` for final clinical display when available. `predictedGrade` alone is no longer enough after doctor review.
@@ -145,6 +147,7 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 | `GET` | `/examinations/{id}` | Get examination by id | `ExaminationDto` |
 | `PUT` | `/examinations/{id}/view` | Mark examination as viewed | `200 OK` |
 | `POST` | `/examinations/{id}/generate-report` | Generate PDF report | `ReportResponse` |
+| `GET` | `/examinations/filter` | Dynamic multi-condition filter with optional `statuses`, `grades`, `isPersonal`, required pageable query | `PageResponseExaminationDto` |
 | `GET` | `/examinations/patient/{patientId}` | Get examinations by patient | `ExaminationDto[]` or paged response |
 | `GET` | `/examinations/patient/{patientId}/filter/study-month` | Filter patient examinations by study month | `PageResponseExaminationDto` |
 | `GET` | `/examinations/doctor/{doctorId}` | Get examinations by doctor | `PageResponseExaminationDto` |
@@ -241,12 +244,12 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 | `GET` | `/permissions/tree` | Get permission catalog tree | permission tree |
 | `POST` | `/permissions` | Create permission | `PermissionResponse` |
 | `PUT` | `/permissions/{id}` | Update permission | `PermissionResponse` |
-| `DELETE` | `/permissions/{id}` | Delete permission | `200 OK` |
+| `DELETE` | `/permissions/{id}` | Delete permission | `204 No Content` |
 | `GET` | `/permissions/role/{roleName}` | Get permission ids for role | `int64[]` |
 | `PUT` | `/permissions/role/{roleName}` | Replace role permissions | `200 OK` |
 | `POST` | `/features` | Create feature | `FeatureResponse` |
 | `PUT` | `/features/{id}` | Update feature | `FeatureResponse` |
-| `DELETE` | `/features/{id}` | Delete feature | `200 OK` |
+| `DELETE` | `/features/{id}` | Delete feature | `204 No Content` |
 
 ## Reports
 

@@ -1,3 +1,5 @@
+import '../../core/utils/date_time_utils.dart';
+
 class KnowledgeDocumentModel {
   final int id;
   final String title;
@@ -45,8 +47,8 @@ class KnowledgeDocumentModel {
       status: json['status']?.toString() ?? '',
       chunkCount: _parseInt(json['chunkCount']),
       errorMessage: _readOptionalString(json['errorMessage']),
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
-      indexedAt: DateTime.tryParse(json['indexedAt']?.toString() ?? ''),
+      createdAt: parseUtcInstantToLocal(json['createdAt']),
+      indexedAt: parseUtcInstantToLocal(json['indexedAt']),
     );
   }
 

@@ -284,8 +284,8 @@ class _AdminUserListPageState extends State<AdminUserListPage> {
     final token = context.read<AuthViewModel>().currentUser?.token ?? '';
     final currentStatus = viewModel.currentStatus;
     final label = switch (currentStatus) {
-      'ACTIVE' => 'Active',
-      'INACTIVE' => 'Inactive',
+      'ACTIVE' => 'Đang kích hoạt',
+      'INACTIVE' => 'Vô hiệu hóa',
       _ => 'Trạng thái',
     };
 
@@ -295,8 +295,8 @@ class _AdminUserListPageState extends State<AdminUserListPage> {
           viewModel.filterByStatus(value.isEmpty ? null : value, token),
       itemBuilder: (context) => const [
         PopupMenuItem<String>(value: '', child: Text('Tất cả trạng thái')),
-        PopupMenuItem<String>(value: 'ACTIVE', child: Text('Active')),
-        PopupMenuItem<String>(value: 'INACTIVE', child: Text('Inactive')),
+        PopupMenuItem<String>(value: 'ACTIVE', child: Text('Đang kích hoạt')),
+        PopupMenuItem<String>(value: 'INACTIVE', child: Text('Vô hiệu hóa')),
       ],
       child: _buildFilterChip(label),
     );
@@ -350,7 +350,7 @@ class _AdminUserListPageState extends State<AdminUserListPage> {
   }
 
   String _userStatusLabel(String status) {
-    return status == 'ACTIVE' ? 'active' : 'deactive';
+    return status == 'ACTIVE' ? 'Đang kích hoạt' : 'Vô hiệu hóa';
   }
 
   Widget _buildUserRow(
@@ -643,7 +643,7 @@ class _AdminUserListPageState extends State<AdminUserListPage> {
               borderRadius: BorderRadius.circular(16),
             ),
             title: const Text(
-              'Đổi vai trò',
+              'Đổi chức vụ',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
             ),
             content: SizedBox(

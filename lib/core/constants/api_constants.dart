@@ -14,6 +14,8 @@ class ApiConstants {
   static String patientByIdEndpoint(String patientId) =>
       '$patientsEndpoint/$patientId';
   static const String examinationsEndpoint = '$baseUrl/examinations';
+  static const String examinationsFilterEndpoint =
+      '$examinationsEndpoint/filter';
   static String examinationByIdEndpoint(int id) => '$examinationsEndpoint/$id';
   static String examinationReportEndpoint(int id) =>
       '$examinationsEndpoint/$id/generate-report';

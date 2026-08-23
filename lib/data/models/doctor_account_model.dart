@@ -1,3 +1,4 @@
+import '../../core/utils/date_time_utils.dart';
 import '../../domain/entities/doctor_account_entity.dart';
 
 class DoctorAccountModel extends DoctorAccountEntity {
@@ -56,10 +57,7 @@ class DoctorAccountModel extends DoctorAccountEntity {
   }
 
   static DateTime _parseDateTime(dynamic value) {
-    if (value is String && value.isNotEmpty) {
-      return DateTime.tryParse(value) ?? DateTime.now();
-    }
-    return DateTime.now();
+    return parseUtcInstantToLocal(value) ?? DateTime.now();
   }
 
   static int _parseId(Map<String, dynamic> json) {

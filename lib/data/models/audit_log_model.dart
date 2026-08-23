@@ -1,3 +1,4 @@
+import '../../core/utils/date_time_utils.dart';
 import '../../domain/entities/audit_log_entity.dart';
 
 class AuditLogModel extends AuditLogEntity {
@@ -35,6 +36,6 @@ class AuditLogModel extends AuditLogEntity {
   static DateTime? _parseDate(Object? value) {
     final raw = value?.toString().trim() ?? '';
     if (raw.isEmpty) return null;
-    return DateTime.tryParse(raw);
+    return parseUtcInstantToLocal(raw);
   }
 }

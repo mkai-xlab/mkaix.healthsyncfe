@@ -87,6 +87,8 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
 
   bool _didLoad = false;
   int? _hoveredExaminationId;
+  static const ExaminationListMode _defaultListMode =
+      ExaminationListMode.uploadDateDesc;
 
   String get _patientDetailId {
     final patient = widget.patient;
@@ -107,8 +109,8 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       final isPersonal = auth.isPersonalView;
       final vm = context.read<ExaminationViewModel>();
       if (widget.patient == null) {
-        final initialMode = widget.initialMode;
-        if (initialMode == null || initialMode == ExaminationListMode.all) {
+        final initialMode = widget.initialMode ?? _defaultListMode;
+        if (initialMode == ExaminationListMode.all) {
           vm.clearListMode(token: token, isPersonal: isPersonal);
         } else {
           vm.applyListMode(

@@ -17,5 +17,17 @@ abstract class KnowledgeDocumentRepository {
     required String accessScope,
   });
 
+  Future<KnowledgeDocumentPreviewFile> previewDocument({
+    required String token,
+    required int id,
+    required String fallbackFileName,
+  });
+
+  Future<KnowledgeDocumentPreviewFile> downloadDocument({
+    required String token,
+    required int id,
+    required String fallbackFileName,
+  });
+
   Future<void> deleteDocument({required String token, required int id});
 }

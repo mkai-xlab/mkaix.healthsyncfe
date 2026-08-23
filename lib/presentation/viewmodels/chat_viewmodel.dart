@@ -11,7 +11,6 @@ import '../../domain/usecases/update_chat_session_usecase.dart';
 class ChatViewModel extends ChangeNotifier {
   static const List<String> defaultSuggestions = [
     'Tóm tắt các ca hôm nay',
-    'Giải thích kết quả X-quang',
     'Hỗ trợ xem lại bệnh án',
     'Tìm ca nguy cơ cao',
   ];

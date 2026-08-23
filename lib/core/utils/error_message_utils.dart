@@ -38,6 +38,34 @@ String userFriendlyErrorMessage(Object error) {
   return _translateKnownApiError(raw, normalized) ?? raw;
 }
 
+String apiStatusErrorMessage(
+  int statusCode, {
+  String? serverMessage,
+  String fallbackMessage = 'Không thể xử lý yêu cầu.',
+}) {
+  final normalizedServerMessage = serverMessage?.trim();
+  if (normalizedServerMessage != null && normalizedServerMessage.isNotEmpty) {
+    return normalizedServerMessage;
+  }
+
+  switch (statusCode) {
+    case 400:
+      return 'Dữ liệu hoặc yêu cầu không hợp lệ.';
+    case 401:
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+    case 403:
+      return 'Bạn không có quyền thực hiện thao tác này.';
+    case 404:
+      return 'Tài nguyên hoặc tệp không còn tồn tại.';
+    case 415:
+      return 'Định dạng tệp không được hỗ trợ.';
+    case 500:
+      return 'Máy chủ đang gặp lỗi. Vui lòng thử lại sau.';
+    default:
+      return '$fallbackMessage ($statusCode)';
+  }
+}
+
 String? _translateKnownApiError(String raw, String normalized) {
   final duplicateValue = RegExp(
     r"^(phone|email|username)\s+'([^']+)'\s+is already registered$",

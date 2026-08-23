@@ -6,15 +6,17 @@
 - API version: `v1`
 - Base URL: `http://47.131.63.48:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-08-20`
+- Last OpenAPI refresh: `2026-08-22`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
-- The `2026-08-20` pasted OpenAPI spec is the latest local source. It keeps OpenAPI `3.1.0` / API `v1` and confirms base URL `http://47.131.63.48:8000/api/v1`.
+- The `2026-08-22` pasted OpenAPI spec is the latest local source. It keeps OpenAPI `3.1.0` / API `v1` and confirms base URL `http://47.131.63.48:8000/api/v1`.
 - Compared with the older `54.254.113.71` notes, use `47.131.63.48` as the current documented backend host unless runtime testing proves otherwise. `ApiConstants.baseUrl` still defaults to localhost and must be overridden with `--dart-define=API_BASE_URL=...` for non-local runs.
-- The latest spec has 90 paths. It confirms the same major groups already documented here: auth, users/staff/roles, doctors/profile/avatar, patients, examinations/statistics, DICOM/verify/raw image, AI prediction/review/images, reports, notifications, permissions/features, audit logs, AI chat, and knowledge documents.
+- The latest spec has 93 paths. It confirms the same major groups already documented here: auth, users/staff/roles, doctors/profile/avatar, patients, examinations/statistics, DICOM/verify/raw image, AI prediction/review/images, reports, notifications, permissions/features, audit logs, AI chat, and knowledge documents.
+- New document-related APIs in the latest spec: `GET /knowledge-documents/{id}/preview`, `GET /knowledge-documents/{id}/download`, and `GET /knowledge-documents/{id}/content`.
+- `KnowledgeDocumentResponse` now exposes file access links: `contentUrl`, `previewUrl`, and `downloadUrl`, in addition to source/indexing metadata.
 - There is still no documented `GET /users`. User/account lists should use `GET /users/staff`, `GET /users/staff/search`, role counts, `/roles`, and doctor-specific endpoints instead of assuming a generic users list exists.
 - The latest spec confirms `POST /users`, `GET /users/staff`, `GET /users/staff/search`, `GET /roles`, `PUT /users/{userId}/role { roleId }`, and `PATCH /users/{userId}/status/toggle` for admin account/role management.
 - Reports now include `GET /reports` for paged generated-report history, returning `PageResponseReportListItemResponse`.
@@ -34,7 +36,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - New daily chart endpoint: `GET /examinations/stats/daily-last-7-days`, returning `DailyStatDto[]`.
 - AI chat supports `POST /chat/ask`, request `{ question, sessionId? }`, response `ChatAnswerResponse` with `sessionId`, `messageId`, `route`, `answer`, `sources`, `warning`, `generatedAt`, and `tokensUsed`.
 - New AI chat session endpoints are documented: `GET|POST /chat/sessions`, `PATCH /chat/sessions/{sessionId}`, and `GET /chat/sessions/{sessionId}/messages`.
-- New medical knowledge endpoints under `/knowledge-documents` support listing documents, single/batch upload, URL registration, report sync, reindex, and delete.
+- Medical knowledge endpoints under `/knowledge-documents` support listing documents, single/batch upload, URL registration, report sync, reindex, original-file preview/download, extracted-text content, and delete.
 - Knowledge indexing upload/reindex/sync endpoints use `202 Accepted` when the document is queued for asynchronous indexing.
 - Examination status filter enum is `AI_PROCESSING`, `AI_FAILED`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`.
 - Examination responses now include richer clinical/report fields: `studyTime`, `visitTime`, `chiefComplaint`, `clinicalNotes`, `priority`, `finalDiagnosis`, `description`, `patient`, `doctorId`, `images`, `isViewed`, and `maxPredictedGrade`.
@@ -63,6 +65,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 
 - `ApiConstants` is aligned with the v1 spec for auth, DICOM, AI, AI chat, medical knowledge, reports, notifications, permissions, users, doctors, roles, and examinations.
 - `ApiConstants` includes `staffUsersSearchEndpoint`, `userStatusToggleEndpoint(userId)`, and `generatedReportsEndpoint` for the documented staff-search/status-toggle/report-list flows.
+- `ApiConstants` includes `knowledgeDocumentPreviewEndpoint(id)`, `knowledgeDocumentDownloadEndpoint(id)`, and `knowledgeDocumentContentEndpoint(id)` for the newly documented knowledge-document file/text access APIs.
 - Use `ApiConstants.aiImageEndpoint(imageId)` if the UI needs to render ROI/clinical/annotated images by image id.
 - `DoctorProfileRemoteDataSource` already supports `PUT /doctors/profile/avatar`; use `ApiConstants.avatarUploadEndpoint` only for the standalone `POST /files/upload-avatar` utility endpoint.
 - Add frontend validation for doctor `fullName` before create/edit/profile update: allow letters and spaces only, and avoid punctuation or numeric suffixes that backend now rejects.
@@ -80,7 +83,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - `CreateDoctorRequest` only requires `fullName`, `email`, and `phone`; optional fields `yearsOfExperience`, `degree`, and `biography` can be added to the create/edit UI without contract changes.
 - Error handling should parse standard `ErrorResponse.message` for `400`, `401`, `403`, `415`, `423`, and `500`. Keep the special first-time-login branch for `FIRST_TIME_LOGIN_REQUIRED`.
 - Add a notification datasource method for `PUT /notifications/read-all` if the notification panel needs a "mark all as read" action. Parse `updatedCount` and refresh unread count/list after success.
-- AI chat is wired through `ChatRemoteDataSource` and `ChatViewModel`. Knowledge document constants exist; add a remote datasource when the admin document list needs real backend data.
+- AI chat is wired through `ChatRemoteDataSource` and `ChatViewModel`. Knowledge document list/upload/batch/delete is wired through `KnowledgeDocumentRemoteDataSource`; add preview/download/content calls when the admin document page needs file viewing or extracted-text inspection.
 - Add chat session/message datasource methods when the floating AI chat should persist conversation history: create/list/update sessions and page through messages.
 - Add admin user role update UI/API call if role assignment is managed from the user list instead of only permission-role mapping.
 - Add admin user status-toggle UI/API call if activation/deactivation is managed from the staff account list.
@@ -214,6 +217,9 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 | `POST` | `/knowledge-documents/url` | Register a URL as a knowledge source | `KnowledgeUrlRequest` with `title`, `url`, optional `accessScope` | `202 Accepted`, `KnowledgeDocumentResponse` |
 | `POST` | `/knowledge-documents/{id}/reindex` | Queue an existing knowledge document for indexing again | path `id` | `202 Accepted`, `KnowledgeDocumentResponse` |
 | `POST` | `/knowledge-documents/reports/{reportId}/sync` | Queue an approved report as a knowledge source | path `reportId` | `202 Accepted`, `KnowledgeDocumentResponse` |
+| `GET` | `/knowledge-documents/{id}/preview` | Read the original stored knowledge file inline in the browser | path `id` | binary `application/octet-stream` |
+| `GET` | `/knowledge-documents/{id}/download` | Download the original stored knowledge file | path `id` | binary `application/octet-stream` |
+| `GET` | `/knowledge-documents/{id}/content` | Extract and return plain text from a PDF, DOC, DOCX, TXT, or URL source | path `id` | `text/plain` |
 | `DELETE` | `/knowledge-documents/{id}` | Delete a knowledge document and indexed content | path `id` | `204 No Content` |
 
 `ChatAnswerResponse` fields: `sessionId`, `messageId`, `route`, `answer`, `sources`, `warning`, `generatedAt`, `tokensUsed`.
@@ -224,7 +230,7 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 
 `ChatMessageResponse` fields: `id`, `sessionId`, `role`, `content`, `route`, `tokensUsed`, `createdAt`.
 
-`KnowledgeDocumentResponse` fields: `id`, `title`, `sourceType`, `sourceUrl`, `originalName`, `accessScope`, `status`, `chunkCount`, `errorMessage`, `createdAt`, `indexedAt`.
+`KnowledgeDocumentResponse` fields: `id`, `title`, `sourceType`, `sourceUrl`, `originalName`, `contentUrl`, `previewUrl`, `downloadUrl`, `accessScope`, `status`, `chunkCount`, `errorMessage`, `createdAt`, `indexedAt`.
 
 `KnowledgeUrlRequest.accessScope` enum: `ALL`, `DOCTOR`, `ADMIN`, `OWNER`.
 

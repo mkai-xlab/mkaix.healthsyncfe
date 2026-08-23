@@ -115,6 +115,12 @@ class ApiConstants {
       '$knowledgeDocumentsEndpoint/$id/reindex';
   static String knowledgeReportSyncEndpoint(int reportId) =>
       '$knowledgeDocumentsEndpoint/reports/$reportId/sync';
+  static String knowledgeDocumentPreviewEndpoint(int id) =>
+      '$knowledgeDocumentsEndpoint/$id/preview';
+  static String knowledgeDocumentDownloadEndpoint(int id) =>
+      '$knowledgeDocumentsEndpoint/$id/download';
+  static String knowledgeDocumentContentEndpoint(int id) =>
+      '$knowledgeDocumentsEndpoint/$id/content';
 
   // AI endpoints
   static const String aiPredictBatchEndpoint = '$baseUrl/ai/predict-batch';

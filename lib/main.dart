@@ -47,6 +47,7 @@ import 'package:fe/domain/usecases/reset_password_usecase.dart';
 import 'package:fe/domain/usecases/toggle_doctor_status_usecase.dart';
 import 'package:fe/domain/usecases/update_chat_session_usecase.dart';
 import 'package:fe/domain/usecases/update_doctor_profile_usecase.dart';
+import 'package:fe/domain/usecases/update_user_role_usecase.dart';
 import 'package:fe/domain/usecases/upload_dicom_batch_usecase.dart';
 import 'package:fe/domain/usecases/upload_dicom_zip_batch_usecase.dart';
 import 'package:fe/domain/usecases/upload_doctor_avatar_usecase.dart';
@@ -113,6 +114,7 @@ Future<void> main() async {
     createUserUseCase: CreateUserUseCase(adminRepository),
     getRolesUseCase: GetAdminRolesUseCase(adminRepository),
     toggleDoctorStatusUseCase: ToggleDoctorStatusUseCase(adminRepository),
+    updateUserRoleUseCase: UpdateUserRoleUseCase(adminRepository),
   );
   final adminDashboardRemoteDataSource = AdminDashboardRemoteDataSource(
     httpClient,

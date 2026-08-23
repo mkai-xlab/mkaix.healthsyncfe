@@ -161,7 +161,6 @@ class KnowledgeDocumentViewModel extends ChangeNotifier {
           accessScope: accessScope,
         );
       }
-      await loadDocuments(token);
       return true;
     } catch (error) {
       _errorMessage = _friendlyError(error);

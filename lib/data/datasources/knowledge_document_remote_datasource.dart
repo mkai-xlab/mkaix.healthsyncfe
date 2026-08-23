@@ -1,8 +1,10 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/error_message_utils.dart';
 import '../models/knowledge_document_model.dart';
 
 class KnowledgeDocumentRemoteDataSource {
@@ -82,6 +84,50 @@ class KnowledgeDocumentRemoteDataSource {
     }
   }
 
+  Future<KnowledgeDocumentPreviewFile> previewDocument({
+    required String token,
+    required int id,
+    required String fallbackFileName,
+  }) async {
+    final response = await client.get(
+      Uri.parse(ApiConstants.knowledgeDocumentPreviewEndpoint(id)),
+      headers: {'Accept': 'application/octet-stream', ..._authHeader(token)},
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_httpErrorMessage(response));
+    }
+
+    return KnowledgeDocumentPreviewFile(
+      bytes: response.bodyBytes,
+      contentType:
+          response.headers['content-type'] ?? 'application/octet-stream',
+      fileName: _readFileName(response) ?? fallbackFileName,
+    );
+  }
+
+  Future<KnowledgeDocumentPreviewFile> downloadDocument({
+    required String token,
+    required int id,
+    required String fallbackFileName,
+  }) async {
+    final response = await client.get(
+      Uri.parse(ApiConstants.knowledgeDocumentDownloadEndpoint(id)),
+      headers: {'Accept': 'application/octet-stream', ..._authHeader(token)},
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_httpErrorMessage(response));
+    }
+
+    return KnowledgeDocumentPreviewFile(
+      bytes: response.bodyBytes,
+      contentType:
+          response.headers['content-type'] ?? 'application/octet-stream',
+      fileName: _readFileName(response) ?? fallbackFileName,
+    );
+  }
+
   Future<void> _sendMultipart(http.MultipartRequest request) async {
     final streamedResponse = await client.send(request);
     final response = await http.Response.fromStream(streamedResponse);
@@ -146,16 +192,49 @@ class KnowledgeDocumentRemoteDataSource {
   }
 
   String _httpErrorMessage(http.Response response) {
-    final fallback = 'Không thể xử lý tài liệu (${response.statusCode})';
+    String? serverMessage;
     try {
       final decoded = _decode(response);
       if (decoded is Map) {
         final message = decoded['message']?.toString().trim();
-        if (message != null && message.isNotEmpty) return message;
+        if (message != null && message.isNotEmpty) serverMessage = message;
       }
     } catch (_) {}
-    return fallback;
+    return apiStatusErrorMessage(
+      response.statusCode,
+      serverMessage: serverMessage,
+      fallbackMessage: 'Không thể xử lý tài liệu',
+    );
   }
+
+  String? _readFileName(http.Response response) {
+    final disposition = response.headers['content-disposition'];
+    if (disposition == null || disposition.trim().isEmpty) return null;
+    final utf8Match = RegExp(
+      "filename\\*=UTF-8''([^;]+)",
+      caseSensitive: false,
+    ).firstMatch(disposition);
+    if (utf8Match != null) {
+      return Uri.decodeFull(utf8Match.group(1) ?? '').trim();
+    }
+    final filenameMatch = RegExp(
+      'filename="?([^";]+)"?',
+      caseSensitive: false,
+    ).firstMatch(disposition);
+    return filenameMatch?.group(1)?.trim();
+  }
+}
+
+class KnowledgeDocumentPreviewFile {
+  final Uint8List bytes;
+  final String contentType;
+  final String fileName;
+
+  const KnowledgeDocumentPreviewFile({
+    required this.bytes,
+    required this.contentType,
+    required this.fileName,
+  });
 }
 
 class KnowledgeUploadFile {

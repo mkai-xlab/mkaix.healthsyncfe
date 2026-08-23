@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
@@ -17,11 +16,6 @@ class ChatRemoteDataSource {
     int? sessionId,
   }) async {
     final uri = Uri.parse(ApiConstants.chatAskEndpoint);
-    debugPrint(
-      '[Chat API request] POST $uri, '
-      'Authorization=${token.trim().isEmpty ? 'missing' : 'Bearer ***'}',
-      wrapWidth: 1024,
-    );
 
     final response = await client
         .post(
@@ -144,12 +138,6 @@ class ChatRemoteDataSource {
   }
 
   Future<Object?> _getJson({required Uri uri, required String token}) async {
-    debugPrint(
-      '[Chat API request] GET $uri, '
-      'Authorization=${token.trim().isEmpty ? 'missing' : 'Bearer ***'}',
-      wrapWidth: 1024,
-    );
-
     final response = await client
         .get(uri, headers: _jsonHeaders(token))
         .timeout(const Duration(seconds: 15));

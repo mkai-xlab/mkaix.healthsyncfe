@@ -22,6 +22,9 @@ class GetPatientExaminationsUseCase {
     String direction = 'desc',
     String? date,
     bool isPersonal = false,
+    List<String> statuses = const [],
+    List<int> grades = const [],
+    String? sort,
   }) {
     return repository.getExaminationsPage(
       token: token,
@@ -31,6 +34,9 @@ class GetPatientExaminationsUseCase {
       direction: direction,
       date: date,
       isPersonal: isPersonal,
+      statuses: statuses,
+      grades: grades,
+      sort: sort,
     );
   }
 

@@ -89,6 +89,14 @@ class ExaminationViewModel extends ChangeNotifier {
   ExaminationListMode _listMode = ExaminationListMode.all;
   ExaminationListMode get listMode => _listMode;
   bool _isPersonal = true;
+  final Set<String> _selectedStatuses = {};
+  Set<String> get selectedStatuses => Set.unmodifiable(_selectedStatuses);
+
+  final Set<int> _selectedGrades = {};
+  Set<int> get selectedGrades => Set.unmodifiable(_selectedGrades);
+
+  String? _selectedSort;
+  String? get selectedSort => _selectedSort;
 
   DateTime? _filterDate;
   DateTime? get filterDate => _filterDate;
@@ -114,6 +122,9 @@ class ExaminationViewModel extends ChangeNotifier {
         direction: _listMode.name.endsWith('Asc') ? 'asc' : 'desc',
         date: _filterDate == null ? null : _formatApiDate(_filterDate!),
         isPersonal: _isPersonal,
+        statuses: _selectedStatuses.toList()..sort(),
+        grades: _selectedGrades.toList()..sort(),
+        sort: _selectedSort,
       );
       _examinations = result.content;
       _totalElements = result.totalElements;
@@ -258,6 +269,18 @@ class ExaminationViewModel extends ChangeNotifier {
   }) async {
     _listMode = mode;
     _filterDate = date;
+    if (_isSortMode(mode)) {
+      _selectedSort = _sortValueForMode(mode);
+    } else if (mode.name.startsWith('status')) {
+      _selectedStatuses
+        ..clear()
+        ..add(_statusValueForMode(mode));
+    } else if (mode.name.startsWith('grade')) {
+      final grade = int.tryParse(mode.name.replaceFirst('grade', ''));
+      _selectedGrades
+        ..clear()
+        ..addAll([?grade]);
+    }
     _currentPage = 0;
     if (isPersonal != null) _isPersonal = isPersonal;
     await loadExaminations(token: token, isPersonal: _isPersonal);
@@ -266,9 +289,105 @@ class ExaminationViewModel extends ChangeNotifier {
   Future<void> clearListMode({required String token, bool? isPersonal}) async {
     _listMode = ExaminationListMode.all;
     _filterDate = null;
+    _selectedStatuses.clear();
+    _selectedGrades.clear();
+    _selectedSort = null;
     _currentPage = 0;
     if (isPersonal != null) _isPersonal = isPersonal;
     await loadExaminations(token: token, isPersonal: _isPersonal);
+  }
+
+  Future<void> applySort({
+    required String token,
+    required ExaminationListMode mode,
+  }) async {
+    if (!_isSortMode(mode)) return;
+    _listMode = mode;
+    _selectedSort = _sortValueForMode(mode);
+    _currentPage = 0;
+    await loadExaminations(token: token, isPersonal: _isPersonal);
+  }
+
+  Future<void> clearSort({required String token}) async {
+    _listMode = ExaminationListMode.all;
+    _selectedSort = null;
+    _currentPage = 0;
+    await loadExaminations(token: token, isPersonal: _isPersonal);
+  }
+
+  Future<void> clearFilters({required String token}) async {
+    _listMode = ExaminationListMode.all;
+    _selectedStatuses.clear();
+    _selectedGrades.clear();
+    _currentPage = 0;
+    await loadExaminations(token: token, isPersonal: _isPersonal);
+  }
+
+  Future<void> toggleStatusFilter({
+    required String token,
+    required String status,
+  }) async {
+    if (_selectedStatuses.contains(status)) {
+      _selectedStatuses.remove(status);
+    } else {
+      _selectedStatuses.add(status);
+    }
+    _listMode = ExaminationListMode.all;
+    _currentPage = 0;
+    await loadExaminations(token: token, isPersonal: _isPersonal);
+  }
+
+  Future<void> toggleGradeFilter({
+    required String token,
+    required int grade,
+  }) async {
+    if (_selectedGrades.contains(grade)) {
+      _selectedGrades.remove(grade);
+    } else {
+      _selectedGrades.add(grade);
+    }
+    _listMode = ExaminationListMode.all;
+    _currentPage = 0;
+    await loadExaminations(token: token, isPersonal: _isPersonal);
+  }
+
+  bool _isSortMode(ExaminationListMode mode) {
+    return mode == ExaminationListMode.studyDateAsc ||
+        mode == ExaminationListMode.studyDateDesc ||
+        mode == ExaminationListMode.uploadDateAsc ||
+        mode == ExaminationListMode.uploadDateDesc;
+  }
+
+  String? _sortValueForMode(ExaminationListMode mode) {
+    switch (mode) {
+      case ExaminationListMode.studyDateAsc:
+        return 'studyDate,asc';
+      case ExaminationListMode.studyDateDesc:
+        return 'studyDate,desc';
+      case ExaminationListMode.uploadDateAsc:
+        return 'createdAt,asc';
+      case ExaminationListMode.uploadDateDesc:
+        return 'createdAt,desc';
+      default:
+        return null;
+    }
+  }
+
+  String _statusValueForMode(ExaminationListMode mode) {
+    switch (mode) {
+      case ExaminationListMode.statusAiProcessing:
+        return 'AI_PROCESSING';
+      case ExaminationListMode.statusAiFailed:
+        return 'AI_FAILED';
+      case ExaminationListMode.statusNeedVerify:
+        return 'NEED_VERIFY';
+      case ExaminationListMode.statusVerified:
+        return 'VERIFIED';
+      case ExaminationListMode.statusReportGenerated:
+        return 'REPORT_GENERATED';
+      default:
+        return '';
+    }
   }
 
   Future<void> loadDoctorExaminations({
@@ -391,9 +510,7 @@ class ExaminationViewModel extends ChangeNotifier {
             token: token,
           );
           _markExaminationViewedLocally(examinationId);
-        } catch (e) {
-          debugPrint('[Examination mark viewed] ignored error: $e');
-        }
+        } catch (_) {}
       }
 
       final detail = await getPatientExaminationsUseCase.executeDetail(
@@ -449,6 +566,9 @@ class ExaminationViewModel extends ChangeNotifier {
     _dailyLast7DaysStats = [];
     _listMode = ExaminationListMode.all;
     _filterDate = null;
+    _selectedStatuses.clear();
+    _selectedGrades.clear();
+    _selectedSort = null;
     notifyListeners();
   }
 

@@ -29,6 +29,12 @@ abstract class AdminRemoteDataSource {
 
   Future<List<RoleModel>> getRoles({required String token});
 
+  Future<void> updateUserRole({
+    required int userId,
+    required int roleId,
+    required String token,
+  });
+
   Future<void> toggleDoctorStatus({
     required int id,
     required bool activate,
@@ -227,6 +233,46 @@ class AdminRemoteDataSourceImpl implements AdminRemoteDataSource {
       }
 
       throw Exception('Lỗi tải danh sách vai trò (${response.statusCode})');
+    } catch (e) {
+      if (e is Exception) rethrow;
+      throw Exception('Kết nối thất bại: $e');
+    }
+  }
+
+  @override
+  Future<void> updateUserRole({
+    required int userId,
+    required int roleId,
+    required String token,
+  }) async {
+    final uri = Uri.parse(ApiConstants.userRoleEndpoint(userId));
+
+    try {
+      final response = await client
+          .put(
+            uri,
+            headers: {
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Accept': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({'roleId': roleId}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
+      }
+
+      final decodedBody = utf8.decode(response.bodyBytes);
+      String message = 'Không thể đổi vai trò người dùng';
+      try {
+        final errorData = jsonDecode(decodedBody);
+        if (errorData is Map && errorData['message'] != null) {
+          message = errorData['message'].toString();
+        }
+      } catch (_) {}
+      throw Exception(message);
     } catch (e) {
       if (e is Exception) rethrow;
       throw Exception('Kết nối thất bại: $e');

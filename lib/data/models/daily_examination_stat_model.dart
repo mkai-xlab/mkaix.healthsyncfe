@@ -1,3 +1,4 @@
+import '../../core/utils/date_time_utils.dart';
 import '../../domain/entities/daily_examination_stat_entity.dart';
 
 class DailyExaminationStatModel extends DailyExaminationStatEntity {
@@ -5,14 +6,14 @@ class DailyExaminationStatModel extends DailyExaminationStatEntity {
 
   factory DailyExaminationStatModel.fromJson(Map<String, dynamic> json) {
     final rawDate = json['date']?.toString() ?? '';
-    final parsedDate = DateTime.tryParse(rawDate);
+    final parsedDate = parseLocalDate(rawDate);
     if (parsedDate == null) {
       throw Exception('Dinh dang ngay thong ke 7 ngay khong hop le');
     }
 
     final rawCount = json['count'];
     return DailyExaminationStatModel(
-      date: DateTime(parsedDate.year, parsedDate.month, parsedDate.day),
+      date: parsedDate,
       count: rawCount is num
           ? rawCount.toInt()
           : int.tryParse('$rawCount') ?? 0,

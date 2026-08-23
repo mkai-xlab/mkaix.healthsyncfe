@@ -20,6 +20,9 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
     String direction = 'desc',
     String? date,
     bool isPersonal = false,
+    List<String> statuses = const [],
+    List<int> grades = const [],
+    String? sort,
   }) {
     return remoteDataSource.getExaminationsPage(
       token: token,
@@ -29,6 +32,9 @@ class ExaminationRepositoryImpl implements ExaminationRepository {
       direction: direction,
       date: date,
       isPersonal: isPersonal,
+      statuses: statuses,
+      grades: grades,
+      sort: sort,
     );
   }
 

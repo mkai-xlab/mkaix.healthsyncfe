@@ -7,6 +7,7 @@ import '../../domain/usecases/create_user_usecase.dart';
 import '../../domain/usecases/get_admin_roles_usecase.dart';
 import '../../domain/usecases/get_doctor_accounts_usecase.dart';
 import '../../domain/usecases/toggle_doctor_status_usecase.dart';
+import '../../domain/usecases/update_user_role_usecase.dart';
 import '../../core/utils/error_message_utils.dart';
 
 class AdminAccountViewModel extends ChangeNotifier {
@@ -15,6 +16,7 @@ class AdminAccountViewModel extends ChangeNotifier {
   final CreateUserUseCase createUserUseCase;
   final GetAdminRolesUseCase getRolesUseCase;
   final ToggleDoctorStatusUseCase toggleDoctorStatusUseCase;
+  final UpdateUserRoleUseCase updateUserRoleUseCase;
 
   AdminAccountViewModel({
     required this.getDoctorAccountsUseCase,
@@ -22,6 +24,7 @@ class AdminAccountViewModel extends ChangeNotifier {
     required this.createUserUseCase,
     required this.getRolesUseCase,
     required this.toggleDoctorStatusUseCase,
+    required this.updateUserRoleUseCase,
   });
 
   final List<DoctorAccountEntity> _accounts = [];
@@ -184,6 +187,33 @@ class AdminAccountViewModel extends ChangeNotifier {
     return getRolesUseCase.execute(token: token);
   }
 
+  Future<bool> updateUserRole({
+    required int userId,
+    required int roleId,
+    required String token,
+  }) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await updateUserRoleUseCase.execute(
+        userId: userId,
+        roleId: roleId,
+        token: token,
+      );
+      await _loadMoreData(token);
+      return true;
+    } catch (e) {
+      _errorMessage = userFriendlyErrorMessage(e);
+      notifyListeners();
+      return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> toggleDoctorStatus(
     int id,
     bool activate,
@@ -247,6 +277,14 @@ class AdminAccountViewModel extends ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<void> reloadCurrentPage(String token) async {
+    if (_isLoading) return;
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    await _loadMoreData(token);
   }
 
   List<DoctorAccountEntity> _pageContent(

@@ -14,6 +14,8 @@ class ApiConstants {
   static String patientByIdEndpoint(String patientId) =>
       '$patientsEndpoint/$patientId';
   static const String examinationsEndpoint = '$baseUrl/examinations';
+  static const String examinationsFilterEndpoint =
+      '$examinationsEndpoint/filter';
   static String examinationByIdEndpoint(int id) => '$examinationsEndpoint/$id';
   static String examinationReportEndpoint(int id) =>
       '$examinationsEndpoint/$id/generate-report';
@@ -115,6 +117,12 @@ class ApiConstants {
       '$knowledgeDocumentsEndpoint/$id/reindex';
   static String knowledgeReportSyncEndpoint(int reportId) =>
       '$knowledgeDocumentsEndpoint/reports/$reportId/sync';
+  static String knowledgeDocumentPreviewEndpoint(int id) =>
+      '$knowledgeDocumentsEndpoint/$id/preview';
+  static String knowledgeDocumentDownloadEndpoint(int id) =>
+      '$knowledgeDocumentsEndpoint/$id/download';
+  static String knowledgeDocumentContentEndpoint(int id) =>
+      '$knowledgeDocumentsEndpoint/$id/content';
 
   // AI endpoints
   static const String aiPredictBatchEndpoint = '$baseUrl/ai/predict-batch';

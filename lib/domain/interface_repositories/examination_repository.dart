@@ -13,6 +13,9 @@ abstract class ExaminationRepository {
     String direction = 'desc',
     String? date,
     bool isPersonal = false,
+    List<String> statuses = const [],
+    List<int> grades = const [],
+    String? sort,
   });
 
   Future<ExaminationDashboardTotalsEntity> getMyDashboardTotals({

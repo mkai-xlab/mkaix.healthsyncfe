@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/knowledge_document_download.dart';
 import '../../../core/services/toast_service.dart';
 import '../../../data/datasources/knowledge_document_remote_datasource.dart';
 import '../../../data/models/knowledge_document_model.dart';
@@ -51,9 +52,9 @@ class _KnowledgeDocumentsPageState extends State<KnowledgeDocumentsPage> {
               const SizedBox(height: 18),
               if (vm.isLoading)
                 const _LoadingPanel()
-              else if (vm.errorMessage != null)
+              else if (vm.loadErrorMessage != null)
                 _ErrorPanel(
-                  message: vm.errorMessage!,
+                  message: vm.loadErrorMessage!,
                   onRetry: () => vm.loadDocuments(token),
                 )
               else
@@ -268,6 +269,9 @@ class _DocumentRow extends StatelessWidget {
     final isDeleting = context.select<KnowledgeDocumentViewModel, bool>(
       (vm) => vm.isDeletingDocument(document.id),
     );
+    final isDownloading = context.select<KnowledgeDocumentViewModel, bool>(
+      (vm) => vm.isDownloadingDocument(document.id),
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       decoration: const BoxDecoration(
@@ -339,9 +343,17 @@ class _DocumentRow extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  tooltip: 'Xem trước tài liệu',
-                  onPressed: () => _showPreviewUnsupported(context),
-                  icon: const Icon(Icons.visibility_outlined, size: 20),
+                  tooltip: 'Tải tài liệu',
+                  onPressed: isDownloading
+                      ? null
+                      : () => _downloadDocument(context),
+                  icon: isDownloading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download_outlined, size: 20),
                   color: AppColors.primaryLight,
                 ),
                 isDeleting
@@ -370,6 +382,34 @@ class _DocumentRow extends StatelessWidget {
     );
   }
 
+  Future<void> _downloadDocument(BuildContext context) async {
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    final vm = context.read<KnowledgeDocumentViewModel>();
+    final documentFile = await vm.downloadDocument(
+      token: token,
+      document: document,
+    );
+    if (!context.mounted) return;
+
+    if (documentFile == null) {
+      AppToast.showError(vm.errorMessage ?? 'Không thể tải tài liệu.');
+      return;
+    }
+
+    try {
+      await downloadKnowledgeDocument(
+        bytes: documentFile.bytes,
+        contentType: documentFile.contentType,
+        fileName: documentFile.fileName,
+      );
+    } catch (error) {
+      AppToast.showError(
+        error.toString().replaceFirst('UnsupportedError: ', ''),
+      );
+    }
+  }
+
+  // ignore: unused_element
   void _showPreviewUnsupported(BuildContext context) {
     AppToast.showError('Chức năng xem trước tài liệu chưa được hỗ trợ.');
   }

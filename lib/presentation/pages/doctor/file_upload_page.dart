@@ -290,20 +290,11 @@ class FileUploadPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Thời gian: ${_formatDuration(vm.uploadElapsed)}',
+                    'Thời gian gian: ${_formatDuration(vm.uploadElapsed)}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
                       color: _primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Thời gian: ${_formatDuration(vm.uploadElapsed)}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -975,15 +966,6 @@ class FileUploadPage extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       color: _primary,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Thời gian: ${_formatDuration(vm.uploadElapsed)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],

@@ -24,6 +24,7 @@ import 'package:fe/domain/usecases/change_password_usecase.dart';
 import 'package:fe/domain/usecases/create_chat_session_usecase.dart';
 import 'package:fe/domain/usecases/create_user_usecase.dart';
 import 'package:fe/domain/usecases/delete_knowledge_document_usecase.dart';
+import 'package:fe/domain/usecases/download_knowledge_document_usecase.dart';
 import 'package:fe/domain/usecases/forgot_password_usecase.dart';
 import 'package:fe/domain/usecases/get_admin_dashboard_stats_usecase.dart';
 import 'package:fe/domain/usecases/get_admin_roles_usecase.dart';
@@ -41,10 +42,12 @@ import 'package:fe/domain/usecases/get_notifications_usecase.dart';
 import 'package:fe/domain/usecases/get_unread_notifications_usecase.dart';
 import 'package:fe/domain/usecases/mark_all_notifications_as_read_usecase.dart';
 import 'package:fe/domain/usecases/mark_notification_as_read_usecase.dart';
+import 'package:fe/domain/usecases/preview_knowledge_document_usecase.dart';
 import 'package:fe/domain/usecases/reset_password_usecase.dart';
 import 'package:fe/domain/usecases/toggle_doctor_status_usecase.dart';
 import 'package:fe/domain/usecases/update_chat_session_usecase.dart';
 import 'package:fe/domain/usecases/update_doctor_profile_usecase.dart';
+import 'package:fe/domain/usecases/update_user_role_usecase.dart';
 import 'package:fe/domain/usecases/upload_dicom_batch_usecase.dart';
 import 'package:fe/domain/usecases/upload_dicom_zip_batch_usecase.dart';
 import 'package:fe/domain/usecases/upload_doctor_avatar_usecase.dart';
@@ -111,6 +114,7 @@ Future<void> main() async {
     createUserUseCase: CreateUserUseCase(adminRepository),
     getRolesUseCase: GetAdminRolesUseCase(adminRepository),
     toggleDoctorStatusUseCase: ToggleDoctorStatusUseCase(adminRepository),
+    updateUserRoleUseCase: UpdateUserRoleUseCase(adminRepository),
   );
   final adminDashboardRemoteDataSource = AdminDashboardRemoteDataSource(
     httpClient,
@@ -202,6 +206,12 @@ Future<void> main() async {
       knowledgeDocumentRepository,
     ),
     deleteDocumentUseCase: DeleteKnowledgeDocumentUseCase(
+      knowledgeDocumentRepository,
+    ),
+    previewDocumentUseCase: PreviewKnowledgeDocumentUseCase(
+      knowledgeDocumentRepository,
+    ),
+    downloadDocumentUseCase: DownloadKnowledgeDocumentUseCase(
       knowledgeDocumentRepository,
     ),
   );
@@ -351,6 +361,7 @@ class _RealtimeNotificationConnector extends StatefulWidget {
 class _RealtimeNotificationConnectorState
     extends State<_RealtimeNotificationConnector> {
   String? _connectedToken;
+  bool _hasPendingSessionReset = false;
 
   @override
   void didChangeDependencies() {
@@ -360,20 +371,30 @@ class _RealtimeNotificationConnectorState
 
     if (token.trim().isEmpty) {
       if (_connectedToken != null) {
-        _resetSessionScopedState();
         _connectedToken = null;
+        _scheduleSessionScopedStateReset();
       }
       return;
     }
 
     if (_connectedToken == token) return;
     if (_connectedToken != null) {
-      _resetSessionScopedState();
+      _scheduleSessionScopedStateReset();
     }
     _connectedToken = token;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _connectedToken != token) return;
       notificationVm.connectRealtime(token);
+    });
+  }
+
+  void _scheduleSessionScopedStateReset() {
+    if (_hasPendingSessionReset) return;
+    _hasPendingSessionReset = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _hasPendingSessionReset = false;
+      if (!mounted) return;
+      _resetSessionScopedState();
     });
   }
 

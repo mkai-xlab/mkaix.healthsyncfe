@@ -1,9 +1,14 @@
+import '../../core/utils/date_time_utils.dart';
+
 class KnowledgeDocumentModel {
   final int id;
   final String title;
   final String sourceType;
   final String sourceUrl;
   final String originalName;
+  final String contentUrl;
+  final String previewUrl;
+  final String downloadUrl;
   final String accessScope;
   final String status;
   final int chunkCount;
@@ -17,6 +22,9 @@ class KnowledgeDocumentModel {
     required this.sourceType,
     required this.sourceUrl,
     required this.originalName,
+    required this.contentUrl,
+    required this.previewUrl,
+    required this.downloadUrl,
     required this.accessScope,
     required this.status,
     required this.chunkCount,
@@ -32,12 +40,15 @@ class KnowledgeDocumentModel {
       sourceType: json['sourceType']?.toString() ?? '',
       sourceUrl: json['sourceUrl']?.toString() ?? '',
       originalName: json['originalName']?.toString() ?? '',
+      contentUrl: json['contentUrl']?.toString() ?? '',
+      previewUrl: json['previewUrl']?.toString() ?? '',
+      downloadUrl: json['downloadUrl']?.toString() ?? '',
       accessScope: json['accessScope']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
       chunkCount: _parseInt(json['chunkCount']),
       errorMessage: _readOptionalString(json['errorMessage']),
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
-      indexedAt: DateTime.tryParse(json['indexedAt']?.toString() ?? ''),
+      createdAt: parseUtcInstantToLocal(json['createdAt']),
+      indexedAt: parseUtcInstantToLocal(json['indexedAt']),
     );
   }
 
@@ -47,6 +58,14 @@ class KnowledgeDocumentModel {
     final normalizedOriginalName = originalName.trim();
     if (normalizedOriginalName.isNotEmpty) return normalizedOriginalName;
     return 'Tài liệu #$id';
+  }
+
+  String get previewFileName {
+    final normalizedOriginalName = originalName.trim();
+    if (normalizedOriginalName.isNotEmpty) return normalizedOriginalName;
+    final normalizedTitle = title.trim();
+    if (normalizedTitle.isNotEmpty) return normalizedTitle;
+    return 'knowledge-document-$id';
   }
 
   static int _parseInt(Object? value) {

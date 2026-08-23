@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
@@ -34,12 +33,6 @@ class NotificationRemoteDataSource {
     required Uri uri,
     required String token,
   }) async {
-    debugPrint(
-      '[Notification API request] GET $uri, '
-      'Authorization=${token.trim().isEmpty ? 'missing' : 'Bearer ***'}',
-      wrapWidth: 1024,
-    );
-
     final response = await client
         .get(
           uri,
@@ -71,11 +64,6 @@ class NotificationRemoteDataSource {
 
   Future<void> markAsRead({required int id, required String token}) async {
     final uri = Uri.parse(ApiConstants.markNotificationReadEndpoint(id));
-    debugPrint(
-      '[Notification API request] PUT $uri, '
-      'Authorization=${token.trim().isEmpty ? 'missing' : 'Bearer ***'}',
-      wrapWidth: 1024,
-    );
 
     final response = await client
         .put(
@@ -96,11 +84,6 @@ class NotificationRemoteDataSource {
 
   Future<int> markAllAsRead({required String token}) async {
     final uri = Uri.parse(ApiConstants.markAllNotificationsReadEndpoint);
-    debugPrint(
-      '[Notification API request] PUT $uri, '
-      'Authorization=${token.trim().isEmpty ? 'missing' : 'Bearer ***'}',
-      wrapWidth: 1024,
-    );
 
     final response = await client
         .put(

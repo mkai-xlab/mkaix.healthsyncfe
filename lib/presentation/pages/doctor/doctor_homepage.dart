@@ -17,6 +17,7 @@ import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/notification_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
+import '../admin/admin_user_list_page.dart';
 import '../admin/knowledge_documents_page.dart';
 import '../auth/account_change_password_page.dart';
 import 'ai_clinical_chat_page.dart';
@@ -28,7 +29,7 @@ import 'file_upload_page.dart';
 import 'patient_detail_page.dart';
 import 'patient_list_page.dart';
 
-// 
+//
 class DoctorHomepage extends StatefulWidget {
   const DoctorHomepage({super.key});
 
@@ -49,6 +50,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   int _handledAiChatPageRequestVersion = 0;
   PatientEntity? _selectedPatientDetail;
   ExaminationEntity? _selectedExaminationDetail;
+  ExaminationEntity? _patientDetailReturnExamination;
   ChatViewModel? _chatViewModel;
 
   static const Color _primaryGreen = AppColors.primary;
@@ -88,6 +90,11 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       routeKey: 'knowledge_documents_page',
       label: 'Kho tri thức',
       icon: Icons.library_books_outlined,
+    ),
+    PermissionCode.viewUserList: _DoctorNavConfig(
+      routeKey: 'user_list_page',
+      label: 'Danh sách người dùng',
+      icon: Icons.people_outline,
     ),
   };
 
@@ -317,6 +324,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _showUploadExaminationList = false;
             _selectedPatientDetail = null;
             _selectedExaminationDetail = null;
+            _patientDetailReturnExamination = null;
           });
           if (closeDrawer) {
             Navigator.pop(context);
@@ -399,6 +407,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _showUploadExaminationList = false;
             _selectedPatientDetail = null;
             _selectedExaminationDetail = null;
+            _patientDetailReturnExamination = null;
           });
         },
       );
@@ -420,8 +429,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       }
       return ExaminationDetailPage(
         examination: selectedExaminationDetail,
-        onBack: () => setState(() => _selectedExaminationDetail = null),
+        onBack: () => setState(() {
+          _selectedExaminationDetail = null;
+          _patientDetailReturnExamination = null;
+        }),
         onOpenPatientDetail: (patient) => setState(() {
+          _patientDetailReturnExamination = selectedExaminationDetail;
           _selectedExaminationDetail = null;
           _selectedPatientDetail = patient;
         }),
@@ -440,9 +453,18 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       return PatientDetailPage(
         patient: selectedPatientDetail,
         embedded: true,
-        onBack: () => setState(() => _selectedPatientDetail = null),
-        onOpenExaminationDetail: (examination) =>
-            setState(() => _selectedExaminationDetail = examination),
+        onBack: () => setState(() {
+          _selectedPatientDetail = null;
+          final returnExamination = _patientDetailReturnExamination;
+          _patientDetailReturnExamination = null;
+          if (returnExamination != null) {
+            _selectedExaminationDetail = returnExamination;
+          }
+        }),
+        onOpenExaminationDetail: (examination) => setState(() {
+          _patientDetailReturnExamination = null;
+          _selectedExaminationDetail = examination;
+        }),
       );
     }
 
@@ -471,6 +493,16 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     if (selectedPermission == 'knowledge_documents_page') {
       return const KnowledgeDocumentsPage();
     }
+    if (selectedPermission == 'user_list_page') {
+      if (!_hasPermission(context, PermissionCode.viewUserList)) {
+        return _forbiddenPage(
+          title: 'Không có quyền xem danh sách người dùng',
+          subtitle: 'Tài khoản hiện tại chưa được cấp permission cho màn này.',
+          icon: Icons.lock_outline,
+        );
+      }
+      return const AdminUserListPage(allowAdministrativeActions: false);
+    }
     if (selectedPermission == 'doctor_dashboard_page') {
       return DoctorDashboardPage(
         embedded: true,
@@ -493,8 +525,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         embedded: true,
         newExaminations: _newUploadExaminations,
         initialMode: _pendingExaminationListMode,
-        onOpenPatientDetail: (patient) =>
-            setState(() => _selectedPatientDetail = patient),
+        onOpenPatientDetail: (patient) => setState(() {
+          _patientDetailReturnExamination = context
+              .read<ExaminationViewModel>()
+              .selectedExamination;
+          _selectedPatientDetail = patient;
+        }),
       );
     }
     if (selectedPermission == 'patient_list_page') {
@@ -577,6 +613,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         _showUploadExaminationList = false;
         _selectedPatientDetail = null;
         _selectedExaminationDetail = null;
+        _patientDetailReturnExamination = null;
       });
     });
   }
@@ -597,6 +634,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _pendingExaminationListMode = mode;
       _selectedPatientDetail = null;
       _selectedExaminationDetail = null;
+      _patientDetailReturnExamination = null;
     });
   }
 
@@ -799,6 +837,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
       _selectedExaminationDetail = null;
+      _patientDetailReturnExamination = null;
       _isUploadMiniProgressCollapsed = false;
     });
   }
@@ -974,7 +1013,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'BS. ${vm.currentUser?.displayName ?? 'Bac si'}',
+                          'BS. ${vm.currentUser?.displayName ?? 'Bác sĩ'}',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -1029,6 +1068,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
           _selectedExaminationDetail = null;
+          _patientDetailReturnExamination = null;
         });
         break;
       case _DoctorUserMenuAction.changePassword:
@@ -1038,6 +1078,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
           _selectedExaminationDetail = null;
+          _patientDetailReturnExamination = null;
         });
         break;
       case _DoctorUserMenuAction.logout:
@@ -1109,6 +1150,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
       _selectedExaminationDetail = null;
+      _patientDetailReturnExamination = null;
     });
   }
 

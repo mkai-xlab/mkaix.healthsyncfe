@@ -14,6 +14,7 @@ import '../../../core/utils/examination_status_utils.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/doctor_viewmodel.dart';
 import '../../viewmodels/examination_viewmodel.dart';
 import 'patient_detail_page.dart';
 import '../../../core/utils/error_message_utils.dart';
@@ -388,8 +389,8 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     );
   }
 
-  void _openPatientDetail() {
-    final patient = PatientEntity(
+  Future<void> _openPatientDetail() async {
+    final fallbackPatient = PatientEntity(
       id: examination.patientDbId,
       patientCode: examination.patientCode,
       fullName: examination.patientName,
@@ -400,6 +401,22 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       address: null,
     );
 
+    var patient = fallbackPatient;
+    final patientCode = examination.patientCode.trim();
+    if (patientCode.isNotEmpty) {
+      try {
+        final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+        patient = await context.read<DoctorViewModel>().getPatientDetails(
+          token: token,
+          patientCode: patientCode,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        AppToast.showWarning(userFriendlyErrorMessage(e));
+      }
+    }
+
+    if (!mounted) return;
     if (widget.onOpenPatientDetail != null) {
       widget.onOpenPatientDetail!(patient);
       return;
@@ -781,6 +798,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   Widget _aiResultState(AiPredictionResultEntity result) {
     final grade = result.displayGrade;
     final riskColor = _riskColor(grade);
+    final hideConfidence = _isAiResultReviewed(result);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -840,13 +858,15 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 14),
-                _metricBar(
-                  label: 'Độ tin cậy',
-                  value: result.confidence,
-                  color: _primaryGreen,
-                ),
-                if (result.details.isNotEmpty) ...[
+                if (!hideConfidence) ...[
+                  const SizedBox(height: 14),
+                  _metricBar(
+                    label: 'Độ tin cậy',
+                    value: result.confidence,
+                    color: _primaryGreen,
+                  ),
+                ],
+                if (!hideConfidence && result.details.isNotEmpty) ...[
                   const SizedBox(height: 12),
                   ..._sortedKlDetails(result.details).map(
                     (entry) => Padding(
@@ -2186,21 +2206,22 @@ class _AiReviewDialogState extends State<_AiReviewDialog> {
               ],
             ),
           ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
-            decoration: BoxDecoration(
-              color: AppColors.primaryXLight,
-              borderRadius: BorderRadius.circular(999),
-            ),
-            child: Text(
-              'Độ tin cậy: ${result.confidenceDisplay}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w800,
-                color: AppColors.primary,
+          if (!result.isReviewed)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                color: AppColors.primaryXLight,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                'Độ tin cậy: ${result.confidenceDisplay}',
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.primary,
+                ),
               ),
             ),
-          ),
         ],
       ),
     );

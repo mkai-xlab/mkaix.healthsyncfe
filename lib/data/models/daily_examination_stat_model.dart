@@ -8,7 +8,7 @@ class DailyExaminationStatModel extends DailyExaminationStatEntity {
     final rawDate = json['date']?.toString() ?? '';
     final parsedDate = parseLocalDate(rawDate);
     if (parsedDate == null) {
-      throw Exception('Dinh dang ngay thong ke 7 ngay khong hop le');
+      throw Exception('Định dạng ngày thống kê 7 ngày không hợp lệ');
     }
 
     final rawCount = json['count'];

@@ -1,4 +1,5 @@
 import '../entities/patient_page_entity.dart';
+import '../entities/patient_entity.dart';
 import '../interface_repositories/patient_repository.dart';
 
 class GetAllPatientsUseCase {
@@ -23,5 +24,12 @@ class GetAllPatientsUseCase {
       page: page,
       size: size,
     );
+  }
+
+  Future<PatientEntity> executeDetails({
+    required String token,
+    required String patientCode,
+  }) {
+    return repository.getPatientDetails(token: token, patientCode: patientCode);
   }
 }

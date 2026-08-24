@@ -58,7 +58,15 @@ class _KnowledgeDocumentsPageState extends State<KnowledgeDocumentsPage> {
                   onRetry: () => vm.loadDocuments(token),
                 )
               else
-                _DocumentTable(documents: vm.filteredDocuments),
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: MediaQuery.sizeOf(context).width < 900
+                        ? 900
+                        : MediaQuery.sizeOf(context).width - 48,
+                    child: _DocumentTable(documents: vm.filteredDocuments),
+                  ),
+                ),
             ],
           ),
         );
@@ -81,6 +89,47 @@ class _Header extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 720) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Danh sách tài liệu & bài báo khoa học',
+                style: TextStyle(
+                  fontSize: 26,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Quản lý và xem xét các tài liệu lâm sàng, tài liệu về AI và tài liệu nghiên cứu.',
+                style: TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            onPressed: onUpload,
+            icon: const Icon(Icons.upload_file_outlined, size: 18),
+            label: const Text('Tải lên tài liệu mới'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryLight,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

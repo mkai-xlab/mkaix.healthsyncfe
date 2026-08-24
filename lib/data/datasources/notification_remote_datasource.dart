@@ -97,7 +97,7 @@ class NotificationRemoteDataSource {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
-        'Khong the danh dau tat ca thong bao da doc (${response.statusCode})',
+        'Không thể đánh dấu tất cả thông báo đã đọc (${response.statusCode})',
       );
     }
 

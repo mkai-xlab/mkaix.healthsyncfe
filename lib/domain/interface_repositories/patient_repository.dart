@@ -1,4 +1,5 @@
 import '../entities/patient_page_entity.dart';
+import '../entities/patient_entity.dart';
 
 abstract class PatientRepository {
   Future<PatientPageEntity> getAllPatients({
@@ -9,5 +10,10 @@ abstract class PatientRepository {
     bool isPersonal = false,
     int page = 0,
     int size = 10,
+  });
+
+  Future<PatientEntity> getPatientDetails({
+    required String token,
+    required String patientCode,
   });
 }

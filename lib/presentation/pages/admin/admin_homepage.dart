@@ -41,11 +41,16 @@ class AdminHomepage extends StatefulWidget {
 class _AdminHomepageState extends State<AdminHomepage> {
   static const Color _pageBackground = Color(0xFFF0F4F3);
 
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   int _selectedNavIndex = 0;
   bool _showChangePassword = false;
   bool _isSystemSettingsExpanded = false;
 
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
+
+  void _openDrawer() {
+    _scaffoldKey.currentState?.openDrawer();
+  }
 
   Widget _buildAccountAvatar({
     required String name,
@@ -103,6 +108,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
     final isMobile = MediaQuery.of(context).size.width < 900;
 
     return Scaffold(
+      key: _scaffoldKey,
       body: Row(
         children: [
           // Sidebar
@@ -741,7 +747,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
                   color: AppColors.primary,
                   size: 22,
                 ),
-                onPressed: () => Scaffold.of(context).openDrawer(),
+                onPressed: _openDrawer,
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -846,7 +852,7 @@ class _AdminHomepageState extends State<AdminHomepage> {
               padding: const EdgeInsets.only(right: 12),
               child: IconButton(
                 icon: const Icon(Icons.menu, color: Color(0xFF2D7E6E)),
-                onPressed: () => Scaffold.of(context).openDrawer(),
+                onPressed: _openDrawer,
               ),
             ),
           // Search Bar

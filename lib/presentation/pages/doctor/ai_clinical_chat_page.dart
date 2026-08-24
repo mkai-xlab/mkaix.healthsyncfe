@@ -7,6 +7,7 @@ import '../../../data/models/chat_answer_model.dart';
 import '../../../domain/entities/chat_message_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/chat_viewmodel.dart';
+import '../../widgets/ai_chat/chat_message_content.dart';
 
 class AiClinicalChatPage extends StatefulWidget {
   const AiClinicalChatPage({super.key});
@@ -298,14 +299,7 @@ class _MessageRow extends StatelessWidget {
                     horizontal: 20,
                     vertical: 16,
                   ),
-                  child: Text(
-                    _wrapLongTokens(message.content),
-                    style: TextStyle(
-                      color: isUser ? Colors.white : const Color(0xFF24312C),
-                      fontSize: 15,
-                      height: 1.55,
-                    ),
-                  ),
+                  child: ChatMessageContent(message: message, isUser: isUser),
                 ),
               ),
             ),
@@ -898,20 +892,6 @@ class _TimePill extends StatelessWidget {
       ),
     );
   }
-}
-
-String _wrapLongTokens(String text) {
-  return text.replaceAllMapped(RegExp(r'\S{40,}'), (match) {
-    final value = match.group(0)!;
-    final buffer = StringBuffer();
-    for (var index = 0; index < value.length; index++) {
-      if (index > 0 && index % 24 == 0) {
-        buffer.write('\u200B');
-      }
-      buffer.write(value[index]);
-    }
-    return buffer.toString();
-  });
 }
 
 String _timeLabel(DateTime? value) {

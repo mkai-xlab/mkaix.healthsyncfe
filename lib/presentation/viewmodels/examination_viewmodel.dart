@@ -494,7 +494,7 @@ class ExaminationViewModel extends ChangeNotifier {
     _detailErrorMessage = null;
 
     if (examinationId <= 0) {
-      _detailErrorMessage = 'Khong tim thay examinationId hop le';
+      _detailErrorMessage = 'Không tìm thấy examinationId hợp lệ';
       notifyListeners();
       return true;
     }

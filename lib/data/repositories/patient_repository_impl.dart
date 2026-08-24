@@ -1,4 +1,5 @@
 import '../../domain/entities/patient_page_entity.dart';
+import '../../domain/entities/patient_entity.dart';
 import '../../domain/interface_repositories/patient_repository.dart';
 import '../datasources/patient_remote_datasource.dart';
 
@@ -24,6 +25,17 @@ class PatientRepositoryImpl implements PatientRepository {
       isPersonal: isPersonal,
       page: page,
       size: size,
+    );
+  }
+
+  @override
+  Future<PatientEntity> getPatientDetails({
+    required String token,
+    required String patientCode,
+  }) async {
+    return await remoteDataSource.getPatientDetails(
+      token: token,
+      patientCode: patientCode,
     );
   }
 }

@@ -59,10 +59,17 @@ class AppRouter {
     ],
     redirect: (BuildContext context, GoRouterState state) {
       final user = authViewModel.currentUser;
-      final isLoggedIn = user != null;
+      final hasValidSession = authViewModel.hasValidSession;
+      final isLoggedIn = user != null && hasValidSession;
       final isFirstTimeLogin = authViewModel.isFirstTimeLogin;
       final changePasswordSucceeded = authViewModel.changeSuccess;
       final loc = state.matchedLocation;
+
+      if (!hasValidSession && authViewModel.hasStoredSession) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          authViewModel.clearLocalSession();
+        });
+      }
 
       // Các trang public — không cần đăng nhập
       final isPublicRoute =

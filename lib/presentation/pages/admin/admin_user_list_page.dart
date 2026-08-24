@@ -27,7 +27,9 @@ import 'package:fe/presentation/widgets/pagination_bar.dart';
 import 'package:http/http.dart' as http;
 
 class AdminUserListPage extends StatefulWidget {
-  const AdminUserListPage({super.key});
+  final bool allowAdministrativeActions;
+
+  const AdminUserListPage({super.key, this.allowAdministrativeActions = true});
 
   @override
   State<AdminUserListPage> createState() => _AdminUserListPageState();
@@ -36,22 +38,42 @@ class AdminUserListPage extends StatefulWidget {
 class _AdminUserListPageState extends State<AdminUserListPage> {
   DoctorAccountEntity? _selectedUser;
   int? _hoveredUserId;
+  bool _didRequestInitialPage = false;
 
   String get _token => context.read<AuthViewModel>().currentUser?.token ?? '';
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_didRequestInitialPage) return;
+    _didRequestInitialPage = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final token = _token;
+      final viewModel = context.read<AdminAccountViewModel>();
+      if (token.trim().isNotEmpty &&
+          viewModel.accounts.isEmpty &&
+          !viewModel.isLoading) {
+        viewModel.fetchFirstPage(token);
+      }
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
     return Consumer<AdminAccountViewModel>(
       builder: (context, viewModel, child) {
+        final isNarrow = MediaQuery.sizeOf(context).width < 980;
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Expanded(flex: 7, child: _buildUserListPanel(context, viewModel)),
-            Container(
-              width: 320,
-              color: Colors.white,
-              child: _buildUserDetailSidebar(context, viewModel),
-            ),
+            if (!isNarrow)
+              Container(
+                width: 320,
+                color: Colors.white,
+                child: _buildUserDetailSidebar(context, viewModel),
+              ),
           ],
         );
       },
@@ -145,41 +167,46 @@ class _AdminUserListPageState extends State<AdminUserListPage> {
                   ],
                 ),
               ),
-              const SizedBox(width: 12),
-              OutlinedButton.icon(
-                onPressed: () => _showRolePermissionDialog(context),
-                icon: const Icon(Icons.admin_panel_settings_outlined, size: 16),
-                label: const Text('Phân quyền'),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF2D7E6E),
-                  side: const BorderSide(color: Color(0xFF2D7E6E)),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+              if (widget.allowAdministrativeActions) ...[
+                const SizedBox(width: 12),
+                OutlinedButton.icon(
+                  onPressed: () => _showRolePermissionDialog(context),
+                  icon: const Icon(
+                    Icons.admin_panel_settings_outlined,
+                    size: 16,
                   ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              ElevatedButton.icon(
-                onPressed: () => _showCreateUserDialog(context),
-                icon: const Icon(Icons.person_add_outlined, size: 16),
-                label: const Text('Thêm tài khoản'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2D7E6E),
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 10,
+                  label: const Text('Phân quyền'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF2D7E6E),
+                    side: const BorderSide(color: Color(0xFF2D7E6E)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
                   ),
                 ),
-              ),
+                const SizedBox(width: 10),
+                ElevatedButton.icon(
+                  onPressed: () => _showCreateUserDialog(context),
+                  icon: const Icon(Icons.person_add_outlined, size: 16),
+                  label: const Text('Thêm tài khoản'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2D7E6E),
+                    foregroundColor: Colors.white,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 10,
+                    ),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 20),
@@ -544,34 +571,36 @@ class _AdminUserListPageState extends State<AdminUserListPage> {
                       ],
                     ),
                   ),
-                  const PopupMenuItem(
-                    value: 'role',
-                    child: Row(
-                      children: [
-                        Icon(
-                          Icons.manage_accounts_outlined,
-                          size: 16,
-                          color: Color(0xFF2D7E6E),
-                        ),
-                        SizedBox(width: 8),
-                        Text('Đổi vai trò'),
-                      ],
+                  if (widget.allowAdministrativeActions) ...[
+                    const PopupMenuItem(
+                      value: 'role',
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.manage_accounts_outlined,
+                            size: 16,
+                            color: Color(0xFF2D7E6E),
+                          ),
+                          SizedBox(width: 8),
+                          Text('Đổi vai trò'),
+                        ],
+                      ),
                     ),
-                  ),
-                  PopupMenuItem(
-                    value: 'toggle',
-                    child: Row(
-                      children: [
-                        Icon(
-                          isActive ? Icons.block : Icons.check_circle_outline,
-                          size: 16,
-                          color: isActive ? Colors.red : Colors.green,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(isActive ? 'Khóa tài khoản' : 'Kích hoạt'),
-                      ],
+                    PopupMenuItem(
+                      value: 'toggle',
+                      child: Row(
+                        children: [
+                          Icon(
+                            isActive ? Icons.block : Icons.check_circle_outline,
+                            size: 16,
+                            color: isActive ? Colors.red : Colors.green,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(isActive ? 'Khóa tài khoản' : 'Kích hoạt'),
+                        ],
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
             ],

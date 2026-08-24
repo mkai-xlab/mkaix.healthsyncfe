@@ -10,9 +10,9 @@ import '../../domain/usecases/update_chat_session_usecase.dart';
 
 class ChatViewModel extends ChangeNotifier {
   static const List<String> defaultSuggestions = [
-    'T?m t?t c?c ca h?m nay',
-    'H? tr? xem l?i b?nh ?n',
-    'T?m ca nguy c? cao',
+    'Tóm tắt các ca hôm nay',
+    'Hỗ trợ xem lại bệnh án',
+    'Tìm ca nguy cơ cao',
   ];
 
   final AskChatUseCase askChatUseCase;
@@ -33,7 +33,7 @@ class ChatViewModel extends ChangeNotifier {
   int _fullPageRequestVersion = 0;
   int? _currentSessionId;
   String? _errorMessage;
-  String _doctorDisplayName = 'B?c s?';
+  String _doctorDisplayName = 'Bác sĩ';
 
   ChatViewModel({
     required this.askChatUseCase,
@@ -46,7 +46,7 @@ class ChatViewModel extends ChangeNotifier {
            id: 'welcome-message',
            role: ChatMessageRole.assistant,
            content:
-               'Xin ch?o B?c s?, t?i c? th? h? tr? g? cho c?c ca ch?n ?o?n h?m nay?',
+               'Xin chào Bác sĩ, tôi có thể hỗ trợ gì cho các ca chẩn đoán hôm nay?',
            createdAt: DateTime.now(),
          ),
        ];
@@ -78,7 +78,7 @@ class ChatViewModel extends ChangeNotifier {
     _fullPageRequestVersion = 0;
     _currentSessionId = null;
     _errorMessage = null;
-    _doctorDisplayName = 'B?c s?';
+    _doctorDisplayName = 'Bác sĩ';
     notifyListeners();
   }
 
@@ -95,7 +95,7 @@ class ChatViewModel extends ChangeNotifier {
   void updateDoctorName(String? fullName) {
     final normalized = fullName?.trim();
     final nextName = normalized == null || normalized.isEmpty
-        ? 'B?c s?'
+        ? 'Bác sĩ'
         : normalized;
     if (_doctorDisplayName == nextName) return;
 
@@ -107,7 +107,7 @@ class ChatViewModel extends ChangeNotifier {
 
     _messages[welcomeIndex] = _messages[welcomeIndex].copyWith(
       content:
-          'Xin ch?o $_doctorDisplayName, t?i c? th? h? tr? g? cho c?c ca ch?n ?o?n h?m nay?',
+          'Xin chào $_doctorDisplayName, tôi có thể hỗ trợ gì cho các ca chẩn đoán hôm nay?',
     );
     notifyListeners();
   }
@@ -336,7 +336,7 @@ class ChatViewModel extends ChangeNotifier {
     final text = rawText.trim();
     if (text.isEmpty || _isTyping) return;
     if (token.trim().isEmpty) {
-      _errorMessage = 'Phi?n ??ng nh?p ?? h?t h?n. Vui l?ng ??ng nh?p l?i.';
+      _errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
       notifyListeners();
       return;
     }
@@ -368,7 +368,21 @@ class ChatViewModel extends ChangeNotifier {
         ChatMessageEntity(
           id: 'assistant-${DateTime.now().microsecondsSinceEpoch}',
           role: ChatMessageRole.assistant,
-          content: _formatAnswer(answer),
+          content: answer.answer.trim().isEmpty
+              ? 'AI không trả về nội dung phản hồi.'
+              : answer.answer.trim(),
+          warning: answer.warning?.trim(),
+          sources: answer.sources
+              .map(
+                (source) => ChatMessageSourceEntity(
+                  sourceId: source.sourceId,
+                  title: source.title,
+                  sourceType: source.sourceType,
+                  locator: source.locator,
+                  score: source.score,
+                ),
+              )
+              .toList(),
           createdAt: DateTime.now(),
         ),
       );
@@ -389,32 +403,10 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
-  String _formatAnswer(ChatAnswerModel answer) {
-    final warning = answer.warning?.trim();
-    final sourceText = _formatSources(answer.sources);
-    return [
-      answer.answer.trim().isEmpty
-          ? 'AI kh?ng tr? v? n?i dung ph?n h?i.'
-          : answer.answer.trim(),
-      if (warning != null && warning.isNotEmpty) 'L?u ?: $warning',
-      if (sourceText.isNotEmpty) sourceText,
-    ].join('\n\n');
-  }
-
-  String _formatSources(List<ChatSourceModel> sources) {
-    final titles = sources
-        .map((source) => source.title.trim())
-        .where((title) => title.isNotEmpty)
-        .take(3)
-        .toList();
-    if (titles.isEmpty) return '';
-    return 'Ngu?n tham kh?o: ${titles.join(', ')}';
-  }
-
   String _friendlyError(Object error) {
     final raw = error.toString().replaceFirst('Exception: ', '').trim();
     if (raw.isEmpty) {
-      return 'Kh?ng th? k?t n?i AI chat. Vui l?ng th? l?i.';
+      return 'Không thể kết nối AI chat. Vui lòng thử lại.';
     }
     return raw;
   }
@@ -449,7 +441,7 @@ class ChatViewModel extends ChangeNotifier {
       id: 'welcome-message',
       role: ChatMessageRole.assistant,
       content:
-          'Xin ch?o $_doctorDisplayName, t?i c? th? h? tr? g? cho c?c ca ch?n ?o?n h?m nay?',
+          'Xin chào $_doctorDisplayName, tôi có thể hỗ trợ gì cho các ca chẩn đoán hôm nay?',
       createdAt: DateTime.now(),
     );
   }

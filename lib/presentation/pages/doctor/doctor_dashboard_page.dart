@@ -347,7 +347,7 @@ class _DashboardHeader extends StatelessWidget {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: AppColors.primaryXLight.withOpacity(0.3),
+                color: AppColors.primaryXLight.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(20),
               ),
               child: Row(
@@ -377,7 +377,7 @@ class _DashboardHeader extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.errorLight.withOpacity(0.5),
+                  color: AppColors.errorLight.withValues(alpha: 0.5),
                   borderRadius: BorderRadius.circular(20),
                 ),
                 child: Row(
@@ -471,7 +471,7 @@ class _StatCard extends StatelessWidget {
             border: Border(left: BorderSide(color: accent, width: 4)),
             boxShadow: [
               BoxShadow(
-                color: Colors.black.withOpacity(0.05),
+                color: Colors.black.withValues(alpha: 0.05),
                 blurRadius: 10,
                 offset: const Offset(0, 2),
               ),
@@ -491,7 +491,7 @@ class _StatCard extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: accent.withOpacity(0.1),
+                      color: accent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Icon(icon, color: accent, size: 20),
@@ -503,7 +503,7 @@ class _StatCard extends StatelessWidget {
                         vertical: 4,
                       ),
                       decoration: BoxDecoration(
-                        color: accent.withOpacity(0.1),
+                        color: accent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Text(
@@ -688,11 +688,11 @@ class _TrendCard extends StatelessWidget {
                                             AppColors.primary,
                                           ]
                                         : [
-                                            AppColors.primaryXLight.withOpacity(
-                                              0.3,
+                                            AppColors.primaryXLight.withValues(
+                                              alpha: 0.3,
                                             ),
-                                            AppColors.primaryLight.withOpacity(
-                                              0.2,
+                                            AppColors.primaryLight.withValues(
+                                              alpha: 0.2,
                                             ),
                                           ],
                                   ),
@@ -758,7 +758,7 @@ class _SevereAlertCard extends StatelessWidget {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: AppColors.successLight.withOpacity(0.3),
+                    color: AppColors.successLight.withValues(alpha: 0.3),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -864,7 +864,7 @@ class _Panel extends StatelessWidget {
         borderRadius: BorderRadius.circular(12),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -885,7 +885,7 @@ class _Panel extends StatelessWidget {
                   ),
                 ),
               ),
-              if (trailing != null) trailing!,
+              ?trailing,
             ],
           ),
           const SizedBox(height: 16),
@@ -956,9 +956,12 @@ class _SevereItem extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.errorLight.withOpacity(0.15),
+          color: AppColors.errorLight.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.error.withOpacity(0.2), width: 1),
+          border: Border.all(
+            color: AppColors.error.withValues(alpha: 0.2),
+            width: 1,
+          ),
         ),
         child: Row(
           children: [
@@ -966,7 +969,7 @@ class _SevereItem extends StatelessWidget {
               width: 36,
               height: 36,
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: const Icon(

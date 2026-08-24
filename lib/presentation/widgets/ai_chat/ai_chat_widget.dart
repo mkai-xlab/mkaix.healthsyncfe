@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../domain/entities/chat_message_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/chat_viewmodel.dart';
+import 'chat_message_content.dart';
 
 class AiChatWidget extends StatelessWidget {
   final Widget child;
@@ -31,8 +32,9 @@ class AiChatWidget extends StatelessWidget {
     });
 
     return Stack(
+      fit: StackFit.expand,
       children: [
-        child,
+        Positioned.fill(child: child),
         Consumer<ChatViewModel>(
           builder: (context, vm, _) {
             final size = MediaQuery.sizeOf(context);
@@ -384,35 +386,12 @@ class _ChatBubble extends StatelessWidget {
                   bottomRight: Radius.circular(isUser ? 4 : 12),
                 ),
               ),
-              child: Text(
-                _wrapLongTokens(message.content),
-                softWrap: true,
-                overflow: TextOverflow.clip,
-                style: TextStyle(
-                  color: isUser ? Colors.white : AppColors.textPrimary,
-                  fontSize: 14,
-                  height: 1.35,
-                ),
-              ),
+              child: ChatMessageContent(message: message, isUser: isUser),
             ),
           ),
         ],
       ),
     );
-  }
-
-  String _wrapLongTokens(String text) {
-    return text.replaceAllMapped(RegExp(r'\S{40,}'), (match) {
-      final value = match.group(0)!;
-      final buffer = StringBuffer();
-      for (var index = 0; index < value.length; index++) {
-        if (index > 0 && index % 24 == 0) {
-          buffer.write('\u200B');
-        }
-        buffer.write(value[index]);
-      }
-      return buffer.toString();
-    });
   }
 }
 

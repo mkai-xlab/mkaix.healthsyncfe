@@ -681,7 +681,7 @@ class _ExaminationListPageState extends State<ExaminationListPage> {
       token: token,
     );
     if (!mounted || opened) return;
-    final message = vm.detailErrorMessage ?? 'Khong the tai chi tiet ca kham';
+    final message = vm.detailErrorMessage ?? 'Không thể tải chi tiết ca khám';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: AppColors.error),
     );

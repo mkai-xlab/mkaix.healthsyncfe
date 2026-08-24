@@ -24,10 +24,7 @@ class ChatRemoteDataSource {
             'Content-Type': 'application/json; charset=UTF-8',
             'Authorization': 'Bearer $token',
           },
-          body: jsonEncode({
-            'question': question,
-            if (sessionId != null) 'sessionId': sessionId,
-          }),
+          body: jsonEncode({'question': question, 'sessionId': ?sessionId}),
         )
         .timeout(const Duration(seconds: 30));
 
@@ -37,7 +34,7 @@ class ChatRemoteDataSource {
 
     final decoded = jsonDecode(utf8.decode(response.bodyBytes));
     if (decoded is! Map) {
-      throw Exception('Dinh dang phan hoi AI chat khong hop le');
+      throw Exception('Định dạng phản hồi AI chat không hợp lệ');
     }
 
     return ChatAnswerModel.fromJson(Map<String, dynamic>.from(decoded));
@@ -73,7 +70,7 @@ class ChatRemoteDataSource {
           headers: _jsonHeaders(token),
           body: jsonEncode({
             if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
-            if (examinationId != null) 'examinationId': examinationId,
+            'examinationId': ?examinationId,
           }),
         )
         .timeout(const Duration(seconds: 15));
@@ -84,7 +81,7 @@ class ChatRemoteDataSource {
 
     final decoded = _decode(response);
     if (decoded is! Map) {
-      throw Exception('Dinh dang phien AI chat khong hop le');
+      throw Exception('Định dạng phiên AI chat không hợp lệ');
     }
     return ChatSessionModel.fromJson(Map<String, dynamic>.from(decoded));
   }
@@ -102,7 +99,7 @@ class ChatRemoteDataSource {
           headers: _jsonHeaders(token),
           body: jsonEncode({
             if (title != null && title.trim().isNotEmpty) 'title': title.trim(),
-            if (active != null) 'active': active,
+            'active': ?active,
           }),
         )
         .timeout(const Duration(seconds: 15));
@@ -113,7 +110,7 @@ class ChatRemoteDataSource {
 
     final decoded = _decode(response);
     if (decoded is! Map) {
-      throw Exception('Dinh dang phien AI chat khong hop le');
+      throw Exception('Định dạng phiên AI chat không hợp lệ');
     }
     return ChatSessionModel.fromJson(Map<String, dynamic>.from(decoded));
   }
@@ -174,7 +171,7 @@ class ChatRemoteDataSource {
   }
 
   String _httpErrorMessage(http.Response response) {
-    final fallback = 'Khong the gui cau hoi AI (${response.statusCode})';
+    final fallback = 'Không thể gửi câu hỏi AI (${response.statusCode})';
     try {
       final decoded = jsonDecode(utf8.decode(response.bodyBytes));
       if (decoded is Map) {

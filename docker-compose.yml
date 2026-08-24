@@ -1,0 +1,20 @@
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+      args:
+        API_BASE_URL: ${API_BASE_URL:-http://localhost:8000/api/v1}
+    image: healthsync-fe-nginx:local
+    container_name: healthsync-fe-nginx
+    env_file:
+      - ../env/fe.env
+    ports:
+      # HOST_PORT defaults to 8080 for local testing so it doesn't clash
+      # with a host nginx already bound to :80. Set HOST_PORT=80 in
+      # ../env/fe.env (or `HOST_PORT=80 docker compose up -d`) for the
+      # real deployment. HOST_PORT/API_BASE_URL above are resolved by
+      # `docker compose --env-file ../env/fe.env` in up.bat/down.bat,
+      # since env_file: only injects vars into the container itself.
+      - "${HOST_PORT:-8080}:80"
+    restart: unless-stopped

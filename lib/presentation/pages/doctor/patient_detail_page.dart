@@ -960,7 +960,7 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
     );
     if (!context.mounted) return;
     if (!opened || vm.selectedExamination == null) {
-      final message = vm.detailErrorMessage ?? 'Khong the tai chi tiet ca kham';
+      final message = vm.detailErrorMessage ?? 'Không thể tải chi tiết ca khám';
       messenger.showSnackBar(
         SnackBar(content: Text(message), backgroundColor: AppColors.error),
       );

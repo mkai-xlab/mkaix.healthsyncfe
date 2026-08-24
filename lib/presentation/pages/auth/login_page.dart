@@ -60,6 +60,19 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  void _resetPasswordAfterFailedLogin() {
+    setState(() {
+      _passwordController.clear();
+      _passwordTouched = false;
+    });
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _passwordFocusNode.requestFocus();
+      _passwordController.selection = const TextSelection.collapsed(offset: 0);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final authViewModel = context.watch<AuthViewModel>();
@@ -208,7 +221,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           child: Image.asset(
             'lib/presentation/images/logo1.jpg',
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
+            errorBuilder: (_, _, _) => const Icon(
               Icons.local_hospital,
               color: _primaryGreen,
               size: 28,
@@ -228,7 +241,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
           child: Image.asset(
             'lib/presentation/images/logo2.jpg',
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
+            errorBuilder: (_, _, _) =>
                 const Icon(Icons.healing, color: _primaryGreen, size: 28),
           ),
         ),
@@ -284,7 +297,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
             child: Image.asset(
               'lib/presentation/images/banner1.jpg',
               fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => Container(
+              errorBuilder: (_, _, _) => Container(
                 color: const Color(0xFF0A1628),
                 child: const Center(
                   child: Icon(
@@ -686,11 +699,7 @@ class _LoginPageState extends State<LoginPage> with TickerProviderStateMixin {
                       _passwordController.text,
                     );
                     if (!mounted || success || vm.isFirstTimeLogin) return;
-                    setState(() {
-                      _passwordController.clear();
-                      _passwordTouched = false;
-                    });
-                    _passwordFocusNode.requestFocus();
+                    _resetPasswordAfterFailedLogin();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _primaryGreen,

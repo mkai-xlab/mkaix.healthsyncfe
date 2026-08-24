@@ -175,7 +175,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           child: Image.asset(
             'lib/presentation/images/logo1.jpg',
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) => const Icon(
+            errorBuilder: (_, _, _) => const Icon(
               Icons.local_hospital,
               color: _primaryGreen,
               size: 28,
@@ -194,7 +194,7 @@ class _ResetPasswordPageState extends State<ResetPasswordPage> {
           child: Image.asset(
             'lib/presentation/images/logo2.jpg',
             fit: BoxFit.contain,
-            errorBuilder: (_, __, ___) =>
+            errorBuilder: (_, _, _) =>
                 const Icon(Icons.healing, color: _primaryGreen, size: 28),
           ),
         ),

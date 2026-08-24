@@ -28,7 +28,7 @@ import 'file_upload_page.dart';
 import 'patient_detail_page.dart';
 import 'patient_list_page.dart';
 
-// 
+//
 class DoctorHomepage extends StatefulWidget {
   const DoctorHomepage({super.key});
 
@@ -974,7 +974,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'BS. ${vm.currentUser?.displayName ?? 'Bac si'}',
+                          'BS. ${vm.currentUser?.displayName ?? 'Bác sĩ'}',
                           style: const TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,

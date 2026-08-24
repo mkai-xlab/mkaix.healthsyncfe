@@ -118,7 +118,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         },
         includeSort: false,
         shouldSortLocally: false,
-        errorMessage: 'Khong the loc ca kham theo ngay kham',
+        errorMessage: 'Không thể lọc ca khám theo ngày khám',
       );
     }
 
@@ -134,7 +134,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         },
         includeSort: false,
         shouldSortLocally: false,
-        errorMessage: 'Khong the loc ca kham theo ngay upload',
+        errorMessage: 'Không thể lọc ca khám theo ngày upload',
       );
     }
 
@@ -164,7 +164,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       queryParameters: queryParameters,
       includeSort: false,
       shouldSortLocally: false,
-      errorMessage: 'Khong the tai danh sach ca kham',
+      errorMessage: 'Không thể tải danh sách ca khám',
     );
   }
 
@@ -231,14 +231,14 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       throw Exception(
         _httpErrorMessage(
           response.statusCode,
-          'Khong the tai chi tiet ca kham',
+          'Không thể tải chi tiết ca khám',
         ),
       );
     }
 
     final data = jsonDecode(utf8.decode(response.bodyBytes));
     if (data is! Map) {
-      throw Exception('Dinh dang chi tiet ca kham khong hop le');
+      throw Exception('Định dạng chi tiết ca khám không hợp lệ');
     }
 
     return ExaminationModel.fromJson(Map<String, dynamic>.from(data));
@@ -266,7 +266,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       throw Exception(
         _httpErrorMessage(
           response.statusCode,
-          'Khong the danh dau ca kham da xem',
+          'Không thể đánh dấu ca khám đã xem',
         ),
       );
     }
@@ -289,7 +289,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         'isPersonal': isPersonal.toString(),
       },
       includeSort: false,
-      errorMessage: 'Khong the tai danh sach ca kham cua ban',
+      errorMessage: 'Không thể tải danh sách ca khám của bạn',
     );
   }
 
@@ -303,25 +303,25 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
         endpoint: ApiConstants.myTotalExaminationsEndpoint,
         token: token,
         isPersonal: isPersonal,
-        errorMessage: 'Khong the tai tong so ca kham cua ban',
+        errorMessage: 'Không thể tải tổng số ca khám của bạn',
       ),
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalVerifiedExaminationsEndpoint,
         token: token,
         isPersonal: isPersonal,
-        errorMessage: 'Khong the tai so ca kham da xac nhan cua ban',
+        errorMessage: 'Không thể tải số ca khám đã xác nhận của bạn',
       ),
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalUnverifiedExaminationsEndpoint,
         token: token,
         isPersonal: isPersonal,
-        errorMessage: 'Khong the tai so ca kham cho xac nhan cua ban',
+        errorMessage: 'Không thể tải số ca khám chờ xác nhận của bạn',
       ),
       _getTotalOrZero(
         endpoint: ApiConstants.myTotalSevereExaminationsEndpoint,
         token: token,
         isPersonal: isPersonal,
-        errorMessage: 'Khong the tai so ca kham nang cua ban',
+        errorMessage: 'Không thể tải số ca khám nặng của bạn',
       ),
     ]);
 
@@ -359,14 +359,14 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       throw Exception(
         _httpErrorMessage(
           response.statusCode,
-          'Khong the tai thong ke benh nhan theo KL grade',
+          'Không thể tải thống kê bệnh nhân theo KL grade',
         ),
       );
     }
 
     final data = jsonDecode(utf8.decode(response.bodyBytes));
     if (data is! List) {
-      throw Exception('Dinh dang thong ke KL grade khong hop le');
+      throw Exception('Định dạng thống kê KL grade không hợp lệ');
     }
 
     return data.whereType<Map>().map((item) {
@@ -396,14 +396,14 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       throw Exception(
         _httpErrorMessage(
           response.statusCode,
-          'Khong the tai thong ke ca kham 7 ngay gan nhat',
+          'Không thể tải thống kê ca khám 7 ngày gần nhất',
         ),
       );
     }
 
     final data = jsonDecode(utf8.decode(response.bodyBytes));
     if (data is! List) {
-      throw Exception('Dinh dang thong ke ca kham 7 ngay khong hop le');
+      throw Exception('Định dạng thống kê ca khám 7 ngày không hợp lệ');
     }
 
     return data.whereType<Map>().map((item) {
@@ -461,7 +461,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
     final decoded = jsonDecode(utf8.decode(response.bodyBytes));
     if (decoded is int) return decoded;
     if (decoded is num) return decoded.toInt();
-    throw Exception('Dinh dang so lieu dashboard khong hop le');
+    throw Exception('Định dạng số liệu dashboard không hợp lệ');
   }
 
   @override
@@ -653,7 +653,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       token: token,
       page: page,
       size: size,
-      errorMessage: 'Khong the tai danh sach ca kham cua benh nhan',
+      errorMessage: 'Không thể tải danh sách ca khám của bệnh nhân',
     );
   }
 

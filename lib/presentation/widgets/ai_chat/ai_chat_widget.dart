@@ -32,8 +32,9 @@ class AiChatWidget extends StatelessWidget {
     });
 
     return Stack(
+      fit: StackFit.expand,
       children: [
-        child,
+        Positioned.fill(child: child),
         Consumer<ChatViewModel>(
           builder: (context, vm, _) {
             final size = MediaQuery.sizeOf(context);

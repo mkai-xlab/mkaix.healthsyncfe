@@ -17,6 +17,7 @@ import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/notification_entity.dart';
 import '../../../domain/entities/user_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
+import '../admin/admin_user_list_page.dart';
 import '../admin/knowledge_documents_page.dart';
 import '../auth/account_change_password_page.dart';
 import 'ai_clinical_chat_page.dart';
@@ -88,6 +89,11 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       routeKey: 'knowledge_documents_page',
       label: 'Kho tri thức',
       icon: Icons.library_books_outlined,
+    ),
+    PermissionCode.viewUserList: _DoctorNavConfig(
+      routeKey: 'user_list_page',
+      label: 'Danh sách người dùng',
+      icon: Icons.people_outline,
     ),
   };
 
@@ -470,6 +476,16 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
     }
     if (selectedPermission == 'knowledge_documents_page') {
       return const KnowledgeDocumentsPage();
+    }
+    if (selectedPermission == 'user_list_page') {
+      if (!_hasPermission(context, PermissionCode.viewUserList)) {
+        return _forbiddenPage(
+          title: 'Không có quyền xem danh sách người dùng',
+          subtitle: 'Tài khoản hiện tại chưa được cấp permission cho màn này.',
+          icon: Icons.lock_outline,
+        );
+      }
+      return const AdminUserListPage(allowAdministrativeActions: false);
     }
     if (selectedPermission == 'doctor_dashboard_page') {
       return DoctorDashboardPage(

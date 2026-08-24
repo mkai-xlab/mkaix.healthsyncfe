@@ -429,3 +429,15 @@ Tra cứu bằng `MockExams.forPatient(patientCode)`.
 - Khi bo `presentation`, FE doctor homepage se dung permission `code` lam source of truth va map qua enum/registry.
 - `VIEW_AI_RESULT` va `GENERATE_PDF_REPORT` la permission con cua `VIEW_EXAMINATION_DETAIL` (xem chi tiet ca kham), khong phai page cha doc lap.
 - Permission cha mo page doctor nen gom cac entry dieu huong nhu dashboard bac si, danh sach benh nhan, danh sach/chi tiet ca kham, upload DICOM, AI chat. Permission con dung de bat/tat action/tab/nut trong page.
+
+### 4.1.5 OpenAPI doc 24/08/2026 - Report APIs
+
+Nguon: file OpenAPI user gui ngay 24/08/2026. Base URL documented: `http://47.131.63.48:8000/api/v1`.
+
+- Nhom report hien co cac endpoint: `GET /reports`, `GET /examinations/{id}/report-draft`, `POST /examinations/{id}/generate-report`, `GET /reports/{examinationId}/preview`, `GET /reports/{examinationId}/download`.
+- Endpoint moi can luu y: `GET /examinations/{id}/report-draft` tra `ReportDraftResponse` de prefill form bao cao co the chinh sua truoc khi generate PDF.
+- `ReportDraftResponse` gom metadata mau bieu/benh vien/khoa/bac si va cac field noi dung: `examinationId`, `patientCode`, `ministryName`, `hospitalName`, `departmentName`, `formCode`, `clinicalDepartment`, `doctorName`, `leftKlGrade`, `rightKlGrade`, `documentNumber`, `attemptNumber`, `patientName`, `age`, `gender`, `address`, `findings[]`, `conclusion`, `signaturePlace`, `signatureDate`.
+- `POST /examinations/{id}/generate-report` nhan optional `GenerateReportRequest` de override noi dung PDF: `documentNumber`, `attemptNumber`, `patientName`, `age`, `gender`, `address`, `findings[]`, `conclusion`, `signaturePlace`, `signatureDate`; response la `ReportResponse {reportId, examinationId, fileName, fileSize, contentType, generatedAt, previewUrl, downloadUrl}`.
+- `GET /reports` tra `PageResponseReportListItemResponse` cho kho report da tao; item co exam/patient/doctor/file metadata va `previewUrl`, `downloadUrl`.
+- Preview/download van dung `examinationId` trong path: `/reports/{examinationId}/preview` va `/reports/{examinationId}/download`, tra binary PDF.
+- Runtime 25/08/2026: `GenerateReportRequest.signatureDate` can gui dang `dd/MM/yyyy` (vi du `25/08/2026`) theo backend runtime hien tai, khong gui ISO `yyyy-MM-dd` cho flow tao PDF report.

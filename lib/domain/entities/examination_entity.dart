@@ -121,6 +121,8 @@ class ExaminationEntity {
   final String priority;
   final String finalDiagnosis;
   final String description;
+  final String findings;
+  final String conclusion;
   final String doctorName;
   final int doctorId;
   final bool isViewed;
@@ -148,6 +150,8 @@ class ExaminationEntity {
     this.priority = '',
     this.finalDiagnosis = '',
     this.description = '',
+    this.findings = '',
+    this.conclusion = '',
     this.doctorName = '',
     this.doctorId = 0,
     this.isViewed = false,
@@ -176,6 +180,8 @@ class ExaminationEntity {
     String? priority,
     String? finalDiagnosis,
     String? description,
+    String? findings,
+    String? conclusion,
     String? doctorName,
     int? doctorId,
     bool? isViewed,
@@ -203,6 +209,8 @@ class ExaminationEntity {
       priority: priority ?? this.priority,
       finalDiagnosis: finalDiagnosis ?? this.finalDiagnosis,
       description: description ?? this.description,
+      findings: findings ?? this.findings,
+      conclusion: conclusion ?? this.conclusion,
       doctorName: doctorName ?? this.doctorName,
       doctorId: doctorId ?? this.doctorId,
       isViewed: isViewed ?? this.isViewed,

@@ -21,6 +21,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - There is still no documented `GET /users`. User/account lists should use `GET /users/staff`, `GET /users/staff/search`, role counts, `/roles`, and doctor-specific endpoints instead of assuming a generic users list exists.
 - The latest spec confirms `POST /users`, `GET /users/staff`, `GET /users/staff/search`, `GET /roles`, `PUT /users/{userId}/role { roleId }`, and `PATCH /users/{userId}/status/toggle` for admin account/role management.
 - Reports now include `GET /reports` for paged generated-report history, returning `PageResponseReportListItemResponse`.
+- New report draft API: `GET /examinations/{id}/report-draft` returns `ReportDraftResponse` with editable report defaults before PDF generation.
 - `DELETE /permissions/{id}` and `DELETE /features/{id}` return `204 No Content`; `DELETE /patients/{id}` and doctor deactivate endpoints are documented as successful with no useful response body. Do not require JSON parsing after these calls.
 - `PUT /notifications/{id}/read` returns `text/plain`, while `PUT /notifications/read-all` returns `{ updatedCount }`.
 - Current exam counters remain split between `GET /examinations/total*` with required `userId` and current-user counters `GET /examinations/my-total*`; do not mix the two flows.
@@ -46,6 +47,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - New diagnosis review flow is documented: `PUT /ai/results/{aiResultId}/confirm` and `PUT /ai/results/{aiResultId}/kl-grade` return `DiagnosisReviewResponse`.
 - New/confirmed image endpoint: `GET /ai/image/{imageId}` for clinical/ROI/annotated images, beside `GET /ai/heatmap/{aiResultId}` and `GET /dicom/instances/{id}/image`.
 - Report generation returns `ReportResponse`: `POST /examinations/{id}/generate-report`; preview/download use examination id via `/reports/{examinationId}/preview|download`.
+- Report generation can accept `GenerateReportRequest` to override draft fields: `documentNumber`, `attemptNumber`, patient demographics, `findings[]`, `conclusion`, `signaturePlace`, and `signatureDate`.
 - Doctors now support profile editing and avatar upload through `GET|PUT /doctors/profile` and `PUT /doctors/profile/avatar`.
 - Users now expose count helpers: `GET /users/count/doctors` and `GET /users/count/heads`.
 - User status can be toggled with `PATCH /users/{userId}/status/toggle`; request body is `ToggleStatusRequest { inactiveReason? }`, response is `UserResponse`.
@@ -90,6 +92,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - Add admin user role update UI/API call if role assignment is managed from the user list instead of only permission-role mapping.
 - Add admin user status-toggle UI/API call if activation/deactivation is managed from the staff account list.
 - Add generated report list models/datasource if the app needs a report archive screen. `ReportListItemResponse` includes examination, patient, doctor, file, preview, and download metadata.
+- Add a report-draft model/datasource if the app needs an editable report form before export. Use `ApiConstants.examinationReportDraftEndpoint(id)`.
 
 ## Authentication
 
@@ -146,6 +149,7 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 | `GET` | `/examinations` | Paginated examination list | `PageResponseExaminationDto` |
 | `GET` | `/examinations/{id}` | Get examination by id | `ExaminationDto` |
 | `PUT` | `/examinations/{id}/view` | Mark examination as viewed | `200 OK` |
+| `GET` | `/examinations/{id}/report-draft` | Get editable report draft/defaults for an examination | `ReportDraftResponse` |
 | `POST` | `/examinations/{id}/generate-report` | Generate PDF report | `ReportResponse` |
 | `GET` | `/examinations/filter` | Dynamic multi-condition filter with optional `statuses`, `grades`, `isPersonal`, required pageable query | `PageResponseExaminationDto` |
 | `GET` | `/examinations/patient/{patientId}` | Get examinations by patient | `ExaminationDto[]` or paged response |
@@ -256,9 +260,16 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 | Method | Path | Purpose | Response |
 | --- | --- | --- | --- |
 | `GET` | `/reports` | Get paged generated report history | `PageResponseReportListItemResponse` |
+| `GET` | `/examinations/{id}/report-draft` | Get editable report draft/defaults for an examination | `ReportDraftResponse` |
 | `POST` | `/examinations/{id}/generate-report` | Generate/export PDF report for an examination | `ReportResponse` |
 | `GET` | `/reports/{examinationId}/preview` | Preview generated PDF report for an examination | binary PDF |
 | `GET` | `/reports/{examinationId}/download` | Download generated PDF report for an examination | binary PDF |
+
+`ReportDraftResponse` fields: `examinationId`, `patientCode`, `ministryName`, `hospitalName`, `departmentName`, `formCode`, `clinicalDepartment`, `doctorName`, `leftKlGrade`, `rightKlGrade`, `documentNumber`, `attemptNumber`, `patientName`, `age`, `gender`, `address`, `findings`, `conclusion`, `signaturePlace`, `signatureDate`.
+
+`GenerateReportRequest` fields are optional overrides for PDF generation: `documentNumber`, `attemptNumber`, `patientName`, `age`, `gender`, `address`, `findings`, `conclusion`, `signaturePlace`, `signatureDate`.
+
+Runtime note: backend currently expects `signatureDate` in `dd/MM/yyyy` form such as `25/08/2026`, even though the OpenAPI schema marks it as `format: date`.
 
 `ReportResponse` fields: `reportId`, `examinationId`, `fileName`, `fileSize`, `contentType`, `generatedAt`, `previewUrl`, `downloadUrl`.
 
@@ -266,9 +277,10 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 
 Export report flow:
 
-1. Call `POST /examinations/{id}/generate-report` with the examination id.
-2. Store or use the returned `ReportResponse`.
-3. Call `GET /reports/{examinationId}/preview` for in-app preview, or `GET /reports/{examinationId}/download` for file download.
+1. Optional: call `GET /examinations/{id}/report-draft` to prefill an editable report form.
+2. Call `POST /examinations/{id}/generate-report` with the examination id and optional `GenerateReportRequest` body.
+3. Store or use the returned `ReportResponse`.
+4. Call `GET /reports/{examinationId}/preview` for in-app preview, or `GET /reports/{examinationId}/download` for file download.
 
 ## Notifications And Audit
 

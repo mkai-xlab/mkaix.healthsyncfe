@@ -11,6 +11,7 @@ import '../../../core/services/report_file_service.dart';
 import '../../../core/services/report_pdf_preview.dart';
 import '../../../core/services/toast_service.dart';
 import '../../../core/utils/examination_status_utils.dart';
+import '../../../data/models/report_draft_model.dart';
 import '../../../domain/entities/examination_entity.dart';
 import '../../../domain/entities/patient_entity.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -275,6 +276,8 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
                         ),
                       const SizedBox(height: 18),
                       _examInfoPanel(),
+                      const SizedBox(height: 14),
+                      _examReportSummaryPanel(),
                       const SizedBox(height: 14),
                       Align(
                         alignment: Alignment.centerLeft,
@@ -1335,6 +1338,93 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
     );
   }
 
+  Widget _examReportSummaryPanel() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _panelTitle(Icons.fact_check_outlined, 'Kết quả và kết luận'),
+          const SizedBox(height: 16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 760;
+              final itemWidth = isNarrow
+                  ? constraints.maxWidth
+                  : (constraints.maxWidth - 16) / 2;
+              return Wrap(
+                spacing: 16,
+                runSpacing: 16,
+                children: [
+                  _reportSummaryBlock(
+                    label: 'Kết quả',
+                    value: examination.findings,
+                    width: itemWidth,
+                  ),
+                  _reportSummaryBlock(
+                    label: 'Kết luận',
+                    value: examination.conclusion,
+                    width: itemWidth,
+                  ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _reportSummaryBlock({
+    required String label,
+    required String value,
+    required double width,
+  }) {
+    final displayValue = value.trim().isEmpty ? '---' : value.trim();
+    return SizedBox(
+      width: width,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF5C6F6A),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(minHeight: 88),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Text(
+              displayValue,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A2B3C),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _reportActions() {
     final actions = [
       _ReportAction(
@@ -1452,35 +1542,10 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
 
   Future<void> _confirmAndGenerateReport() async {
     if (_isReportGenerating) return;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Tạo báo cáo?'),
-        content: const Text(
-          'Bạn có chắc chắn muốn hoàn thành ca khám và tạo báo cáo không?',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Từ chối'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _primaryGreen,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Đồng ý'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
-    await _generateReport();
+    await _openReportDraftAndGenerate();
   }
 
-  Future<void> _generateReport() async {
+  Future<void> _openReportDraftAndGenerate() async {
     final examinationId = examination.examinationId;
     if (examinationId <= 0) {
       _showReportMessage('Không tìm thấy ID ca khám hợp lệ.', isError: true);
@@ -1495,10 +1560,86 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
 
     setState(() => _isReportGenerating = true);
     try {
-      final uri = Uri.parse(
-        ApiConstants.examinationReportEndpoint(examinationId),
+      final draft = await _fetchReportDraft(examinationId, token);
+      if (!mounted) return;
+      setState(() => _isReportGenerating = false);
+
+      final payload = await showDialog<Map<String, dynamic>>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => _ReportDraftDialog(draft: draft),
       );
-      final response = await _requestReportGeneration(uri, token);
+      if (payload == null || !mounted) return;
+
+      await _generateReportFromDraft(payload);
+    } catch (e) {
+      if (!mounted) return;
+      _showReportMessage(
+        'Không thể tải bản nháp báo cáo: ${userFriendlyErrorMessage(e)}',
+        isError: true,
+      );
+    } finally {
+      if (mounted) setState(() => _isReportGenerating = false);
+    }
+  }
+
+  Future<ReportDraftModel> _fetchReportDraft(
+    int examinationId,
+    String token,
+  ) async {
+    final response = await http
+        .get(
+          Uri.parse(ApiConstants.examinationReportDraftEndpoint(examinationId)),
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 30));
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(_reportErrorMessage(response));
+    }
+
+    final data = jsonDecode(utf8.decode(response.bodyBytes));
+    if (data is! Map) {
+      throw Exception('Định dạng bản nháp báo cáo không hợp lệ.');
+    }
+    return ReportDraftModel.fromJson(Map<String, dynamic>.from(data));
+  }
+
+  Future<void> _generateReportFromDraft(Map<String, dynamic> payload) async {
+    final examinationId = examination.examinationId;
+    if (examinationId <= 0) {
+      _showReportMessage('Không tìm thấy ID ca khám hợp lệ.', isError: true);
+      return;
+    }
+
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    if (token.trim().isEmpty) {
+      _showReportMessage('Phiên đăng nhập không hợp lệ.', isError: true);
+      return;
+    }
+
+    setState(() => _isReportGenerating = true);
+    try {
+      final requestBody = jsonEncode(payload);
+      debugPrint('Generate report request body: $requestBody');
+      final request =
+          http.Request(
+              'POST',
+              Uri.parse(ApiConstants.examinationReportEndpoint(examinationId)),
+            )
+            ..headers.addAll({
+              'Accept': 'application/json',
+              'Content-Type': 'application/json; charset=UTF-8',
+              'Authorization': 'Bearer $token',
+            })
+            ..bodyBytes = utf8.encode(requestBody);
+      final streamedResponse = await request.send().timeout(
+        const Duration(seconds: 30),
+      );
+      final response = await http.Response.fromStream(streamedResponse);
 
       if (!mounted) return;
       if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -1535,30 +1676,6 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       successMessage: 'Đã mở báo cáo.',
       failurePrefix: 'Không thể xem báo cáo',
     );
-  }
-
-  Future<http.Response> _requestReportGeneration(Uri uri, String token) async {
-    final headers = {
-      'Accept': 'application/json',
-      'Authorization': 'Bearer $token',
-    };
-
-    final postResponse = await http
-        .post(uri, headers: headers)
-        .timeout(const Duration(seconds: 30));
-    if (!_isUnsupportedPostResponse(postResponse)) {
-      return postResponse;
-    }
-
-    return http.get(uri, headers: headers).timeout(const Duration(seconds: 30));
-  }
-
-  bool _isUnsupportedPostResponse(http.Response response) {
-    if (response.statusCode != 405) return false;
-    final body = utf8.decode(response.bodyBytes).toLowerCase();
-    return body.contains('request method') &&
-        body.contains('post') &&
-        body.contains('not supported');
   }
 
   Future<void> _downloadReport() async {
@@ -1818,6 +1935,674 @@ class _AiReviewPayload {
   });
 }
 
+class _ReportDraftDialog extends StatefulWidget {
+  final ReportDraftModel draft;
+
+  const _ReportDraftDialog({required this.draft});
+
+  @override
+  State<_ReportDraftDialog> createState() => _ReportDraftDialogState();
+}
+
+class _ReportDraftDialogState extends State<_ReportDraftDialog> {
+  final _formKey = GlobalKey<FormState>();
+  late final TextEditingController _documentNumberController;
+  late final TextEditingController _attemptNumberController;
+  late final TextEditingController _patientNameController;
+  late final TextEditingController _ageController;
+  late final TextEditingController _genderController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _clinicalDepartmentController;
+  late final TextEditingController _conclusionController;
+  late final TextEditingController _signaturePlaceController;
+  late DateTime _signatureDate;
+  late final List<TextEditingController> _findingControllers;
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = widget.draft;
+    _documentNumberController = TextEditingController(
+      text: draft.documentNumber,
+    );
+    _attemptNumberController = TextEditingController(text: draft.attemptNumber);
+    _patientNameController = TextEditingController(text: draft.patientName);
+    _ageController = TextEditingController(text: draft.age);
+    _genderController = TextEditingController(text: draft.gender);
+    _addressController = TextEditingController(text: draft.address);
+    _clinicalDepartmentController = TextEditingController(
+      text: draft.clinicalDepartment,
+    );
+    _conclusionController = TextEditingController(text: draft.conclusion);
+    _signaturePlaceController = TextEditingController(
+      text: draft.signaturePlace,
+    );
+    _signatureDate = draft.signatureDate ?? DateTime.now();
+    _findingControllers = (draft.findings.isEmpty ? [''] : draft.findings)
+        .map((finding) => TextEditingController(text: finding))
+        .toList();
+  }
+
+  @override
+  void dispose() {
+    _documentNumberController.dispose();
+    _attemptNumberController.dispose();
+    _patientNameController.dispose();
+    _ageController.dispose();
+    _genderController.dispose();
+    _addressController.dispose();
+    _clinicalDepartmentController.dispose();
+    _conclusionController.dispose();
+    _signaturePlaceController.dispose();
+    for (final controller in _findingControllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final draft = widget.draft;
+    final dialogHeight = MediaQuery.sizeOf(context).height * 0.88;
+    return Dialog(
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
+      child: SizedBox(
+        width: 860,
+        height: dialogHeight,
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.fromLTRB(18, 12, 12, 10),
+              color: AppColors.primary,
+              child: Row(
+                children: [
+                  const Icon(Icons.assignment_outlined, color: Colors.white),
+                  const SizedBox(width: 10),
+                  const Expanded(
+                    child: Text(
+                      'Xem trước và chỉnh sửa phiếu chụp Xquang',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(foregroundColor: Colors.white),
+                    child: const Text('Đóng'),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: ColoredBox(
+                color: Colors.white,
+                child: Form(
+                  key: _formKey,
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(vertical: 18),
+                    child: Center(child: _reportPreviewPage(context, draft)),
+                  ),
+                ),
+              ),
+            ),
+            Container(
+              color: Colors.white,
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 14),
+              alignment: Alignment.centerRight,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: TextButton.styleFrom(
+                      foregroundColor: AppColors.textSecondary,
+                    ),
+                    child: const Text('Hủy'),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton.icon(
+                    onPressed: _submit,
+                    icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                    label: const Text('Tạo báo cáo'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _reportPreviewPage(BuildContext context, ReportDraftModel draft) {
+    return Container(
+      width: 780,
+      height: 1103,
+      padding: const EdgeInsets.fromLTRB(48, 44, 48, 34),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.24),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Stack(
+        children: [
+          Positioned.fill(child: _watermark()),
+          const Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: _ReportPreviewFooter(),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _letterhead(draft),
+              const SizedBox(height: 2),
+              Container(height: 2, color: AppColors.primary),
+              const SizedBox(height: 2),
+              Container(height: 1, color: const Color(0xFF9DBCAB)),
+              const SizedBox(height: 16),
+              const Text(
+                'PHIẾU CHỤP XQUANG',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: AppColors.primary,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 2.5,
+                ),
+              ),
+              if (_attemptNumberController.text.trim().isNotEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 3),
+                  child: Text(
+                    '(lần thứ ${_attemptNumberController.text.trim()})',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AppColors.textSecondary,
+                    ),
+                  ),
+                ),
+              const SizedBox(height: 16),
+              _patientTable(),
+              const SizedBox(height: 22),
+              _centerSectionTitle('KẾT QUẢ'),
+              _findingsPreviewEditor(),
+              const SizedBox(height: 14),
+              _conclusionPreviewEditor(),
+              const SizedBox(height: 34),
+              _signatureBlock(context, draft),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _letterhead(ReportDraftModel draft) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Container(
+          width: 58,
+          height: 58,
+          decoration: const BoxDecoration(shape: BoxShape.circle),
+          clipBehavior: Clip.antiAlias,
+          child: Image.asset(
+            'lib/presentation/images/logo1.jpg',
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.primary, width: 2),
+              ),
+              child: const Icon(
+                Icons.local_hospital_outlined,
+                color: AppColors.primary,
+                size: 28,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                draft.ministryName.toUpperCase(),
+                style: const TextStyle(fontSize: 10, color: Color(0xFF33414F)),
+              ),
+              Text(
+                draft.hospitalName.toUpperCase(),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w900,
+                  color: AppColors.primary,
+                ),
+              ),
+              Text(
+                draft.departmentName.toUpperCase(),
+                style: const TextStyle(fontSize: 10, color: Color(0xFF33414F)),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(
+          width: 170,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text.rich(
+                TextSpan(
+                  text: 'MS: ',
+                  children: [
+                    TextSpan(
+                      text: draft.formCode.isEmpty ? '---' : draft.formCode,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                  ],
+                ),
+                style: const TextStyle(fontSize: 10, color: Color(0xFF33414F)),
+              ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  const Text(
+                    'Số: ',
+                    style: TextStyle(fontSize: 10, color: Color(0xFF33414F)),
+                  ),
+                  SizedBox(
+                    width: 128,
+                    child: _paperInput(
+                      _documentNumberController,
+                      requiredField: false,
+                      textAlign: TextAlign.right,
+                      bold: true,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _patientTable() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border.all(color: const Color(0xFFC6D3CB)),
+      ),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              _tableLabel('Họ và tên', width: 88),
+              Expanded(
+                flex: 5,
+                child: _tableInput(
+                  _patientNameController,
+                  requiredField: true,
+                  bold: true,
+                ),
+              ),
+              _tableLabel('Tuổi', width: 56),
+              SizedBox(width: 66, child: _tableInput(_ageController)),
+              _tableLabel('Giới tính', width: 78),
+              SizedBox(width: 90, child: _tableInput(_genderController)),
+            ],
+          ),
+          _fullWidthInfoRow('Địa chỉ', _addressController),
+          _fullWidthInfoRow('Khoa', _clinicalDepartmentController),
+        ],
+      ),
+    );
+  }
+
+  Widget _fullWidthInfoRow(String label, TextEditingController controller) {
+    return Row(
+      children: [
+        _tableLabel(label, width: 88),
+        Expanded(child: _tableInput(controller)),
+      ],
+    );
+  }
+
+  Widget _tableLabel(String label, {required double width}) {
+    return Container(
+      width: width,
+      height: 34,
+      decoration: const BoxDecoration(
+        color: Color(0xFFF5F8F6),
+        border: Border(
+          top: BorderSide(color: Color(0xFFDFE7E2)),
+          right: BorderSide(color: Color(0xFFDFE7E2)),
+        ),
+      ),
+      alignment: Alignment.centerLeft,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Text(
+        label,
+        style: const TextStyle(fontSize: 11, color: Color(0xFF45555F)),
+      ),
+    );
+  }
+
+  Widget _tableInput(
+    TextEditingController controller, {
+    bool requiredField = false,
+    bool bold = false,
+  }) {
+    return SizedBox(
+      height: 34,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          border: Border(top: BorderSide(color: Color(0xFFDFE7E2))),
+        ),
+        child: _paperInput(
+          controller,
+          requiredField: requiredField,
+          bold: bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _centerSectionTitle(String title) {
+    return Column(
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontSize: 15,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 3,
+          ),
+        ),
+        Container(
+          width: 78,
+          height: 1.5,
+          margin: const EdgeInsets.only(top: 3, bottom: 12),
+          color: AppColors.primary,
+        ),
+      ],
+    );
+  }
+
+  Widget _findingsPreviewEditor() {
+    return Column(
+      children: [
+        for (var index = 0; index < _findingControllers.length; index++)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 5),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Text('•', style: TextStyle(fontSize: 15)),
+                ),
+                const SizedBox(width: 7),
+                Expanded(
+                  child: _paperInput(
+                    _findingControllers[index],
+                    requiredField: index == 0,
+                    minLines: 1,
+                    maxLines: 3,
+                  ),
+                ),
+                IconButton(
+                  onPressed: _findingControllers.length == 1
+                      ? null
+                      : () => _removeFinding(index),
+                  icon: const Icon(Icons.remove_circle_outline, size: 18),
+                  tooltip: 'Xóa dòng',
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            onPressed: _addFinding,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Thêm dòng kết quả'),
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _conclusionPreviewEditor() {
+    return Container(
+      decoration: const BoxDecoration(
+        border: Border(left: BorderSide(color: AppColors.primary, width: 3)),
+      ),
+      padding: const EdgeInsets.only(left: 9),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'KẾT LUẬN:',
+            style: TextStyle(
+              color: AppColors.primary,
+              fontSize: 12,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 0.4,
+            ),
+          ),
+          _paperInput(
+            _conclusionController,
+            requiredField: true,
+            minLines: 2,
+            maxLines: 5,
+            bold: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _signatureBlock(BuildContext context, ReportDraftModel draft) {
+    return Row(
+      children: [
+        const Spacer(),
+        SizedBox(
+          width: 270,
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  SizedBox(
+                    width: 88,
+                    child: _paperInput(
+                      _signaturePlaceController,
+                      requiredField: true,
+                      textAlign: TextAlign.right,
+                      italic: true,
+                    ),
+                  ),
+                  const Text(', '),
+                  GestureDetector(
+                    onTap: () => _pickSignatureDate(context),
+                    child: Text(
+                      'ngày ${_signatureDate.day.toString().padLeft(2, '0')} tháng ${_signatureDate.month.toString().padLeft(2, '0')} năm ${_signatureDate.year}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontStyle: FontStyle.italic,
+                        color: Color(0xFF33414F),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              const Text(
+                'BÁC SĨ CHUYÊN KHOA',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.6,
+                ),
+              ),
+              const SizedBox(height: 58),
+              Text(
+                draft.doctorName.isEmpty ? '---' : draft.doctorName,
+                style: const TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _watermark() {
+    return IgnorePointer(
+      child: Center(
+        child: Transform.rotate(
+          angle: -0.78,
+          child: Text(
+            'HealthSync',
+            style: TextStyle(
+              color: const Color(0xFFE8EFF7).withValues(alpha: 0.82),
+              fontSize: 96,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _paperInput(
+    TextEditingController controller, {
+    bool requiredField = false,
+    bool bold = false,
+    bool italic = false,
+    TextAlign textAlign = TextAlign.left,
+    int minLines = 1,
+    int maxLines = 1,
+  }) {
+    return TextFormField(
+      controller: controller,
+      minLines: minLines,
+      maxLines: maxLines,
+      textAlign: textAlign,
+      validator: requiredField
+          ? (value) {
+              if ((value ?? '').trim().isEmpty) return 'Bắt buộc';
+              return null;
+            }
+          : null,
+      style: TextStyle(
+        fontSize: 12,
+        height: 1.25,
+        fontWeight: bold ? FontWeight.w900 : FontWeight.w500,
+        fontStyle: italic ? FontStyle.italic : FontStyle.normal,
+        color: const Color(0xFF14181D),
+      ),
+      decoration: const InputDecoration(
+        isDense: true,
+        border: InputBorder.none,
+        enabledBorder: InputBorder.none,
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: AppColors.primary),
+        ),
+        errorBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: AppColors.error),
+        ),
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 7),
+      ),
+    );
+  }
+
+  Future<void> _pickSignatureDate(BuildContext context) async {
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: _signatureDate,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+    );
+    if (picked != null) setState(() => _signatureDate = picked);
+  }
+
+  void _addFinding() {
+    setState(() => _findingControllers.add(TextEditingController()));
+  }
+
+  void _removeFinding(int index) {
+    final controller = _findingControllers.removeAt(index);
+    controller.dispose();
+    setState(() {});
+  }
+
+  void _submit() {
+    if (!_formKey.currentState!.validate()) return;
+    final findings = _findingControllers
+        .map((controller) => controller.text.trim())
+        .where((finding) => finding.isNotEmpty)
+        .toList();
+    if (findings.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Vui lòng nhập ít nhất một dòng kết quả')),
+      );
+      return;
+    }
+
+    final payload = <String, dynamic>{'findings': findings};
+    void addIfNotEmpty(String key, TextEditingController controller) {
+      final value = controller.text.trim();
+      if (value.isNotEmpty) payload[key] = value;
+    }
+
+    addIfNotEmpty('documentNumber', _documentNumberController);
+    addIfNotEmpty('attemptNumber', _attemptNumberController);
+    addIfNotEmpty('patientName', _patientNameController);
+    addIfNotEmpty('age', _ageController);
+    addIfNotEmpty('gender', _genderController);
+    addIfNotEmpty('address', _addressController);
+    addIfNotEmpty('conclusion', _conclusionController);
+    addIfNotEmpty('signaturePlace', _signaturePlaceController);
+    payload['signatureDate'] = _formatReportDate(_signatureDate);
+
+    Navigator.of(context).pop(payload);
+  }
+
+  String _formatReportDate(DateTime date) {
+    String two(int value) => value.toString().padLeft(2, '0');
+    return '${two(date.day)}/${two(date.month)}/${date.year}';
+  }
+}
+
 class _AiReviewDialog extends StatefulWidget {
   final AiPredictionResultEntity result;
   final String doctorName;
@@ -1826,6 +2611,26 @@ class _AiReviewDialog extends StatefulWidget {
 
   @override
   State<_AiReviewDialog> createState() => _AiReviewDialogState();
+}
+
+class _ReportPreviewFooter extends StatelessWidget {
+  const _ReportPreviewFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Divider(color: Color(0xFFC3D2C9)),
+        SizedBox(height: 8),
+        Text(
+          'Phiếu được lập với sự hỗ trợ của hệ thống HealthSync. Kết quả AI chỉ mang tính tham khảo, chẩn đoán cuối cùng thuộc về bác sĩ chuyên khoa.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: Color(0xFF63727F), fontSize: 10, height: 1.4),
+        ),
+      ],
+    );
+  }
 }
 
 class _AiReviewDialogState extends State<_AiReviewDialog> {

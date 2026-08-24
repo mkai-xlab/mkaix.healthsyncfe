@@ -171,6 +171,8 @@ class ExaminationModel extends ExaminationEntity {
     super.priority,
     super.finalDiagnosis,
     super.description,
+    super.findings,
+    super.conclusion,
     super.doctorName,
     super.doctorId,
     super.isViewed,
@@ -216,6 +218,8 @@ class ExaminationModel extends ExaminationEntity {
       priority: json['priority']?.toString() ?? '',
       finalDiagnosis: json['finalDiagnosis']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
+      findings: json['findings']?.toString() ?? '',
+      conclusion: json['conclusion']?.toString() ?? '',
       doctorName:
           doctorJson?['fullName']?.toString() ??
           doctorJson?['username']?.toString() ??

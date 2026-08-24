@@ -662,7 +662,7 @@ class ExaminationRemoteDataSourceImpl implements ExaminationRemoteDataSource {
       return 'Bạn cần được cấp quyền để tiếp tục sử dụng tính năng này ($statusCode)';
     }
     if (statusCode >= 500 && statusCode < 600) {
-      return 'Chưa nhận được phản hồi từ sever ($statusCode)';
+      return 'Máy chủ đang gặp lỗi. Vui lòng thử lại sau. ($statusCode)';
     }
     return '$fallbackMessage ($statusCode)';
   }

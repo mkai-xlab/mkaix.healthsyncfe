@@ -28,7 +28,7 @@ String userFriendlyErrorMessage(Object error) {
       normalized.contains('127.0.0.1:');
 
   if (isNetworkError) {
-    return 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra server hoặc thử lại sau.';
+    return 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra máy chủ hoặc thử lại sau.';
   }
 
   if (raw.isEmpty) {

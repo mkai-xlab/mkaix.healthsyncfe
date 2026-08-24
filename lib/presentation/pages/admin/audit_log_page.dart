@@ -63,7 +63,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Nháº­t kĂ½ hoáº¡t Ä‘á»™ng',
+                      'Nhật ký hoạt động',
                       style: TextStyle(
                         fontSize: 24,
                         fontWeight: FontWeight.w800,
@@ -72,7 +72,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
                     ),
                     SizedBox(height: 4),
                     Text(
-                      'Theo dĂµi cĂ¡c thao tĂ¡c Ä‘Æ°á»£c ghi nháº­n tá»« há»‡ thá»‘ng.',
+                      'Theo dõi các thao tác được ghi nhận từ hệ thống.',
                       style: TextStyle(
                         fontSize: 13,
                         color: AppColors.textSecondary,
@@ -87,7 +87,7 @@ class _AuditLogPageState extends State<AuditLogPage> {
           OutlinedButton.icon(
             onPressed: vm.isLoading ? null : () => vm.loadAuditLogs(_token),
             icon: const Icon(Icons.refresh_rounded, size: 18),
-            label: const Text('Táº£i láº¡i'),
+            label: const Text('Tải lại'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.primary,
               side: const BorderSide(color: AppColors.primary),

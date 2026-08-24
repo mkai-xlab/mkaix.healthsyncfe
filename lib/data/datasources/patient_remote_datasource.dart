@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/error_message_utils.dart';
 import '../models/patient_model.dart';
 import '../../domain/entities/patient_page_entity.dart';
 
@@ -13,6 +14,11 @@ abstract class PatientRemoteDataSource {
     bool isPersonal = false,
     int page = 0,
     int size = 10,
+  });
+
+  Future<PatientModel> getPatientDetails({
+    required String token,
+    required String patientCode,
   });
 }
 
@@ -64,8 +70,58 @@ class PatientRemoteDataSourceImpl implements PatientRemoteDataSource {
     }
 
     throw Exception(
-      'Không thể tải danh sách bệnh nhân (${response.statusCode})',
+      apiStatusErrorMessage(
+        response.statusCode,
+        fallbackMessage: 'Không thể tải danh sách bệnh nhân',
+      ),
     );
+  }
+
+  @override
+  Future<PatientModel> getPatientDetails({
+    required String token,
+    required String patientCode,
+  }) async {
+    final code = patientCode.trim();
+    if (code.isEmpty) {
+      throw Exception('Không tìm thấy mã bệnh nhân hợp lệ');
+    }
+
+    final uri = Uri.parse(ApiConstants.patientDetailsEndpoint(code));
+    final response = await client
+        .get(
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer $token',
+          },
+        )
+        .timeout(const Duration(seconds: 10));
+
+    if (response.statusCode == 200) {
+      final String decodedBody = utf8.decode(response.bodyBytes);
+      final dynamic responseData = jsonDecode(decodedBody);
+      return PatientModel.fromJson(_extractPatientJson(responseData));
+    }
+
+    throw Exception(
+      apiStatusErrorMessage(
+        response.statusCode,
+        fallbackMessage: 'Không thể tải chi tiết bệnh nhân',
+      ),
+    );
+  }
+
+  Map<String, dynamic> _extractPatientJson(dynamic responseData) {
+    if (responseData is Map) {
+      final data = Map<String, dynamic>.from(responseData);
+      for (final key in ['data', 'patient', 'content']) {
+        final value = data[key];
+        if (value is Map) return Map<String, dynamic>.from(value);
+      }
+      return data;
+    }
+    throw Exception('Định dạng dữ liệu chi tiết bệnh nhân không hợp lệ');
   }
 
   PatientPageEntity _parsePage(

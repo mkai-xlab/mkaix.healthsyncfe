@@ -97,7 +97,7 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'Danh sĂ¡ch tĂ i liá»‡u & bĂ i bĂ¡o khoa há»c',
+                'Danh sách tài liệu & bài báo khoa học',
                 style: TextStyle(
                   fontSize: 26,
                   height: 1.12,
@@ -107,7 +107,7 @@ class _Header extends StatelessWidget {
               ),
               SizedBox(height: 10),
               Text(
-                'Quáº£n lĂ½ vĂ  xem xĂ©t cĂ¡c tĂ i liá»‡u lĂ¢m sĂ ng, tĂ i liá»‡u vá» AI vĂ  tĂ i liá»‡u nghiĂªn cá»©u.',
+                'Quản lý và xem xét các tài liệu lâm sàng, tài liệu về AI và tài liệu nghiên cứu.',
                 style: TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
               ),
             ],
@@ -116,7 +116,7 @@ class _Header extends StatelessWidget {
           FilledButton.icon(
             onPressed: onUpload,
             icon: const Icon(Icons.upload_file_outlined, size: 18),
-            label: const Text('Táº£i lĂªn tĂ i liá»‡u má»›i'),
+            label: const Text('Tải lên tài liệu mới'),
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.primaryLight,
               foregroundColor: Colors.white,

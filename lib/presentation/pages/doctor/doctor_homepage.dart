@@ -50,6 +50,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
   int _handledAiChatPageRequestVersion = 0;
   PatientEntity? _selectedPatientDetail;
   ExaminationEntity? _selectedExaminationDetail;
+  ExaminationEntity? _patientDetailReturnExamination;
   ChatViewModel? _chatViewModel;
 
   static const Color _primaryGreen = AppColors.primary;
@@ -323,6 +324,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _showUploadExaminationList = false;
             _selectedPatientDetail = null;
             _selectedExaminationDetail = null;
+            _patientDetailReturnExamination = null;
           });
           if (closeDrawer) {
             Navigator.pop(context);
@@ -405,6 +407,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _showUploadExaminationList = false;
             _selectedPatientDetail = null;
             _selectedExaminationDetail = null;
+            _patientDetailReturnExamination = null;
           });
         },
       );
@@ -426,8 +429,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       }
       return ExaminationDetailPage(
         examination: selectedExaminationDetail,
-        onBack: () => setState(() => _selectedExaminationDetail = null),
+        onBack: () => setState(() {
+          _selectedExaminationDetail = null;
+          _patientDetailReturnExamination = null;
+        }),
         onOpenPatientDetail: (patient) => setState(() {
+          _patientDetailReturnExamination = selectedExaminationDetail;
           _selectedExaminationDetail = null;
           _selectedPatientDetail = patient;
         }),
@@ -446,9 +453,18 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       return PatientDetailPage(
         patient: selectedPatientDetail,
         embedded: true,
-        onBack: () => setState(() => _selectedPatientDetail = null),
-        onOpenExaminationDetail: (examination) =>
-            setState(() => _selectedExaminationDetail = examination),
+        onBack: () => setState(() {
+          _selectedPatientDetail = null;
+          final returnExamination = _patientDetailReturnExamination;
+          _patientDetailReturnExamination = null;
+          if (returnExamination != null) {
+            _selectedExaminationDetail = returnExamination;
+          }
+        }),
+        onOpenExaminationDetail: (examination) => setState(() {
+          _patientDetailReturnExamination = null;
+          _selectedExaminationDetail = examination;
+        }),
       );
     }
 
@@ -509,8 +525,12 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         embedded: true,
         newExaminations: _newUploadExaminations,
         initialMode: _pendingExaminationListMode,
-        onOpenPatientDetail: (patient) =>
-            setState(() => _selectedPatientDetail = patient),
+        onOpenPatientDetail: (patient) => setState(() {
+          _patientDetailReturnExamination = context
+              .read<ExaminationViewModel>()
+              .selectedExamination;
+          _selectedPatientDetail = patient;
+        }),
       );
     }
     if (selectedPermission == 'patient_list_page') {
@@ -593,6 +613,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
         _showUploadExaminationList = false;
         _selectedPatientDetail = null;
         _selectedExaminationDetail = null;
+        _patientDetailReturnExamination = null;
       });
     });
   }
@@ -613,6 +634,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _pendingExaminationListMode = mode;
       _selectedPatientDetail = null;
       _selectedExaminationDetail = null;
+      _patientDetailReturnExamination = null;
     });
   }
 
@@ -815,6 +837,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
       _selectedExaminationDetail = null;
+      _patientDetailReturnExamination = null;
       _isUploadMiniProgressCollapsed = false;
     });
   }
@@ -1045,6 +1068,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
           _selectedExaminationDetail = null;
+          _patientDetailReturnExamination = null;
         });
         break;
       case _DoctorUserMenuAction.changePassword:
@@ -1054,6 +1078,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
           _showUploadExaminationList = false;
           _selectedPatientDetail = null;
           _selectedExaminationDetail = null;
+          _patientDetailReturnExamination = null;
         });
         break;
       case _DoctorUserMenuAction.logout:
@@ -1125,6 +1150,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
       _showUploadExaminationList = false;
       _selectedPatientDetail = null;
       _selectedExaminationDetail = null;
+      _patientDetailReturnExamination = null;
     });
   }
 

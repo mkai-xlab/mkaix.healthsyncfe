@@ -203,19 +203,21 @@ class _DashboardContent extends StatelessWidget {
                     accent: AppColors.error,
                     onTap: canOpenExaminationList
                         ? () => onOpenExaminationList?.call(
-                            ExaminationListMode.grade4,
+                            ExaminationListMode.severeGrades,
                           )
                         : null,
                   ),
                   _StatCard(
-                    title: 'Đã hoàn thành',
+                    title: 'Đã xác nhận',
                     value: stats.completedCount.toString(),
                     trend: '${stats.completedPercent}%',
                     icon: Icons.verified_outlined,
-                    accent: AppColors.success,
+                    accent: ExaminationStatusUtils.color(
+                      ExaminationStatusUtils.verified,
+                    ),
                     onTap: canOpenExaminationList
                         ? () => onOpenExaminationList?.call(
-                            ExaminationListMode.statusReportGenerated,
+                            ExaminationListMode.statusVerified,
                           )
                         : null,
                   ),

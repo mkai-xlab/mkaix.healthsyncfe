@@ -20,6 +20,7 @@ enum ExaminationListMode {
   grade2,
   grade3,
   grade4,
+  severeGrades,
   statusAiProcessing,
   statusAiFailed,
   statusNeedVerify,
@@ -187,9 +188,10 @@ class ExaminationViewModel extends ChangeNotifier {
           token: token,
           page: 0,
           size: 3,
-          mode: ExaminationListMode.grade4.name,
+          mode: ExaminationListMode.all.name,
           direction: 'desc',
           isPersonal: _isPersonal,
+          grades: const [3, 4],
         );
         _dashboardSevereExaminations = severePage.content;
       } catch (e) {
@@ -270,12 +272,21 @@ class ExaminationViewModel extends ChangeNotifier {
     _listMode = mode;
     _filterDate = date;
     if (_isSortMode(mode)) {
+      _selectedStatuses.clear();
+      _selectedGrades.clear();
       _selectedSort = _sortValueForMode(mode);
     } else if (mode.name.startsWith('status')) {
+      _selectedGrades.clear();
       _selectedStatuses
         ..clear()
         ..add(_statusValueForMode(mode));
+    } else if (mode == ExaminationListMode.severeGrades) {
+      _selectedStatuses.clear();
+      _selectedGrades
+        ..clear()
+        ..addAll(const [3, 4]);
     } else if (mode.name.startsWith('grade')) {
+      _selectedStatuses.clear();
       final grade = int.tryParse(mode.name.replaceFirst('grade', ''));
       _selectedGrades
         ..clear()

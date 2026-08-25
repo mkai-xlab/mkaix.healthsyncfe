@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -66,6 +67,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
   bool _isReportPreviewing = false;
   bool _isReportDownloading = false;
   bool _isReportAvailable = false;
+  bool _shouldRefreshListOnBack = false;
   final Set<int> _locallyReviewedAiResultIds = {};
 
   ExaminationEntity get examination => widget.examination;
@@ -303,7 +305,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       child: Row(
         children: [
           IconButton(
-            onPressed: widget.onBack,
+            onPressed: _handleBack,
             icon: const Icon(Icons.arrow_back, color: _primaryGreen, size: 20),
             tooltip: 'Quay lại',
             style: IconButton.styleFrom(
@@ -1031,6 +1033,7 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
       if (!mounted) return;
       if (response.statusCode >= 200 && response.statusCode < 300) {
         _locallyReviewedAiResultIds.add(result.aiResultId);
+        _shouldRefreshListOnBack = true;
         AppToast.showSuccess('Đã xác nhận kết quả AI.');
         await _refreshExaminationDetail(token);
         return;
@@ -1067,6 +1070,20 @@ class _ExaminationDetailPageState extends State<ExaminationDetailPage> {
           ? 'Không thể tải lại chi tiết ca khám.'
           : message,
     );
+  }
+
+  void _handleBack() {
+    if (!_shouldRefreshListOnBack) {
+      widget.onBack();
+      return;
+    }
+
+    final vm = context.read<ExaminationViewModel>();
+    final auth = context.read<AuthViewModel>();
+    final token = auth.currentUser?.token ?? '';
+    final isPersonal = auth.isPersonalView;
+    widget.onBack();
+    unawaited(vm.loadExaminations(token: token, isPersonal: isPersonal));
   }
 
   Widget _kneeSelector() {

@@ -318,6 +318,7 @@ class _DoctorHomepageState extends State<DoctorHomepage> {
             _selectedNavIndex = index;
             if (item.routeKey == 'examination_list_page') {
               _examinationListRefreshVersion++;
+              _pendingExaminationListMode = null;
             }
             _showDoctorProfile = false;
             _showChangePassword = false;

@@ -724,7 +724,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       if (reason.isNotEmpty) reason,
     ].join(': ');
     final message = [
-      '${_batchErrors.length} file DICOM bị lỗi.',
+      '${_batchErrors.length} file lỗi.',
       if (detail.isNotEmpty) detail,
     ].join('\n');
 

@@ -290,7 +290,7 @@ class FileUploadPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    'Thời gian gian: ${_formatDuration(vm.uploadElapsed)}',
+                    'Thời gian: ${_formatDuration(vm.uploadElapsed)}',
                     style: const TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.w800,

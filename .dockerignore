@@ -1,0 +1,17 @@
+.git
+.github
+.gitnexus
+.claude
+.dart_tool
+.build
+build
+android
+ios
+linux
+macos
+windows
+test
+docs
+*.md
+.vscode
+.idea

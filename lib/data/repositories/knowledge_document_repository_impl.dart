@@ -41,6 +41,32 @@ class KnowledgeDocumentRepositoryImpl implements KnowledgeDocumentRepository {
   }
 
   @override
+  Future<KnowledgeDocumentPreviewFile> previewDocument({
+    required String token,
+    required int id,
+    required String fallbackFileName,
+  }) {
+    return remoteDataSource.previewDocument(
+      token: token,
+      id: id,
+      fallbackFileName: fallbackFileName,
+    );
+  }
+
+  @override
+  Future<KnowledgeDocumentPreviewFile> downloadDocument({
+    required String token,
+    required int id,
+    required String fallbackFileName,
+  }) {
+    return remoteDataSource.downloadDocument(
+      token: token,
+      id: id,
+      fallbackFileName: fallbackFileName,
+    );
+  }
+
+  @override
   Future<void> deleteDocument({required String token, required int id}) {
     return remoteDataSource.deleteDocument(token: token, id: id);
   }

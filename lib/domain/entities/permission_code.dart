@@ -1,5 +1,6 @@
 enum PermissionCode {
   viewDoctorDashboard('VIEW_DOCTOR_DASHBOARD'),
+  viewUserList('VIEW_USER_LIST'),
   readPatientList('READ_PATIENT_LIST'),
   viewPatientDetail('VIEW_PATIENT_DETAIL'),
   createPatientExam('CREATE_PATIENT_EXAM'),

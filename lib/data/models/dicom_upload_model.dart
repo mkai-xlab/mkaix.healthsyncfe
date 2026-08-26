@@ -1,3 +1,5 @@
+import '../../core/utils/date_time_utils.dart';
+
 class DicomTagModel {
   final String tag;
   final String name;
@@ -273,16 +275,10 @@ class DicomExaminationSummaryModel {
       encounterCode:
           _valueAt(json, ['encounterCode', 'encounter_code'])?.toString() ?? '',
       status: json['status']?.toString() ?? '',
-      studyDate: _valueAt(json, ['studyDate', 'study_date']) != null
-          ? DateTime.tryParse(
-              _valueAt(json, ['studyDate', 'study_date']).toString(),
-            )
-          : null,
-      visitTime: _valueAt(json, ['visitTime', 'visit_time']) != null
-          ? DateTime.tryParse(
-              _valueAt(json, ['visitTime', 'visit_time']).toString(),
-            )
-          : null,
+      studyDate: parseLocalDate(_valueAt(json, ['studyDate', 'study_date'])),
+      visitTime: parseUtcInstantToLocal(
+        _valueAt(json, ['visitTime', 'visit_time']),
+      ),
       studyTime: _valueAt(json, ['studyTime', 'study_time'])?.toString() ?? '',
       bodyPart: _valueAt(json, ['bodyPart', 'body_part'])?.toString() ?? '',
       thumbnailUrl:
@@ -357,11 +353,9 @@ class DicomExaminationImageSummaryModel {
       encounterCode:
           _valueAt(json, ['encounterCode', 'encounter_code'])?.toString() ?? '',
       status: json['status']?.toString() ?? '',
-      visitTime: _valueAt(json, ['visitTime', 'visit_time']) != null
-          ? DateTime.tryParse(
-              _valueAt(json, ['visitTime', 'visit_time']).toString(),
-            )
-          : null,
+      visitTime: parseUtcInstantToLocal(
+        _valueAt(json, ['visitTime', 'visit_time']),
+      ),
       imageUrl:
           json['imageUrl']?.toString() ??
           json['image_url']?.toString() ??

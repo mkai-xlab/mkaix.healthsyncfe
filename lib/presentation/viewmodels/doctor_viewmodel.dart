@@ -129,6 +129,16 @@ class DoctorViewModel extends ChangeNotifier {
     );
   }
 
+  Future<PatientEntity> getPatientDetails({
+    required String token,
+    required String patientCode,
+  }) {
+    return getAllPatientsUseCase.executeDetails(
+      token: token,
+      patientCode: patientCode,
+    );
+  }
+
   Future<void> _load(String token) async {
     try {
       final result = await getAllPatientsUseCase.execute(

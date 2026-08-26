@@ -25,6 +25,12 @@ abstract class AdminRepository {
 
   Future<List<RoleModel>> getRoles({required String token});
 
+  Future<void> updateUserRole({
+    required int userId,
+    required int roleId,
+    required String token,
+  });
+
   Future<void> toggleDoctorStatus({
     required int id,
     required bool activate,

@@ -11,7 +11,6 @@ import '../../domain/usecases/update_chat_session_usecase.dart';
 class ChatViewModel extends ChangeNotifier {
   static const List<String> defaultSuggestions = [
     'Tóm tắt các ca hôm nay',
-    'Giải thích kết quả X-quang',
     'Hỗ trợ xem lại bệnh án',
     'Tìm ca nguy cơ cao',
   ];
@@ -79,7 +78,7 @@ class ChatViewModel extends ChangeNotifier {
     _fullPageRequestVersion = 0;
     _currentSessionId = null;
     _errorMessage = null;
-    _doctorDisplayName = 'BĂ¡c sÄ©';
+    _doctorDisplayName = 'Bác sĩ';
     notifyListeners();
   }
 
@@ -369,7 +368,21 @@ class ChatViewModel extends ChangeNotifier {
         ChatMessageEntity(
           id: 'assistant-${DateTime.now().microsecondsSinceEpoch}',
           role: ChatMessageRole.assistant,
-          content: _formatAnswer(answer),
+          content: answer.answer.trim().isEmpty
+              ? 'AI không trả về nội dung phản hồi.'
+              : answer.answer.trim(),
+          warning: answer.warning?.trim(),
+          sources: answer.sources
+              .map(
+                (source) => ChatMessageSourceEntity(
+                  sourceId: source.sourceId,
+                  title: source.title,
+                  sourceType: source.sourceType,
+                  locator: source.locator,
+                  score: source.score,
+                ),
+              )
+              .toList(),
           createdAt: DateTime.now(),
         ),
       );
@@ -388,28 +401,6 @@ class ChatViewModel extends ChangeNotifier {
       _isTyping = false;
       notifyListeners();
     }
-  }
-
-  String _formatAnswer(ChatAnswerModel answer) {
-    final warning = answer.warning?.trim();
-    final sourceText = _formatSources(answer.sources);
-    return [
-      answer.answer.trim().isEmpty
-          ? 'AI không trả về nội dung phản hồi.'
-          : answer.answer.trim(),
-      if (warning != null && warning.isNotEmpty) 'Lưu ý: $warning',
-      if (sourceText.isNotEmpty) sourceText,
-    ].join('\n\n');
-  }
-
-  String _formatSources(List<ChatSourceModel> sources) {
-    final titles = sources
-        .map((source) => source.title.trim())
-        .where((title) => title.isNotEmpty)
-        .take(3)
-        .toList();
-    if (titles.isEmpty) return '';
-    return 'Nguồn tham khảo: ${titles.join(', ')}';
   }
 
   String _friendlyError(Object error) {

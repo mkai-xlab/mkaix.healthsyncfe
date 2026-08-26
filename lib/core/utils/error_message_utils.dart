@@ -2,6 +2,17 @@ String userFriendlyErrorMessage(Object error) {
   final raw = error.toString().replaceAll('Exception: ', '').trim();
   final normalized = raw.toLowerCase();
 
+  final isTimeoutError =
+      normalized.contains('timeoutexception') ||
+      normalized.contains('future not completed') ||
+      normalized.contains('timed out') ||
+      normalized.contains('quá thời gian') ||
+      normalized.contains('qua thoi gian');
+
+  if (isTimeoutError) {
+    return 'Máy chủ phản hồi quá lâu. Vui lòng kiểm tra mạng hoặc thử lại sau.';
+  }
+
   final isNetworkError =
       normalized.contains('clientexception') ||
       normalized.contains('socketexception') ||
@@ -17,7 +28,7 @@ String userFriendlyErrorMessage(Object error) {
       normalized.contains('127.0.0.1:');
 
   if (isNetworkError) {
-    return 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra server hoặc thử lại sau.';
+    return 'Không thể kết nối tới máy chủ. Vui lòng kiểm tra máy chủ hoặc thử lại sau.';
   }
 
   if (raw.isEmpty) {
@@ -25,6 +36,34 @@ String userFriendlyErrorMessage(Object error) {
   }
 
   return _translateKnownApiError(raw, normalized) ?? raw;
+}
+
+String apiStatusErrorMessage(
+  int statusCode, {
+  String? serverMessage,
+  String fallbackMessage = 'Không thể xử lý yêu cầu.',
+}) {
+  final normalizedServerMessage = serverMessage?.trim();
+  if (normalizedServerMessage != null && normalizedServerMessage.isNotEmpty) {
+    return normalizedServerMessage;
+  }
+
+  switch (statusCode) {
+    case 400:
+      return 'Dữ liệu hoặc yêu cầu không hợp lệ.';
+    case 401:
+      return 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+    case 403:
+      return 'Bạn không có quyền thực hiện thao tác này.';
+    case 404:
+      return 'Tài nguyên hoặc tệp không còn tồn tại.';
+    case 415:
+      return 'Định dạng tệp không được hỗ trợ.';
+    case 500:
+      return 'Máy chủ đang gặp lỗi. Vui lòng thử lại sau.';
+    default:
+      return '$fallbackMessage ($statusCode)';
+  }
 }
 
 String? _translateKnownApiError(String raw, String normalized) {

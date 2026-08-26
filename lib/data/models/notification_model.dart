@@ -1,3 +1,4 @@
+import '../../core/utils/date_time_utils.dart';
 import '../../domain/entities/notification_entity.dart';
 
 class NotificationModel extends NotificationEntity {
@@ -18,7 +19,7 @@ class NotificationModel extends NotificationEntity {
       message: json['message']?.toString() ?? '',
       type: json['type']?.toString() ?? '',
       isRead: json['isRead'] as bool? ?? json['is_read'] as bool? ?? false,
-      createdAt: DateTime.tryParse(json['createdAt']?.toString() ?? ''),
+      createdAt: parseUtcInstantToLocal(json['createdAt']),
       data: json['data'],
     );
   }

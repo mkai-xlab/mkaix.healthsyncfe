@@ -4,8 +4,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/services/toast_service.dart';
 import '../../core/services/session_storage_service.dart';
-import '../../core/rbac/permission_code.dart';
 import '../../data/models/user_model.dart';
+import '../../domain/entities/permission_code.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/usecases/change_password_usecase.dart';
 import '../../domain/usecases/forgot_password_usecase.dart';
@@ -65,7 +65,10 @@ class AuthViewModel extends ChangeNotifier {
   String? _changeError;
   bool _changeSuccess = false;
 
-  UserEntity? get currentUser => _currentUser;
+  UserEntity? get currentUser =>
+      _hasValidAccessToken(_currentUser) ? _currentUser : null;
+  bool get hasValidSession => _hasValidAccessToken(_currentUser);
+  bool get hasStoredSession => _currentUser != null;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
   bool get isPersonalView =>
@@ -195,6 +198,19 @@ class AuthViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> clearLocalSession() async {
+    _cancelSessionTimers();
+    await sessionStorage.clearAll();
+    _currentUser = null;
+    _isPersonalView = true;
+    _sessionStartedAt = null;
+    _errorMessage = null;
+    _isFirstTimeLogin = false;
+    _pendingUsername = null;
+    _pendingOldPassword = null;
+    notifyListeners();
+  }
+
   Map<String, dynamic> _userToJson(UserEntity user) {
     return {
       'id': user.id,
@@ -225,6 +241,10 @@ class AuthViewModel extends ChangeNotifier {
 
   bool _isSessionExpired(DateTime startedAt) {
     return DateTime.now().difference(startedAt) >= _sessionDuration;
+  }
+
+  bool _hasValidAccessToken(UserEntity? user) {
+    return user?.token.trim().isNotEmpty == true;
   }
 
   void _scheduleSessionTimers(DateTime startedAt) {

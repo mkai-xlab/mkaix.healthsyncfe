@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:stomp_dart_client/stomp_dart_client.dart';
 
 import '../../data/models/dicom_upload_model.dart';
@@ -52,10 +51,6 @@ class DicomWebSocketService {
         stompConnectHeaders: _authHeaders(token),
         webSocketConnectHeaders: _authHeaders(token),
         onConnect: (frame) {
-          debugPrint(
-            '[DICOM WebSocket] connected. subscribing to '
-            '/user/queue/notifications',
-          );
           _client?.subscribe(
             destination: '/user/queue/notifications',
             callback: _handleNotificationFrame,
@@ -64,7 +59,6 @@ class DicomWebSocketService {
           _connectCompleter = null;
         },
         onWebSocketError: (error) {
-          debugPrint('[DICOM WebSocket] error: $error');
           if (!completer.isCompleted) {
             completer.completeError(
               Exception('Không thể kết nối WebSocket: $error'),
@@ -73,7 +67,6 @@ class DicomWebSocketService {
           _connectCompleter = null;
         },
         onStompError: (frame) {
-          debugPrint('[DICOM WebSocket] stomp error: ${frame.body}');
           if (!completer.isCompleted) {
             completer.completeError(
               Exception('Lỗi STOMP: ${frame.body ?? 'Không rõ lỗi'}'),
@@ -138,16 +131,13 @@ class DicomWebSocketService {
 
   void _handleNotificationFrame(StompFrame frame) {
     final body = frame.body;
-    _logIncomingFrame(frame);
     if (body == null || body.trim().isEmpty) {
-      debugPrint('[DICOM WebSocket received] empty body');
       return;
     }
 
     try {
       final decoded = jsonDecode(body);
       if (decoded is! Map) {
-        debugPrint('[DICOM WebSocket received] non-map payload: $decoded');
         return;
       }
       final payload = Map<String, dynamic>.from(decoded);
@@ -157,12 +147,6 @@ class DicomWebSocketService {
       final directBatchPayload = _looksLikeBatchResult(payload)
           ? payload
           : null;
-
-      debugPrint(
-        '[DICOM WebSocket notification] '
-        'type=$type, title=$title, message=$message, '
-        'data=${_prettyJson(payload['data'])}',
-      );
 
       _notificationController.add(
         DicomUploadNotification(
@@ -185,28 +169,13 @@ class DicomWebSocketService {
             _decodeBatchPayload(payload['message']);
         if (resultPayload != null) {
           final result = BatchDicomUploadModel.fromJson(resultPayload);
-          debugPrint(
-            '[DICOM WebSocket batch result] '
-            'uploadSessionId=${result.uploadSessionId}, '
-            'patients=${result.successfulPatients.length}, '
-            'errors=${result.errors.length}, '
-            'payload=${_prettyJson(resultPayload)}',
-          );
           if (!_batchResultController.hasListener) {
             _pendingBatchResult = result;
           }
           _batchResultController.add(result);
-        } else if (type == 'DICOM_BATCH_RESULT' ||
-            isUploadCompleteNotification) {
-          debugPrint(
-            '[DICOM WebSocket parse] batch notification has no parsable '
-            'payload. title=$title, type=$type',
-          );
         }
       }
-    } catch (e, stackTrace) {
-      debugPrint('[DICOM WebSocket parse] failed: $e');
-      debugPrint('$stackTrace');
+    } catch (_) {
       _notificationController.add(
         DicomUploadNotification(
           type: 'SYSTEM',
@@ -239,22 +208,5 @@ class DicomWebSocketService {
         payload.containsKey('uploadSessionId') ||
         payload.containsKey('upload_session_id') ||
         payload.containsKey('errors');
-  }
-
-  void _logIncomingFrame(StompFrame frame) {
-    debugPrint(
-      '[DICOM WebSocket received] '
-      'command=${frame.command}, headers=${_prettyJson(frame.headers)}',
-    );
-    debugPrint('[DICOM WebSocket received body] ${frame.body ?? '<null>'}');
-  }
-
-  String _prettyJson(Object? value) {
-    if (value == null) return '<null>';
-    try {
-      return const JsonEncoder.withIndent('  ').convert(value);
-    } catch (_) {
-      return value.toString();
-    }
   }
 }

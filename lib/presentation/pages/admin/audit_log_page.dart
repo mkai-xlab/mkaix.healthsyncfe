@@ -52,6 +52,54 @@ class _AuditLogPageState extends State<AuditLogPage> {
   }
 
   Widget _header(AuditLogViewModel vm) {
+    if (MediaQuery.sizeOf(context).width < 640) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Nhật ký hoạt động',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Theo dõi các thao tác được ghi nhận từ hệ thống.',
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: vm.isLoading ? null : () => vm.loadAuditLogs(_token),
+            icon: const Icon(Icons.refresh_rounded, size: 18),
+            label: const Text('Tải lại'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              side: const BorderSide(color: AppColors.primary),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       children: [
         const Expanded(
@@ -104,16 +152,42 @@ class _AuditLogPageState extends State<AuditLogPage> {
       );
     }
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(flex: 7, child: _tablePanel(vm)),
-        const SizedBox(width: 16),
-        SizedBox(
-          width: 360,
-          child: _detailPanel(vm.selectedLog ?? vm.logs.first),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 980) {
+          return Column(
+            children: [
+              Expanded(
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: SizedBox(
+                    width: constraints.maxWidth < 760
+                        ? 760
+                        : constraints.maxWidth,
+                    child: _tablePanel(vm),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                height: 300,
+                child: _detailPanel(vm.selectedLog ?? vm.logs.first),
+              ),
+            ],
+          );
+        }
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 7, child: _tablePanel(vm)),
+            const SizedBox(width: 16),
+            SizedBox(
+              width: 360,
+              child: _detailPanel(vm.selectedLog ?? vm.logs.first),
+            ),
+          ],
+        );
+      },
     );
   }
 

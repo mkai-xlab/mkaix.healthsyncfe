@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/services/knowledge_document_download.dart';
 import '../../../core/services/toast_service.dart';
 import '../../../data/datasources/knowledge_document_remote_datasource.dart';
 import '../../../data/models/knowledge_document_model.dart';
@@ -45,19 +46,32 @@ class _KnowledgeDocumentsPageState extends State<KnowledgeDocumentsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Header(onUpload: () => _showUploadDialog(context, token)),
+              _Header(
+                isRefreshing: vm.isLoading,
+                onRefresh: vm.isLoading || vm.isUploading
+                    ? null
+                    : () => vm.loadDocuments(token),
+                onUpload: () => _showUploadDialog(context, token),
+              ),
               const SizedBox(height: 28),
               _DocumentFilterBar(vm: vm),
               const SizedBox(height: 18),
               if (vm.isLoading)
                 const _LoadingPanel()
-              else if (vm.errorMessage != null)
+              else if (vm.loadErrorMessage != null)
                 _ErrorPanel(
-                  message: vm.errorMessage!,
+                  message: vm.loadErrorMessage!,
                   onRetry: () => vm.loadDocuments(token),
                 )
               else
-                _DocumentTable(documents: vm.filteredDocuments),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    return SizedBox(
+                      width: constraints.maxWidth,
+                      child: _DocumentTable(documents: vm.filteredDocuments),
+                    );
+                  },
+                ),
             ],
           ),
         );
@@ -74,12 +88,61 @@ class _KnowledgeDocumentsPageState extends State<KnowledgeDocumentsPage> {
 }
 
 class _Header extends StatelessWidget {
+  final bool isRefreshing;
+  final VoidCallback? onRefresh;
   final VoidCallback onUpload;
 
-  const _Header({required this.onUpload});
+  const _Header({
+    required this.isRefreshing,
+    required this.onRefresh,
+    required this.onUpload,
+  });
 
   @override
   Widget build(BuildContext context) {
+    if (MediaQuery.sizeOf(context).width < 720) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Danh sách tài liệu & bài báo khoa học',
+                style: TextStyle(
+                  fontSize: 26,
+                  height: 1.12,
+                  fontWeight: FontWeight.w900,
+                  color: Color(0xFF111827),
+                ),
+              ),
+              SizedBox(height: 10),
+              Text(
+                'Quản lý và xem xét các tài liệu lâm sàng, tài liệu về AI và tài liệu nghiên cứu.',
+                style: TextStyle(fontSize: 14, color: Color(0xFF4B5563)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _RefreshButton(isRefreshing: isRefreshing, onRefresh: onRefresh),
+          const SizedBox(height: 10),
+          FilledButton.icon(
+            onPressed: onUpload,
+            icon: const Icon(Icons.upload_file_outlined, size: 18),
+            label: const Text('Tải lên tài liệu mới'),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primaryLight,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -105,6 +168,8 @@ class _Header extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
+        _RefreshButton(isRefreshing: isRefreshing, onRefresh: onRefresh),
+        const SizedBox(width: 10),
         FilledButton.icon(
           onPressed: onUpload,
           icon: const Icon(Icons.upload_file_outlined, size: 18),
@@ -119,6 +184,34 @@ class _Header extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _RefreshButton extends StatelessWidget {
+  final bool isRefreshing;
+  final VoidCallback? onRefresh;
+
+  const _RefreshButton({required this.isRefreshing, required this.onRefresh});
+
+  @override
+  Widget build(BuildContext context) {
+    return OutlinedButton.icon(
+      onPressed: onRefresh,
+      icon: isRefreshing
+          ? const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            )
+          : const Icon(Icons.refresh, size: 18),
+      label: const Text('Làm mới'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: AppColors.primaryLight,
+        side: const BorderSide(color: AppColors.primaryLight),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
     );
   }
 }
@@ -268,6 +361,9 @@ class _DocumentRow extends StatelessWidget {
     final isDeleting = context.select<KnowledgeDocumentViewModel, bool>(
       (vm) => vm.isDeletingDocument(document.id),
     );
+    final isDownloading = context.select<KnowledgeDocumentViewModel, bool>(
+      (vm) => vm.isDownloadingDocument(document.id),
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
       decoration: const BoxDecoration(
@@ -276,40 +372,12 @@ class _DocumentRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          Expanded(flex: 3, child: _DocumentNameCell(document: document)),
+          Expanded(child: _EllipsisText(_sourceTypeLabel(document.sourceType))),
           Expanded(
-            flex: 3,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  document.displayName,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w800,
-                    color: Color(0xFF111827),
-                  ),
-                ),
-                if (document.originalName.trim().isNotEmpty &&
-                    document.originalName != document.displayName) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    document.originalName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Color(0xFF6B7280),
-                    ),
-                  ),
-                ],
-              ],
-            ),
+            child: _EllipsisText(_accessScopeLabel(document.accessScope)),
           ),
-          Expanded(child: Text(_sourceTypeLabel(document.sourceType))),
-          Expanded(child: Text(_accessScopeLabel(document.accessScope))),
-          Expanded(child: Text(_formatDate(document.createdAt))),
+          Expanded(child: _EllipsisText(_formatDate(document.createdAt))),
           Expanded(
             child: Tooltip(
               message: document.errorMessage ?? statusView.label,
@@ -339,9 +407,17 @@ class _DocumentRow extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 IconButton(
-                  tooltip: 'Xem trước tài liệu',
-                  onPressed: () => _showPreviewUnsupported(context),
-                  icon: const Icon(Icons.visibility_outlined, size: 20),
+                  tooltip: 'Tải tài liệu',
+                  onPressed: isDownloading
+                      ? null
+                      : () => _downloadDocument(context),
+                  icon: isDownloading
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.download_outlined, size: 20),
                   color: AppColors.primaryLight,
                 ),
                 isDeleting
@@ -370,6 +446,34 @@ class _DocumentRow extends StatelessWidget {
     );
   }
 
+  Future<void> _downloadDocument(BuildContext context) async {
+    final token = context.read<AuthViewModel>().currentUser?.token ?? '';
+    final vm = context.read<KnowledgeDocumentViewModel>();
+    final documentFile = await vm.downloadDocument(
+      token: token,
+      document: document,
+    );
+    if (!context.mounted) return;
+
+    if (documentFile == null) {
+      AppToast.showError(vm.errorMessage ?? 'Không thể tải tài liệu.');
+      return;
+    }
+
+    try {
+      await downloadKnowledgeDocument(
+        bytes: documentFile.bytes,
+        contentType: documentFile.contentType,
+        fileName: documentFile.fileName,
+      );
+    } catch (error) {
+      AppToast.showError(
+        error.toString().replaceFirst('UnsupportedError: ', ''),
+      );
+    }
+  }
+
+  // ignore: unused_element
   void _showPreviewUnsupported(BuildContext context) {
     AppToast.showError('Chức năng xem trước tài liệu chưa được hỗ trợ.');
   }
@@ -451,6 +555,71 @@ class _DocumentRow extends StatelessWidget {
   String _formatDate(DateTime? value) {
     if (value == null) return '--';
     return DateFormat('dd/MM/yyyy').format(value);
+  }
+}
+
+class _DocumentNameCell extends StatelessWidget {
+  final KnowledgeDocumentModel document;
+
+  const _DocumentNameCell({required this.document});
+
+  @override
+  Widget build(BuildContext context) {
+    final hasOriginalName =
+        document.originalName.trim().isNotEmpty &&
+        document.originalName != document.displayName;
+
+    return Tooltip(
+      message: hasOriginalName
+          ? '${document.displayName}\n${document.originalName}'
+          : document.displayName,
+      waitDuration: const Duration(milliseconds: 450),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            document.displayName,
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            textWidthBasis: TextWidthBasis.parent,
+            style: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF111827),
+            ),
+          ),
+          if (hasOriginalName) ...[
+            const SizedBox(height: 4),
+            Text(
+              document.originalName,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              textWidthBasis: TextWidthBasis.parent,
+              style: const TextStyle(fontSize: 12, color: Color(0xFF6B7280)),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _EllipsisText extends StatelessWidget {
+  final String text;
+
+  const _EllipsisText(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      maxLines: 1,
+      softWrap: false,
+      overflow: TextOverflow.ellipsis,
+      textWidthBasis: TextWidthBasis.parent,
+    );
   }
 }
 

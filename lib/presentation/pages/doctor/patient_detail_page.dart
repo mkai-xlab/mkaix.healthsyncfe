@@ -743,41 +743,50 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
           ],
         ),
         Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(18),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: _panelContent(
-                    context,
-                    token,
-                    _primaryExamination,
-                    imageIndex: _primaryImageIndex,
-                    isHighlighted: true,
-                    onImageSelected: (index) =>
-                        setState(() => _primaryImageIndex = index),
-                  ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final panelWidth = (constraints.maxWidth - 37) / 2;
+              final imageHeight = (panelWidth * 0.72).clamp(300.0, 430.0);
+
+              return SingleChildScrollView(
+                padding: const EdgeInsets.all(18),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: _panelContent(
+                        context,
+                        token,
+                        _primaryExamination,
+                        imageIndex: _primaryImageIndex,
+                        imageHeight: imageHeight,
+                        isHighlighted: true,
+                        onImageSelected: (index) =>
+                            setState(() => _primaryImageIndex = index),
+                      ),
+                    ),
+                    const SizedBox(width: 18),
+                    const VerticalDivider(
+                      width: 1,
+                      thickness: 1,
+                      color: Color(0xFFE2E8F0),
+                    ),
+                    const SizedBox(width: 18),
+                    Expanded(
+                      child: _panelContent(
+                        context,
+                        token,
+                        secondaryExamination,
+                        imageIndex: _secondaryImageIndex,
+                        imageHeight: imageHeight,
+                        onImageSelected: (index) =>
+                            setState(() => _secondaryImageIndex = index),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 18),
-                const VerticalDivider(
-                  width: 1,
-                  thickness: 1,
-                  color: Color(0xFFE2E8F0),
-                ),
-                const SizedBox(width: 18),
-                Expanded(
-                  child: _panelContent(
-                    context,
-                    token,
-                    secondaryExamination,
-                    imageIndex: _secondaryImageIndex,
-                    onImageSelected: (index) =>
-                        setState(() => _secondaryImageIndex = index),
-                  ),
-                ),
-              ],
-            ),
+              );
+            },
           ),
         ),
       ],
@@ -863,11 +872,11 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
     String token,
     ExaminationEntity examination, {
     required int imageIndex,
+    double? imageHeight,
     bool isHighlighted = false,
     required ValueChanged<int> onImageSelected,
   }) {
     return Container(
-      padding: isHighlighted ? const EdgeInsets.all(10) : EdgeInsets.zero,
       decoration: isHighlighted
           ? BoxDecoration(
               color: const Color(0xFFF0FAF7),
@@ -883,10 +892,13 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
             token,
             examination,
             imageIndex: imageIndex,
+            height: imageHeight,
             onImageSelected: onImageSelected,
           ),
           const SizedBox(height: 16),
           _examDetailCard(examination),
+          const SizedBox(height: 12),
+          _examReportSummaryCard(examination),
         ],
       ),
     );
@@ -918,6 +930,86 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
           _detailField('Chẩn đoán cuối', examination.finalDiagnosis),
           _detailField('Mô tả', examination.description),
           _detailField('Số ảnh', examination.images.length.toString()),
+        ],
+      ),
+    );
+  }
+
+  Widget _examReportSummaryCard(ExaminationEntity examination) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isNarrow = constraints.maxWidth < 640;
+          final blockWidth = isNarrow
+              ? constraints.maxWidth
+              : (constraints.maxWidth - 16) / 2;
+          return Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              _reportSummaryField(
+                'Kết quả',
+                examination.findings,
+                width: blockWidth,
+              ),
+              _reportSummaryField(
+                'Kết luận',
+                examination.conclusion,
+                width: blockWidth,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _reportSummaryField(
+    String label,
+    String value, {
+    required double width,
+  }) {
+    final displayValue = value.trim().isEmpty ? '---' : value.trim();
+    return SizedBox(
+      width: width,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w800,
+              color: Color(0xFF8A9A96),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(minHeight: 78),
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Text(
+              displayValue,
+              style: const TextStyle(
+                fontSize: 13,
+                height: 1.45,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF1A2B3C),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -960,7 +1052,7 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
     );
     if (!context.mounted) return;
     if (!opened || vm.selectedExamination == null) {
-      final message = vm.detailErrorMessage ?? 'Khong the tai chi tiet ca kham';
+      final message = vm.detailErrorMessage ?? 'Không thể tải chi tiết ca khám';
       messenger.showSnackBar(
         SnackBar(content: Text(message), backgroundColor: AppColors.error),
       );
@@ -988,6 +1080,7 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
     String token,
     ExaminationEntity examination, {
     required int imageIndex,
+    double? height,
     required ValueChanged<int> onImageSelected,
   }) {
     final imageUrls = _imageUrlsFor(examination);
@@ -998,134 +1091,143 @@ class _ExaminationDialogState extends State<_ExaminationDialog> {
     final selectedResult = _aiResultForImage(
       _imageFor(examination, imageIndex),
     );
-    return AspectRatio(
-      aspectRatio: 1,
-      child: Container(
-        clipBehavior: Clip.antiAlias,
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              height: 38,
-              color: const Color(0xFF17211F),
-              padding: const EdgeInsets.symmetric(horizontal: 14),
-              child: Row(
-                children: [
-                  const Text(
-                    'Ảnh X-quang',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const Spacer(),
-                  if (hasImages)
-                    Text(
-                      '${imageIndex + 1}/${imageUrls.length}',
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 12,
-                      ),
-                    ),
-                ],
-              ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final viewerHeight =
+            height ?? (constraints.maxWidth * 0.62).clamp(320.0, 430.0);
+
+        return SizedBox(
+          height: viewerHeight,
+          child: Container(
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: Colors.black,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
             ),
-            Expanded(
-              child: Stack(
-                children: [
-                  Center(
-                    child: hasImages
-                        ? Image.network(
-                            selectedUrl,
-                            headers: token.isEmpty
-                                ? null
-                                : {'Authorization': 'Bearer $token'},
-                            fit: BoxFit.contain,
-                            errorBuilder: (context, error, stackTrace) {
-                              return const Icon(
-                                Icons.broken_image_outlined,
-                                color: Colors.white54,
-                                size: 60,
-                              );
-                            },
-                          )
-                        : const Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                Icons.image_not_supported_outlined,
-                                color: Colors.white54,
-                                size: 60,
-                              ),
-                              SizedBox(height: 10),
-                              Text(
-                                'Ca khám này chưa có ảnh X-quang',
-                                style: TextStyle(color: Colors.white54),
-                              ),
-                            ],
-                          ),
-                  ),
-                  if (selectedResult != null)
-                    Positioned(
-                      top: 12,
-                      right: 12,
-                      child: _klGradeBadge(selectedResult),
-                    ),
-                ],
-              ),
-            ),
-            if (imageUrls.length > 1)
-              Container(
-                height: 76,
-                color: const Color(0xFF111816),
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 10,
-                ),
-                child: ListView.separated(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: imageUrls.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(width: 10),
-                  itemBuilder: (context, index) {
-                    final isSelected = index == imageIndex;
-                    return InkWell(
-                      onTap: () => onImageSelected(index),
-                      child: Container(
-                        width: 70,
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: isSelected ? _primaryGreen : Colors.white24,
-                            width: isSelected ? 2 : 1,
-                          ),
-                        ),
-                        child: Image.network(
-                          imageUrls[index],
-                          headers: token.isEmpty
-                              ? null
-                              : {'Authorization': 'Bearer $token'},
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Icon(
-                                Icons.broken_image_outlined,
-                                color: Colors.white54,
-                              ),
+            child: Column(
+              children: [
+                Container(
+                  height: 38,
+                  color: const Color(0xFF17211F),
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Row(
+                    children: [
+                      const Text(
+                        'Ảnh X-quang',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
                         ),
                       ),
-                    );
-                  },
+                      const Spacer(),
+                      if (hasImages)
+                        Text(
+                          '${imageIndex + 1}/${imageUrls.length}',
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
-              ),
-          ],
-        ),
-      ),
+                Expanded(
+                  child: Stack(
+                    children: [
+                      Center(
+                        child: hasImages
+                            ? Image.network(
+                                selectedUrl,
+                                headers: token.isEmpty
+                                    ? null
+                                    : {'Authorization': 'Bearer $token'},
+                                fit: BoxFit.contain,
+                                errorBuilder: (context, error, stackTrace) {
+                                  return const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Colors.white54,
+                                    size: 60,
+                                  );
+                                },
+                              )
+                            : const Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    Icons.image_not_supported_outlined,
+                                    color: Colors.white54,
+                                    size: 60,
+                                  ),
+                                  SizedBox(height: 10),
+                                  Text(
+                                    'Ca khám này chưa có ảnh X-quang',
+                                    style: TextStyle(color: Colors.white54),
+                                  ),
+                                ],
+                              ),
+                      ),
+                      if (selectedResult != null)
+                        Positioned(
+                          top: 12,
+                          right: 12,
+                          child: _klGradeBadge(selectedResult),
+                        ),
+                    ],
+                  ),
+                ),
+                if (imageUrls.length > 1)
+                  Container(
+                    height: 76,
+                    color: const Color(0xFF111816),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                    child: ListView.separated(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: imageUrls.length,
+                      separatorBuilder: (context, index) =>
+                          const SizedBox(width: 10),
+                      itemBuilder: (context, index) {
+                        final isSelected = index == imageIndex;
+                        return InkWell(
+                          onTap: () => onImageSelected(index),
+                          child: Container(
+                            width: 70,
+                            clipBehavior: Clip.antiAlias,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: isSelected
+                                    ? _primaryGreen
+                                    : Colors.white24,
+                                width: isSelected ? 2 : 1,
+                              ),
+                            ),
+                            child: Image.network(
+                              imageUrls[index],
+                              headers: token.isEmpty
+                                  ? null
+                                  : {'Authorization': 'Bearer $token'},
+                              fit: BoxFit.cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Colors.white54,
+                                  ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

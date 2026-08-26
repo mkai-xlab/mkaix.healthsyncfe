@@ -1,4 +1,5 @@
 import '../../core/constants/api_constants.dart';
+import '../../core/utils/date_time_utils.dart';
 import '../../domain/entities/examination_entity.dart';
 
 class AiPredictionResultModel extends AiPredictionResultEntity {
@@ -79,11 +80,9 @@ class AiPredictionResultModel extends AiPredictionResultEntity {
         'reviewedByDoctorId',
         'reviewed_by_doctor_id',
       ]),
-      reviewedAt: json['reviewedAt'] != null
-          ? DateTime.tryParse(json['reviewedAt'].toString())
-          : json['reviewed_at'] != null
-          ? DateTime.tryParse(json['reviewed_at'].toString())
-          : null,
+      reviewedAt: parseUtcInstantToLocal(
+        json['reviewedAt'] ?? json['reviewed_at'],
+      ),
     );
   }
 }
@@ -129,9 +128,7 @@ class ExaminationImageModel extends ExaminationImageEntity {
       examinationId: _intAt(json, ['examinationId', 'examination_id', 'id']),
       encounterCode: json['encounterCode']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
-      visitTime: json['visitTime'] != null
-          ? DateTime.tryParse(json['visitTime'].toString())
-          : null,
+      visitTime: parseUtcInstantToLocal(json['visitTime']),
       bodyPart: json['bodyPart']?.toString() ?? '',
       imageUrl: imageUrl.isNotEmpty
           ? imageUrl
@@ -163,6 +160,7 @@ class ExaminationModel extends ExaminationEntity {
     required super.encounterCode,
     required super.status,
     super.studyDate,
+    super.createdAt,
     super.visitTime,
     required super.thumbnailUrl,
     required super.bodyPart,
@@ -173,6 +171,8 @@ class ExaminationModel extends ExaminationEntity {
     super.priority,
     super.finalDiagnosis,
     super.description,
+    super.findings,
+    super.conclusion,
     super.doctorName,
     super.doctorId,
     super.isViewed,
@@ -200,18 +200,15 @@ class ExaminationModel extends ExaminationEntity {
           '',
       patientName: resolvedPatientJson?['fullName']?.toString() ?? '',
       patientGender: resolvedPatientJson?['gender']?.toString() ?? '',
-      patientDateOfBirth: resolvedPatientJson?['dateOfBirth'] != null
-          ? DateTime.tryParse(resolvedPatientJson!['dateOfBirth'].toString())
-          : null,
+      patientDateOfBirth: parseLocalDate(resolvedPatientJson?['dateOfBirth']),
       examinationId: _intAt(json, ['examinationId', 'examination_id', 'id']),
       encounterCode: json['encounterCode']?.toString() ?? '',
       status: json['status']?.toString() ?? '',
-      studyDate: json['studyDate'] != null
-          ? DateTime.tryParse(json['studyDate'].toString())
-          : null,
-      visitTime: json['visitTime'] != null
-          ? DateTime.tryParse(json['visitTime'].toString())
-          : null,
+      studyDate: parseLocalDate(json['studyDate']),
+      createdAt: parseUtcInstantToLocal(
+        json['createdAt'] ?? json['created_at'],
+      ),
+      visitTime: parseUtcInstantToLocal(json['visitTime']),
       thumbnailUrl: json['thumbnailUrl']?.toString() ?? '',
       bodyPart: json['bodyPart']?.toString() ?? '',
       referringPhysician: json['referringPhysician']?.toString() ?? '',
@@ -221,6 +218,8 @@ class ExaminationModel extends ExaminationEntity {
       priority: json['priority']?.toString() ?? '',
       finalDiagnosis: json['finalDiagnosis']?.toString() ?? '',
       description: json['description']?.toString() ?? '',
+      findings: json['findings']?.toString() ?? '',
+      conclusion: json['conclusion']?.toString() ?? '',
       doctorName:
           doctorJson?['fullName']?.toString() ??
           doctorJson?['username']?.toString() ??

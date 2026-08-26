@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import '../../core/constants/api_constants.dart';
@@ -146,11 +145,6 @@ class AdminDashboardRemoteDataSource {
         .timeout(const Duration(seconds: 10));
 
     if (response.statusCode != 200) {
-      final body = utf8.decode(response.bodyBytes);
-      debugPrint(
-        '[Admin dashboard API error] GET $uri status=${response.statusCode}, body=$body',
-        wrapWidth: 1024,
-      );
       throw Exception('Không thể tải số liệu (${response.statusCode})');
     }
 

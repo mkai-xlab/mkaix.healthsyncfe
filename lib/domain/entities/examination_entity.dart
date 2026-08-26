@@ -110,6 +110,7 @@ class ExaminationEntity {
   final String encounterCode;
   final String status;
   final DateTime? studyDate;
+  final DateTime? createdAt;
   final DateTime? visitTime;
   final String thumbnailUrl;
   final String bodyPart;
@@ -120,6 +121,8 @@ class ExaminationEntity {
   final String priority;
   final String finalDiagnosis;
   final String description;
+  final String findings;
+  final String conclusion;
   final String doctorName;
   final int doctorId;
   final bool isViewed;
@@ -136,6 +139,7 @@ class ExaminationEntity {
     required this.encounterCode,
     required this.status,
     this.studyDate,
+    this.createdAt,
     this.visitTime,
     required this.thumbnailUrl,
     required this.bodyPart,
@@ -146,6 +150,8 @@ class ExaminationEntity {
     this.priority = '',
     this.finalDiagnosis = '',
     this.description = '',
+    this.findings = '',
+    this.conclusion = '',
     this.doctorName = '',
     this.doctorId = 0,
     this.isViewed = false,
@@ -163,6 +169,7 @@ class ExaminationEntity {
     String? encounterCode,
     String? status,
     DateTime? studyDate,
+    DateTime? createdAt,
     DateTime? visitTime,
     String? thumbnailUrl,
     String? bodyPart,
@@ -173,6 +180,8 @@ class ExaminationEntity {
     String? priority,
     String? finalDiagnosis,
     String? description,
+    String? findings,
+    String? conclusion,
     String? doctorName,
     int? doctorId,
     bool? isViewed,
@@ -189,6 +198,7 @@ class ExaminationEntity {
       encounterCode: encounterCode ?? this.encounterCode,
       status: status ?? this.status,
       studyDate: studyDate ?? this.studyDate,
+      createdAt: createdAt ?? this.createdAt,
       visitTime: visitTime ?? this.visitTime,
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       bodyPart: bodyPart ?? this.bodyPart,
@@ -199,6 +209,8 @@ class ExaminationEntity {
       priority: priority ?? this.priority,
       finalDiagnosis: finalDiagnosis ?? this.finalDiagnosis,
       description: description ?? this.description,
+      findings: findings ?? this.findings,
+      conclusion: conclusion ?? this.conclusion,
       doctorName: doctorName ?? this.doctorName,
       doctorId: doctorId ?? this.doctorId,
       isViewed: isViewed ?? this.isViewed,
@@ -266,6 +278,17 @@ class ExaminationEntity {
   String get studyDateDisplay {
     if (studyDate == null) return '---';
     return DateFormat('dd/MM/yyyy').format(studyDate!);
+  }
+
+  String get createdAtDisplay {
+    if (createdAt == null) return '---';
+    return DateFormat('dd/MM/yyyy HH:mm').format(createdAt!);
+  }
+
+  String get uploadDateDisplay {
+    final uploadTime = visitTime ?? createdAt;
+    if (uploadTime == null) return '---';
+    return DateFormat('dd/MM/yyyy HH:mm').format(uploadTime);
   }
 
   String get visitTimeDisplay {

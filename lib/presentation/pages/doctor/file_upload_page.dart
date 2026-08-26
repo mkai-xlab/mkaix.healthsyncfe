@@ -1,4 +1,4 @@
-import 'package:desktop_drop/desktop_drop.dart';
+﻿import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -295,15 +295,6 @@ class FileUploadPage extends StatelessWidget {
                       fontSize: 13,
                       fontWeight: FontWeight.w800,
                       color: _primary,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Text(
-                    'Thời gian: ${_formatDuration(vm.uploadElapsed)}',
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],
@@ -975,15 +966,6 @@ class FileUploadPage extends StatelessWidget {
                       fontSize: 12,
                       fontWeight: FontWeight.w800,
                       color: _primary,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Text(
-                    'Thời gian: ${_formatDuration(vm.uploadElapsed)}',
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textSecondary,
                     ),
                   ),
                 ],

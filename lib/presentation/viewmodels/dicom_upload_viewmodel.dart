@@ -528,11 +528,6 @@ class DicomUploadViewModel extends ChangeNotifier {
     final completer = Completer<BatchDicomUploadModel>();
     void completeFrom(String source, BatchDicomUploadModel result) {
       if (completer.isCompleted) return;
-      debugPrint(
-        '[DICOM batch result resolved] source=$source, '
-        'patients=${result.successfulPatients.length}, '
-        'errors=${result.errors.length}',
-      );
       _isWaitingForBatchResult = false;
       _activeBatchResultWait = null;
       completer.complete(result);
@@ -540,7 +535,6 @@ class DicomUploadViewModel extends ChangeNotifier {
 
     void completeError(String message) {
       if (completer.isCompleted) return;
-      debugPrint('[DICOM batch result resolved] error=$message');
       _isWaitingForBatchResult = false;
       _activeBatchResultWait = null;
       completer.completeError(Exception(message));
@@ -549,9 +543,7 @@ class DicomUploadViewModel extends ChangeNotifier {
 
     webSocketService.waitForNextBatchResult().then(
       (result) => completeFrom('websocket', result),
-      onError: (Object error) {
-        debugPrint('[DICOM WebSocket wait] ignored error: $error');
-      },
+      onError: (Object error) {},
     );
 
     final wait = _PendingBatchResultWait(
@@ -732,7 +724,7 @@ class DicomUploadViewModel extends ChangeNotifier {
       if (reason.isNotEmpty) reason,
     ].join(': ');
     final message = [
-      '${_batchErrors.length} file DICOM bị lỗi.',
+      '${_batchErrors.length} file lỗi.',
       if (detail.isNotEmpty) detail,
     ].join('\n');
 

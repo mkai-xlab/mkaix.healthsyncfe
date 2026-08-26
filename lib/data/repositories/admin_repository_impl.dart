@@ -59,6 +59,19 @@ class AdminRepositoryImpl implements AdminRepository {
   }
 
   @override
+  Future<void> updateUserRole({
+    required int userId,
+    required int roleId,
+    required String token,
+  }) {
+    return remoteDataSource.updateUserRole(
+      userId: userId,
+      roleId: roleId,
+      token: token,
+    );
+  }
+
+  @override
   Future<void> toggleDoctorStatus({
     required int id,
     required bool activate,

@@ -6,18 +6,22 @@
 - API version: `v1`
 - Base URL: `http://47.131.63.48:8000/api/v1`
 - Frontend endpoint constants: `lib/core/constants/api_constants.dart`
-- Last OpenAPI refresh: `2026-08-20`
+- Last OpenAPI refresh: `2026-08-23`
 
 Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP calls, repositories should map models to domain entities, and presentation code should call use cases instead of calling HTTP directly.
 
 ## Latest OpenAPI Changes
 
-- The `2026-08-20` pasted OpenAPI spec is the latest local source. It keeps OpenAPI `3.1.0` / API `v1` and confirms base URL `http://47.131.63.48:8000/api/v1`.
+- The `2026-08-23` pasted OpenAPI spec is the latest local source. It keeps OpenAPI `3.1.0` / API `v1` and confirms base URL `http://47.131.63.48:8000/api/v1`.
 - Compared with the older `54.254.113.71` notes, use `47.131.63.48` as the current documented backend host unless runtime testing proves otherwise. `ApiConstants.baseUrl` still defaults to localhost and must be overridden with `--dart-define=API_BASE_URL=...` for non-local runs.
-- The latest spec has 90 paths. It confirms the same major groups already documented here: auth, users/staff/roles, doctors/profile/avatar, patients, examinations/statistics, DICOM/verify/raw image, AI prediction/review/images, reports, notifications, permissions/features, audit logs, AI chat, and knowledge documents.
+- The latest spec has 94 paths. It confirms the same major groups already documented here: auth, users/staff/roles, doctors/profile/avatar, patients, examinations/statistics, DICOM/verify/raw image, AI prediction/review/images, reports, notifications, permissions/features, audit logs, AI chat, and knowledge documents.
+- Newly confirmed examination API: `GET /examinations/filter` for dynamic multi-condition filtering with optional `statuses`, `grades`, `isPersonal`, and required Spring pageable query.
+- New document-related APIs in the latest spec: `GET /knowledge-documents/{id}/preview`, `GET /knowledge-documents/{id}/download`, and `GET /knowledge-documents/{id}/content`.
+- `KnowledgeDocumentResponse` now exposes file access links: `contentUrl`, `previewUrl`, and `downloadUrl`, in addition to source/indexing metadata.
 - There is still no documented `GET /users`. User/account lists should use `GET /users/staff`, `GET /users/staff/search`, role counts, `/roles`, and doctor-specific endpoints instead of assuming a generic users list exists.
 - The latest spec confirms `POST /users`, `GET /users/staff`, `GET /users/staff/search`, `GET /roles`, `PUT /users/{userId}/role { roleId }`, and `PATCH /users/{userId}/status/toggle` for admin account/role management.
 - Reports now include `GET /reports` for paged generated-report history, returning `PageResponseReportListItemResponse`.
+- New report draft API: `GET /examinations/{id}/report-draft` returns `ReportDraftResponse` with editable report defaults before PDF generation.
 - `DELETE /permissions/{id}` and `DELETE /features/{id}` return `204 No Content`; `DELETE /patients/{id}` and doctor deactivate endpoints are documented as successful with no useful response body. Do not require JSON parsing after these calls.
 - `PUT /notifications/{id}/read` returns `text/plain`, while `PUT /notifications/read-all` returns `{ updatedCount }`.
 - Current exam counters remain split between `GET /examinations/total*` with required `userId` and current-user counters `GET /examinations/my-total*`; do not mix the two flows.
@@ -34,7 +38,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - New daily chart endpoint: `GET /examinations/stats/daily-last-7-days`, returning `DailyStatDto[]`.
 - AI chat supports `POST /chat/ask`, request `{ question, sessionId? }`, response `ChatAnswerResponse` with `sessionId`, `messageId`, `route`, `answer`, `sources`, `warning`, `generatedAt`, and `tokensUsed`.
 - New AI chat session endpoints are documented: `GET|POST /chat/sessions`, `PATCH /chat/sessions/{sessionId}`, and `GET /chat/sessions/{sessionId}/messages`.
-- New medical knowledge endpoints under `/knowledge-documents` support listing documents, single/batch upload, URL registration, report sync, reindex, and delete.
+- Medical knowledge endpoints under `/knowledge-documents` support listing documents, single/batch upload, URL registration, report sync, reindex, original-file preview/download, extracted-text content, and delete.
 - Knowledge indexing upload/reindex/sync endpoints use `202 Accepted` when the document is queued for asynchronous indexing.
 - Examination status filter enum is `AI_PROCESSING`, `AI_FAILED`, `NEED_VERIFY`, `VERIFIED`, `REPORT_GENERATED`.
 - Examination responses now include richer clinical/report fields: `studyTime`, `visitTime`, `chiefComplaint`, `clinicalNotes`, `priority`, `finalDiagnosis`, `description`, `patient`, `doctorId`, `images`, `isViewed`, and `maxPredictedGrade`.
@@ -43,6 +47,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - New diagnosis review flow is documented: `PUT /ai/results/{aiResultId}/confirm` and `PUT /ai/results/{aiResultId}/kl-grade` return `DiagnosisReviewResponse`.
 - New/confirmed image endpoint: `GET /ai/image/{imageId}` for clinical/ROI/annotated images, beside `GET /ai/heatmap/{aiResultId}` and `GET /dicom/instances/{id}/image`.
 - Report generation returns `ReportResponse`: `POST /examinations/{id}/generate-report`; preview/download use examination id via `/reports/{examinationId}/preview|download`.
+- Report generation can accept `GenerateReportRequest` to override draft fields: `documentNumber`, `attemptNumber`, patient demographics, `findings[]`, `conclusion`, `signaturePlace`, and `signatureDate`.
 - Doctors now support profile editing and avatar upload through `GET|PUT /doctors/profile` and `PUT /doctors/profile/avatar`.
 - Users now expose count helpers: `GET /users/count/doctors` and `GET /users/count/heads`.
 - User status can be toggled with `PATCH /users/{userId}/status/toggle`; request body is `ToggleStatusRequest { inactiveReason? }`, response is `UserResponse`.
@@ -63,6 +68,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 
 - `ApiConstants` is aligned with the v1 spec for auth, DICOM, AI, AI chat, medical knowledge, reports, notifications, permissions, users, doctors, roles, and examinations.
 - `ApiConstants` includes `staffUsersSearchEndpoint`, `userStatusToggleEndpoint(userId)`, and `generatedReportsEndpoint` for the documented staff-search/status-toggle/report-list flows.
+- `ApiConstants` includes `knowledgeDocumentPreviewEndpoint(id)`, `knowledgeDocumentDownloadEndpoint(id)`, and `knowledgeDocumentContentEndpoint(id)` for the newly documented knowledge-document file/text access APIs.
 - Use `ApiConstants.aiImageEndpoint(imageId)` if the UI needs to render ROI/clinical/annotated images by image id.
 - `DoctorProfileRemoteDataSource` already supports `PUT /doctors/profile/avatar`; use `ApiConstants.avatarUploadEndpoint` only for the standalone `POST /files/upload-avatar` utility endpoint.
 - Add frontend validation for doctor `fullName` before create/edit/profile update: allow letters and spaces only, and avoid punctuation or numeric suffixes that backend now rejects.
@@ -70,6 +76,7 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - Add create/update/delete patient methods in `PatientRemoteDataSource` if patient management screens need them. Current patient datasource only fetches the paged list.
 - Update `PatientModel.fromJson` to fall back from `patientCode` to `patient_id`; the new response may include both, but existing parser currently ignores `patient_id`.
 - Add patient upload-date filter support for `GET /patients/filter/upload-date` if the patient list has upload-date filtering.
+- Add examination advanced-filter support for `GET /examinations/filter` if the exam list needs combined status/grade/personal filters instead of calling separate filter endpoints.
 - Doctor patient and examination lists must include `isPersonal=true` on supported endpoints so backend scopes data to the logged-in doctor.
 - Examination image parsing now keeps `aiAnalysisStatus` and `aiErrorMessage`; show `FAILED` as an AI failure state with the backend error message instead of a processing state.
 - Use `confirmedGrade` or `effectiveGrade` for final clinical display when available. `predictedGrade` alone is no longer enough after doctor review.
@@ -80,11 +87,12 @@ Keep endpoint paths centralized in `ApiConstants`. Datasources should own HTTP c
 - `CreateDoctorRequest` only requires `fullName`, `email`, and `phone`; optional fields `yearsOfExperience`, `degree`, and `biography` can be added to the create/edit UI without contract changes.
 - Error handling should parse standard `ErrorResponse.message` for `400`, `401`, `403`, `415`, `423`, and `500`. Keep the special first-time-login branch for `FIRST_TIME_LOGIN_REQUIRED`.
 - Add a notification datasource method for `PUT /notifications/read-all` if the notification panel needs a "mark all as read" action. Parse `updatedCount` and refresh unread count/list after success.
-- AI chat is wired through `ChatRemoteDataSource` and `ChatViewModel`. Knowledge document constants exist; add a remote datasource when the admin document list needs real backend data.
+- AI chat is wired through `ChatRemoteDataSource` and `ChatViewModel`. Knowledge document list/upload/batch/delete is wired through `KnowledgeDocumentRemoteDataSource`; add preview/download/content calls when the admin document page needs file viewing or extracted-text inspection.
 - Add chat session/message datasource methods when the floating AI chat should persist conversation history: create/list/update sessions and page through messages.
 - Add admin user role update UI/API call if role assignment is managed from the user list instead of only permission-role mapping.
 - Add admin user status-toggle UI/API call if activation/deactivation is managed from the staff account list.
 - Add generated report list models/datasource if the app needs a report archive screen. `ReportListItemResponse` includes examination, patient, doctor, file, preview, and download metadata.
+- Add a report-draft model/datasource if the app needs an editable report form before export. Use `ApiConstants.examinationReportDraftEndpoint(id)`.
 
 ## Authentication
 
@@ -141,7 +149,9 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 | `GET` | `/examinations` | Paginated examination list | `PageResponseExaminationDto` |
 | `GET` | `/examinations/{id}` | Get examination by id | `ExaminationDto` |
 | `PUT` | `/examinations/{id}/view` | Mark examination as viewed | `200 OK` |
+| `GET` | `/examinations/{id}/report-draft` | Get editable report draft/defaults for an examination | `ReportDraftResponse` |
 | `POST` | `/examinations/{id}/generate-report` | Generate PDF report | `ReportResponse` |
+| `GET` | `/examinations/filter` | Dynamic multi-condition filter with optional `statuses`, `grades`, `isPersonal`, required pageable query | `PageResponseExaminationDto` |
 | `GET` | `/examinations/patient/{patientId}` | Get examinations by patient | `ExaminationDto[]` or paged response |
 | `GET` | `/examinations/patient/{patientId}/filter/study-month` | Filter patient examinations by study month | `PageResponseExaminationDto` |
 | `GET` | `/examinations/doctor/{doctorId}` | Get examinations by doctor | `PageResponseExaminationDto` |
@@ -214,6 +224,9 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 | `POST` | `/knowledge-documents/url` | Register a URL as a knowledge source | `KnowledgeUrlRequest` with `title`, `url`, optional `accessScope` | `202 Accepted`, `KnowledgeDocumentResponse` |
 | `POST` | `/knowledge-documents/{id}/reindex` | Queue an existing knowledge document for indexing again | path `id` | `202 Accepted`, `KnowledgeDocumentResponse` |
 | `POST` | `/knowledge-documents/reports/{reportId}/sync` | Queue an approved report as a knowledge source | path `reportId` | `202 Accepted`, `KnowledgeDocumentResponse` |
+| `GET` | `/knowledge-documents/{id}/preview` | Read the original stored knowledge file inline in the browser | path `id` | binary `application/octet-stream` |
+| `GET` | `/knowledge-documents/{id}/download` | Download the original stored knowledge file | path `id` | binary `application/octet-stream` |
+| `GET` | `/knowledge-documents/{id}/content` | Extract and return plain text from a PDF, DOC, DOCX, TXT, or URL source | path `id` | `text/plain` |
 | `DELETE` | `/knowledge-documents/{id}` | Delete a knowledge document and indexed content | path `id` | `204 No Content` |
 
 `ChatAnswerResponse` fields: `sessionId`, `messageId`, `route`, `answer`, `sources`, `warning`, `generatedAt`, `tokensUsed`.
@@ -224,7 +237,7 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 
 `ChatMessageResponse` fields: `id`, `sessionId`, `role`, `content`, `route`, `tokensUsed`, `createdAt`.
 
-`KnowledgeDocumentResponse` fields: `id`, `title`, `sourceType`, `sourceUrl`, `originalName`, `accessScope`, `status`, `chunkCount`, `errorMessage`, `createdAt`, `indexedAt`.
+`KnowledgeDocumentResponse` fields: `id`, `title`, `sourceType`, `sourceUrl`, `originalName`, `contentUrl`, `previewUrl`, `downloadUrl`, `accessScope`, `status`, `chunkCount`, `errorMessage`, `createdAt`, `indexedAt`.
 
 `KnowledgeUrlRequest.accessScope` enum: `ALL`, `DOCTOR`, `ADMIN`, `OWNER`.
 
@@ -235,21 +248,28 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 | `GET` | `/permissions/tree` | Get permission catalog tree | permission tree |
 | `POST` | `/permissions` | Create permission | `PermissionResponse` |
 | `PUT` | `/permissions/{id}` | Update permission | `PermissionResponse` |
-| `DELETE` | `/permissions/{id}` | Delete permission | `200 OK` |
+| `DELETE` | `/permissions/{id}` | Delete permission | `204 No Content` |
 | `GET` | `/permissions/role/{roleName}` | Get permission ids for role | `int64[]` |
 | `PUT` | `/permissions/role/{roleName}` | Replace role permissions | `200 OK` |
 | `POST` | `/features` | Create feature | `FeatureResponse` |
 | `PUT` | `/features/{id}` | Update feature | `FeatureResponse` |
-| `DELETE` | `/features/{id}` | Delete feature | `200 OK` |
+| `DELETE` | `/features/{id}` | Delete feature | `204 No Content` |
 
 ## Reports
 
 | Method | Path | Purpose | Response |
 | --- | --- | --- | --- |
 | `GET` | `/reports` | Get paged generated report history | `PageResponseReportListItemResponse` |
+| `GET` | `/examinations/{id}/report-draft` | Get editable report draft/defaults for an examination | `ReportDraftResponse` |
 | `POST` | `/examinations/{id}/generate-report` | Generate/export PDF report for an examination | `ReportResponse` |
 | `GET` | `/reports/{examinationId}/preview` | Preview generated PDF report for an examination | binary PDF |
 | `GET` | `/reports/{examinationId}/download` | Download generated PDF report for an examination | binary PDF |
+
+`ReportDraftResponse` fields: `examinationId`, `patientCode`, `ministryName`, `hospitalName`, `departmentName`, `formCode`, `clinicalDepartment`, `doctorName`, `leftKlGrade`, `rightKlGrade`, `documentNumber`, `attemptNumber`, `patientName`, `age`, `gender`, `address`, `findings`, `conclusion`, `signaturePlace`, `signatureDate`.
+
+`GenerateReportRequest` fields are optional overrides for PDF generation: `documentNumber`, `attemptNumber`, `patientName`, `age`, `gender`, `address`, `findings`, `conclusion`, `signaturePlace`, `signatureDate`.
+
+Runtime note: backend currently expects `signatureDate` in `dd/MM/yyyy` form such as `25/08/2026`, even though the OpenAPI schema marks it as `format: date`.
 
 `ReportResponse` fields: `reportId`, `examinationId`, `fileName`, `fileSize`, `contentType`, `generatedAt`, `previewUrl`, `downloadUrl`.
 
@@ -257,9 +277,10 @@ Password validation for `newPassword`: length 8-32, at least one uppercase lette
 
 Export report flow:
 
-1. Call `POST /examinations/{id}/generate-report` with the examination id.
-2. Store or use the returned `ReportResponse`.
-3. Call `GET /reports/{examinationId}/preview` for in-app preview, or `GET /reports/{examinationId}/download` for file download.
+1. Optional: call `GET /examinations/{id}/report-draft` to prefill an editable report form.
+2. Call `POST /examinations/{id}/generate-report` with the examination id and optional `GenerateReportRequest` body.
+3. Store or use the returned `ReportResponse`.
+4. Call `GET /reports/{examinationId}/preview` for in-app preview, or `GET /reports/{examinationId}/download` for file download.
 
 ## Notifications And Audit
 

@@ -69,10 +69,10 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
         return PermissionCatalogModel.fromJson(data);
       }
 
-      throw Exception('Loi tai danh sach quyen (${response.statusCode})');
+      throw Exception('Lỗi tải danh sách quyền (${response.statusCode})');
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Loi ket noi: $e');
+      throw Exception('Lỗi kết nối: $e');
     }
   }
 
@@ -94,7 +94,7 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return _parseFeatureResponse(response.bodyBytes, fallback: payload);
     }
-    throw Exception('Loi tao feature (${response.statusCode})');
+    throw Exception('Lỗi tạo tính năng (${response.statusCode})');
   }
 
   @override
@@ -119,7 +119,7 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
         fallback: {...payload, 'id': id},
       );
     }
-    throw Exception('Loi cap nhat feature (${response.statusCode})');
+    throw Exception('Lỗi cập nhật tính năng (${response.statusCode})');
   }
 
   @override
@@ -168,7 +168,7 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return _parsePermissionResponse(response.bodyBytes, fallback: payload);
     }
-    throw Exception('Loi tao permission (${response.statusCode})');
+    throw Exception('Lỗi tạo quyền (${response.statusCode})');
   }
 
   @override
@@ -208,7 +208,7 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
         fallback: {...payload, 'id': id},
       );
     }
-    throw Exception('Loi cap nhat permission (${response.statusCode})');
+    throw Exception('Lỗi cập nhật quyền (${response.statusCode})');
   }
 
   @override
@@ -232,7 +232,7 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
 
       if (rolesResponse.statusCode != 200) {
         throw Exception(
-          'Loi tai danh sach vai tro (${rolesResponse.statusCode})',
+          'Lỗi tải danh sách vai trò (${rolesResponse.statusCode})',
         );
       }
 
@@ -258,7 +258,7 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
 
         if (response.statusCode != 200) {
           throw Exception(
-            'Loi tai quyen vai tro $roleName (${response.statusCode})',
+            'Lỗi tải quyền vai trò $roleName (${response.statusCode})',
           );
         }
 
@@ -276,7 +276,7 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
       return hydratedRoles;
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Loi ket noi: $e');
+      throw Exception('Lỗi kết nối: $e');
     }
   }
 
@@ -298,7 +298,7 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
     if (data is Map && data['content'] is List) return data['content'] as List;
     if (data is Map && data['data'] is List) return data['data'] as List;
     if (data is Map && data['roles'] is List) return data['roles'] as List;
-    throw Exception('Dinh dang danh sach vai tro khong hop le');
+    throw Exception('Định dạng danh sách vai trò không hợp lệ');
   }
 
   String _rolePathKey(RoleModel role) {
@@ -364,10 +364,10 @@ class PermissionRemoteDataSourceImpl implements PermissionRemoteDataSource {
         );
       }
 
-      throw Exception('Loi cap nhat quyen (${response.statusCode})');
+      throw Exception('Lỗi cập nhật quyền (${response.statusCode})');
     } catch (e) {
       if (e is Exception) rethrow;
-      throw Exception('Loi ket noi: $e');
+      throw Exception('Lỗi kết nối: $e');
     }
   }
 }
